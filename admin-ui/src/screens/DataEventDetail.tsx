@@ -146,7 +146,7 @@ export function DataEventDetail(): JSX.Element {
           </DefRow>
           {r.enrollmentId && (
             <DefRow label="Enrollment">
-              <span className="ea-mono" style={{ fontSize: 11 }}>
+              <span className="ea-mono ea-text-2xs">
                 {r.enrollmentId}
               </span>
             </DefRow>
@@ -177,7 +177,7 @@ export function DataEventDetail(): JSX.Element {
             </span>
           </DefRow>
           <DefRow label="Event ID">
-            <span className="ea-mono" style={{ fontSize: 11 }}>{r.eventId}</span>
+            <span className="ea-mono ea-text-2xs">{r.eventId}</span>
           </DefRow>
         </dl>
       </Panel>
@@ -207,8 +207,8 @@ export function DataEventDetail(): JSX.Element {
                               {dv.dataElementUid}
                             </div>
                           </>
-                        : <span className="ea-mono"
-                                style={{ fontSize: 11 }}>
+                        : <span className="ea-mono ea-text-2xs"
+                                >
                             {dv.dataElementUid}
                           </span>}
                     </td>

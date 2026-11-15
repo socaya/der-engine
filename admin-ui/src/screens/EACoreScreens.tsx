@@ -1513,11 +1513,11 @@ export function EACaptureWorkflowList({ api = edgeApi }:
                         const name = bindingNames[key];
                         return (
                           <>
-                            <span style={{ fontSize: 13 }}>
+                            <span className="ea-text-sm">
                               {name ?? w.boundMetadataId}
                             </span>
-                            <div className="ea-text-muted"
-                                  style={{ fontSize: 11 }}>
+                            <div className="ea-text-muted ea-text-2xs"
+                                  >
                               {w.boundMetadataKind === 'DATA_SET' ? 'Dataset'
                                 : w.boundMetadataKind === 'PROGRAM' ? 'Program'
                                 : w.boundMetadataKind}

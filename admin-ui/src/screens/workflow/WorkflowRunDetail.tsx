@@ -168,7 +168,7 @@ export function WorkflowRunDetail(): JSX.Element {
                   <td className="ea-fw-medium">
                     {s.stepName}
                     {s.state === 'BLOCKED' && s.blockedBy.length > 0 && (
-                      <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                      <div className="ea-text-muted ea-text-2xs">
                         Waiting on:{' '}
                         {s.blockedBy.map((p) => p.stepName ?? p.stepId.slice(0, 8)).join(', ')}
                       </div>
@@ -197,7 +197,7 @@ export function WorkflowRunDetail(): JSX.Element {
       </Panel>
 
       <Panel title="Contributions"
-             action={<span className="ea-text-muted" style={{ fontSize: 11 }}>
+             action={<span className="ea-text-muted ea-text-2xs">
                {detail.steps.filter((s) => s.contribution).length} / {detail.steps.length}
              </span>}>
         {detail.steps.filter((s) => s.contribution).length === 0 ? (
@@ -212,7 +212,7 @@ export function WorkflowRunDetail(): JSX.Element {
                    data-test={`wf-run-contrib-${s.stepId}`}>
                 <div className="ea-wf-run-contrib-head">
                   <span className="ea-wf-run-contrib-step">{s.stepName}</span>
-                  <span className="ea-text-muted" style={{ fontSize: 11 }}>
+                  <span className="ea-text-muted ea-text-2xs">
                     by {s.contribution!.submittedDeviceName ?? 'unknown'} ·
                     {' ' + fmtAgo(s.contribution!.submittedAt)}
                   </span>
@@ -229,7 +229,7 @@ export function WorkflowRunDetail(): JSX.Element {
 
       {detail.issues.length > 0 && (
         <Panel title="Issues"
-               action={<span className="ea-text-muted" style={{ fontSize: 11 }}>
+               action={<span className="ea-text-muted ea-text-2xs">
                  {detail.issues.length} issue{detail.issues.length === 1 ? '' : 's'}
                </span>}>
           <div className="ea-table-wrap">
@@ -255,7 +255,7 @@ export function WorkflowRunDetail(): JSX.Element {
                     </td>
                     <td>{i.message}</td>
                     <td className="ea-text-muted">{i.stepName ?? '—'}</td>
-                    <td className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>
+                    <td className="ea-text-muted ea-mono ea-text-2xs">
                       {i.fieldRef ?? '—'}
                     </td>
                     <td className="ea-text-muted" title={i.detectedAt}>
@@ -271,7 +271,7 @@ export function WorkflowRunDetail(): JSX.Element {
 
       {detail.conflicts.length > 0 && (
         <Panel title="Conflicts"
-               action={<span className="ea-text-muted" style={{ fontSize: 11 }}>
+               action={<span className="ea-text-muted ea-text-2xs">
                  {detail.conflicts.length} conflict{detail.conflicts.length === 1 ? '' : 's'}
                </span>}>
           <div className="ea-table-wrap">
@@ -289,7 +289,7 @@ export function WorkflowRunDetail(): JSX.Element {
                 {detail.conflicts.map((c) => (
                   <tr key={c.conflictId}>
                     <td>{c.category}</td>
-                    <td className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>
+                    <td className="ea-text-muted ea-mono ea-text-2xs">
                       {c.identityKey}
                     </td>
                     <td>
@@ -497,13 +497,13 @@ function OutboundBundlePanel({ runId }: { runId: string }): JSX.Element {
                     {o.entityType}
                   </span>
                 </td>
-                <td className="ea-mono" style={{ fontSize: 11 }}
+                <td className="ea-mono ea-text-2xs"
                     title={o.entityRef}>
                   {o.entityRef.length > 24
                     ? o.entityRef.slice(0, 22) + '…'
                     : o.entityRef}
                 </td>
-                <td className="ea-mono" style={{ fontSize: 11 }}>
+                <td className="ea-mono ea-text-2xs">
                   {o.endpoint ?? '—'}
                 </td>
                 <td>
@@ -518,7 +518,7 @@ function OutboundBundlePanel({ runId }: { runId: string }): JSX.Element {
                               fontVariantNumeric: 'tabular-nums' }}>
                   {o.attemptCount}
                 </td>
-                <td className="ea-text-muted" style={{ fontSize: 11 }}
+                <td className="ea-text-muted ea-text-2xs"
                     title={o.updatedAt ?? ''}>
                   {o.updatedAt ? fmtAgo(o.updatedAt) : '—'}
                 </td>

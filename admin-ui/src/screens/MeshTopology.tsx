@@ -191,7 +191,7 @@ export function MeshTopology(): JSX.Element {
                 {adjacency.map((a) => (
                   <tr key={a.localPeerId + a.reachableEdge}>
                     <td className="ea-mono ea-text-xs">{a.localNodeId}</td>
-                    <td className="ea-mono" style={{ fontSize: 11 }} title={a.reachableEdge}>
+                    <td className="ea-mono ea-text-2xs" title={a.reachableEdge}>
                       {a.reachableEdge.slice(0, 24)}…
                     </td>
                     <td className="ea-mono">{a.hops}</td>

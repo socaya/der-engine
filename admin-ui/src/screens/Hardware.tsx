@@ -278,7 +278,7 @@ export function Hardware(): JSX.Element {
                 {data.sealedSecrets.map((s) => (
                   <tr key={s.secretId}>
                     <td className="ea-mono">{s.secretId}</td>
-                    <td className="ea-mono" style={{ fontSize: 11 }}>{s.algorithm}</td>
+                    <td className="ea-mono ea-text-2xs">{s.algorithm}</td>
                     <td className="ea-text-muted">{fmtAgo(s.sealedAt)}</td>
                     <td className="ea-mono">{s.unsealCount}</td>
                     <td className="ea-text-muted">

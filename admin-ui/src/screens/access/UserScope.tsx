@@ -146,8 +146,8 @@ export function UserScope(): JSX.Element {
                         <div className="ea-fw-medium">
                           {u.displayName || u.username}
                         </div>
-                        <div className="ea-text-muted ea-mono"
-                             style={{ fontSize: 11 }}>
+                        <div className="ea-text-muted ea-mono ea-text-2xs"
+                             >
                           @{u.username}
                         </div>
                       </td>

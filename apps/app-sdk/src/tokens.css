@@ -119,6 +119,7 @@
   --der-font-mono: ui-monospace, SFMono-Regular, 'JetBrains Mono',
                     Menlo, Consolas, monospace;
 
+  --fs-2xs:  11px;  /* dense table metadata, uppercase micro-labels */
   --fs-xs:   12px;  /* micro / helper */
   --fs-sm:   13px;  /* meta, table headers */
   --fs-md:   14px;  /* canonical body */

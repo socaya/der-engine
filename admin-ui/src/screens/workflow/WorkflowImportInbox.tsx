@@ -273,7 +273,7 @@ function InboxDiffBlock({ diff }: { diff: edgeApi.ImportInboxDiff }): JSX.Elemen
   if (diff.summary === 'NEW_WORKFLOW') {
     return (
       <div data-test="inbox-diff-new">
-        <strong style={{ fontSize: 13 }}>New workflow — nothing to compare against on this edge.</strong>
+        <strong className="ea-text-sm">New workflow — nothing to compare against on this edge.</strong>
         <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2 }}>
           Incoming: {diff.incoming.displayName} · {diff.incoming.boundKind}:{diff.incoming.boundId}
           · {diff.incoming.stepCount} step{diff.incoming.stepCount === 1 ? '' : 's'}
@@ -284,7 +284,7 @@ function InboxDiffBlock({ diff }: { diff: edgeApi.ImportInboxDiff }): JSX.Elemen
   if (diff.summary === 'NO_CHANGES') {
     return (
       <div data-test="inbox-diff-nochange">
-        <strong style={{ fontSize: 13 }}>No changes — step shape identical to the local workflow.</strong>
+        <strong className="ea-text-sm">No changes — step shape identical to the local workflow.</strong>
         <div className="ea-text-muted" style={{ fontSize: 12, marginTop: 2 }}>
           Matched via {diff.matchStrategy.toLowerCase().replace('_', ' ')}.
         </div>
@@ -335,7 +335,7 @@ function InboxDiffBlock({ diff }: { diff: edgeApi.ImportInboxDiff }): JSX.Elemen
             {(diff.changed ?? []).map((c) => (
               <li key={c.ordinal}>
                 <strong>#{c.ordinal}</strong>{' '}
-                <code className="ea-mono" style={{ fontSize: 11 }}>
+                <code className="ea-mono ea-text-2xs">
                   {c.local.displayName} → {c.incoming.displayName}
                 </code>
                 <span className="ea-text-muted" style={{ marginLeft: 6, fontSize: 11 }}>

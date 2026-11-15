@@ -131,7 +131,7 @@ export function DataManagement(): JSX.Element {
                     <UiIcon icon={entityTypeIcon(r.typeKey)} size={18} />
                   </td>
                   <td className="ea-fw-medium">{r.type}</td>
-                  <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{r.typeKey}</td>
+                  <td className="ea-text-muted ea-mono ea-text-sm">{r.typeKey}</td>
                   <td className="ea-mono">{r.values.toLocaleString()}</td>
                   <td>
                     {r.pending === 0 ? (

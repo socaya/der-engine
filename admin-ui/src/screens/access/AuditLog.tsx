@@ -115,7 +115,7 @@ export function AuditEvents(): JSX.Element {
                       <td className="ea-mono">{fmtDate(e.observedAt)}</td>
                       <td className="ea-fw-medium">{e.eventType}</td>
                       <td className="ea-mono ea-text-muted">{e.interfaceName ?? '—'}</td>
-                      <td className="ea-mono ea-text-muted" style={{ fontSize: 13 }}>
+                      <td className="ea-mono ea-text-muted ea-text-sm">
                         {e.deviceId ?? e.nodeId ?? '—'}
                       </td>
                       <td className="ea-mono ea-text-muted">{e.actor ?? '—'}</td>
@@ -456,12 +456,12 @@ export function SecurityAuditTrail(): JSX.Element {
                             {e.outcome}
                           </Status>
                         </td>
-                        <td className="ea-mono ea-text-muted"
-                            style={{ fontSize: 11 }}>
+                        <td className="ea-mono ea-text-muted ea-text-2xs"
+                            >
                           {e.actorUserId?.slice(0, 8) ?? '—'}
                         </td>
-                        <td className="ea-mono ea-text-muted"
-                            style={{ fontSize: 11 }}>
+                        <td className="ea-mono ea-text-muted ea-text-2xs"
+                            >
                           {e.subjectUserId?.slice(0, 8) ?? '—'}
                         </td>
                         <td className="ea-mono ea-text-muted ea-text-xs">

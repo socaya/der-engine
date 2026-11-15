@@ -98,8 +98,8 @@ export function DeviceFleet(): JSX.Element {
                     <div style={{ fontWeight: r.displayName ? 500 : 400 }}>
                       {r.displayName ?? <em className="ea-text-muted">unnamed</em>}
                     </div>
-                    <div className="ea-text-muted ea-mono"
-                         style={{ fontSize: 11 }} title={r.deviceId}>
+                    <div className="ea-text-muted ea-mono ea-text-2xs"
+                          title={r.deviceId}>
                       {r.deviceId.slice(0, 12)}…
                     </div>
                   </td>

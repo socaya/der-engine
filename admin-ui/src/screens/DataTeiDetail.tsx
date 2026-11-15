@@ -177,7 +177,7 @@ export function DataTeiDetail(): JSX.Element {
               kind={t.workflowKind} />
           </DefRow>
           <DefRow label="DHIS2 UID">
-            <span className="ea-mono" style={{ fontSize: 11 }}>{t.teiUid}</span>
+            <span className="ea-mono ea-text-2xs">{t.teiUid}</span>
           </DefRow>
           <DefRow label="Timeline">
             <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap',
@@ -226,7 +226,7 @@ export function DataTeiDetail(): JSX.Element {
               <tbody>
                 {attrEntries.map(([k, v]) => (
                   <tr key={k}>
-                    <td className="ea-mono" style={{ fontSize: 11 }}>{k}</td>
+                    <td className="ea-mono ea-text-2xs">{k}</td>
                     <td>{v}</td>
                   </tr>
                 ))}
@@ -257,7 +257,7 @@ export function DataTeiDetail(): JSX.Element {
               <tbody>
                 {detail.enrolments.map((e) => (
                   <tr key={e.enrollmentUid}>
-                    <td className="ea-mono" style={{ fontSize: 11 }}>
+                    <td className="ea-mono ea-text-2xs">
                       {e.enrollmentUid}
                     </td>
                     <td>
@@ -269,8 +269,8 @@ export function DataTeiDetail(): JSX.Element {
                               {e.programUid}
                             </div>
                           </>
-                        : <span className="ea-mono"
-                                style={{ fontSize: 11 }}>
+                        : <span className="ea-mono ea-text-2xs"
+                                >
                             {e.programUid}
                           </span>}
                     </td>
@@ -280,10 +280,10 @@ export function DataTeiDetail(): JSX.Element {
                         {e.status}
                       </span>
                     </td>
-                    <td className="ea-mono" style={{ fontSize: 11 }}>
+                    <td className="ea-mono ea-text-2xs">
                       {e.enrollmentDate ?? '—'}
                     </td>
-                    <td className="ea-mono" style={{ fontSize: 11 }}>
+                    <td className="ea-mono ea-text-2xs">
                       {e.incidentDate ?? '—'}
                     </td>
                     <td>
@@ -327,18 +327,18 @@ export function DataTeiDetail(): JSX.Element {
               <tbody>
                 {detail.trackerEvents.map((e) => (
                   <tr key={e.eventUid}>
-                    <td className="ea-mono" style={{ fontSize: 11 }}>
+                    <td className="ea-mono ea-text-2xs">
                       {e.eventUid}
                     </td>
                     <td>
                       <div className="ea-fw-medium">
                         {e.programName ?? e.programUid}
                       </div>
-                      <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                      <div className="ea-text-muted ea-text-2xs">
                         {e.programStageName ?? e.programStageUid}
                       </div>
                     </td>
-                    <td className="ea-mono" style={{ fontSize: 11 }}>
+                    <td className="ea-mono ea-text-2xs">
                       {e.enrollmentUid ?? '—'}
                     </td>
                     <td>
@@ -347,7 +347,7 @@ export function DataTeiDetail(): JSX.Element {
                         {e.status}
                       </span>
                     </td>
-                    <td className="ea-mono" style={{ fontSize: 11 }}>
+                    <td className="ea-mono ea-text-2xs">
                       {e.occurredDate ?? '—'}
                     </td>
                     <td className="ea-text-muted"

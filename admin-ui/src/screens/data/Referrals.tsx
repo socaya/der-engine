@@ -72,7 +72,7 @@ export function ReferralInbox(): JSX.Element {
                       <UiIcon icon={entityTypeIcon(r.kind)} size={18} />
                     </td>
                     <td className="ea-fw-medium">{entityTypeLabel(r.kind)}</td>
-                    <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{r.sourceRef}</td>
+                    <td className="ea-text-muted ea-mono ea-text-sm">{r.sourceRef}</td>
                     <td className="ea-text-muted"
                         title={fmtDate(r.discoveredAt)}>{fmtAgo(r.discoveredAt)}</td>
                     <td>

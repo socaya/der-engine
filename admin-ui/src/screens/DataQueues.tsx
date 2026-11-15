@@ -217,8 +217,8 @@ export function DataQueues(): JSX.Element {
           <strong>Push data</strong>
           <span style={{ flex: 1 }}>{push.message}</span>
           {(push.state === 'done' || push.state === 'failed' || push.state === 'timeout') && (
-            <button type="button" className="ea-link-btn"
-                    style={{ fontSize: 11 }}
+            <button type="button" className="ea-link-btn ea-text-2xs"
+                    
                     onClick={push.reset}>Dismiss</button>
           )}
         </div>
@@ -303,8 +303,8 @@ export function DataQueues(): JSX.Element {
                       <UiIcon icon={entityTypeIcon(op.entityType)} size={18} />
                     </td>
                     <td className="ea-fw-medium">{entityTypeLabel(op.entityType)}</td>
-                    <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{op.entityType}</td>
-                    <td className="ea-mono" style={{ fontSize: 13 }}>{op.entityRef}</td>
+                    <td className="ea-text-muted ea-mono ea-text-sm">{op.entityType}</td>
+                    <td className="ea-mono ea-text-sm">{op.entityRef}</td>
                     <td className="ea-text-muted"
                         title={fmtDate(op.createdAt)}>{fmtAgo(op.createdAt)}</td>
                     <td>
@@ -436,7 +436,7 @@ export function DataDetail(): JSX.Element {
               <div className="ea-def-row"><dt>Retry count</dt>
                 <dd className="ea-mono">{op.attemptCount}</dd></div>
               <div className="ea-def-row"><dt>Operation ID</dt>
-                <dd className="ea-mono" style={{ fontSize: 11 }}>{op.operationId}</dd></div>
+                <dd className="ea-mono ea-text-2xs">{op.operationId}</dd></div>
             </dl>
           </Panel>
 
@@ -559,7 +559,7 @@ function ResponseSummary({ parsed, raw, isError }: {
         )}
       </dl>
       <div style={{ marginTop: 10 }}>
-        <button type="button" className="ea-link-btn" style={{ fontSize: 11 }}
+        <button type="button" className="ea-link-btn ea-text-2xs"
                 onClick={() => setShowRaw(!showRaw)}>
           {showRaw ? 'Hide full response' : 'Show full response'}
         </button>

@@ -294,7 +294,7 @@ function EventsTable(
                 {r.programName ? (
                   <span className="ea-fw-medium">{r.programName}</span>
                 ) : (
-                  <span className="ea-mono" style={{ fontSize: 11 }}>
+                  <span className="ea-mono ea-text-2xs">
                     {r.programUid}
                   </span>
                 )}
@@ -303,12 +303,12 @@ function EventsTable(
                 {r.programStageName ? (
                   r.programStageName
                 ) : (
-                  <span className="ea-mono" style={{ fontSize: 11 }}>
+                  <span className="ea-mono ea-text-2xs">
                     {r.programStageUid}
                   </span>
                 )}
               </td>
-              <td className="ea-mono" style={{ fontSize: 11 }}
+              <td className="ea-mono ea-text-2xs"
                   title={r.orgUnitUid}>{r.orgUnitUid}</td>
               <td>
                 <span className={`ea-chip ea-chip--${chipToneForStatus(r.status)}`}>

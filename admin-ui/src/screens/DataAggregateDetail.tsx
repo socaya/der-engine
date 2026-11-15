@@ -142,12 +142,12 @@ export function DataAggregateDetail(): JSX.Element {
             <span className="ea-mono">{r.periodIso}</span>
           </DefRow>
           <DefRow label="Category option combo">
-            <span className="ea-mono" style={{ fontSize: 11 }}>
+            <span className="ea-mono ea-text-2xs">
               {r.categoryOptionComboUid}
             </span>
           </DefRow>
           <DefRow label="Attribute option combo">
-            <span className="ea-mono" style={{ fontSize: 11 }}>
+            <span className="ea-mono ea-text-2xs">
               {r.attributeOptionComboUid}
             </span>
           </DefRow>
@@ -167,7 +167,7 @@ export function DataAggregateDetail(): JSX.Element {
               kind={r.workflowKind} />
           </DefRow>
           <DefRow label="Value ID">
-            <span className="ea-mono" style={{ fontSize: 11 }}>{r.valueId}</span>
+            <span className="ea-mono ea-text-2xs">{r.valueId}</span>
           </DefRow>
         </dl>
       </Panel>

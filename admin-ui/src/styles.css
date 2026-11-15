@@ -79,6 +79,7 @@ body{
 .ea-text-muted{color:var(--der-ink-500);font-size:var(--fs-md)}
 .ea-text-right{text-align:right}
 .ea-text-center{text-align:center}
+.ea-text-2xs{font-size:var(--fs-2xs)}
 .ea-text-xs{font-size:var(--fs-xs)}
 .ea-text-sm{font-size:var(--fs-sm)}
 .ea-fw-medium{font-weight:500}

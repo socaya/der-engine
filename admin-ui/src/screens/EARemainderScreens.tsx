@@ -235,7 +235,7 @@ export function EAEvaluationReports({ api = edgeApi }: {
   return (
     <div className="ea-screen">
       <h1 data-test="ea27-heading">Evaluation reports</h1>
-      <p style={{ fontSize: 13 }}>
+      <p className="ea-text-sm">
         <Link to="/reports/operational"
                className="ea-link-btn"
                data-test="ea27-ops-report-link">

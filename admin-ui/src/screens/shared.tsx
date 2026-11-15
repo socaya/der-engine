@@ -1783,10 +1783,9 @@ export function JsonViewer({ value, maxDepth = 2, label }: {
         color: 'var(--der-ink-500)', fontWeight: 600,
       }}>
         <span>{label ?? 'JSON'}</span>
-        <button type="button" className="ea-link-btn"
+        <button type="button" className="ea-link-btn ea-text-2xs"
                 data-test="json-copy"
-                onClick={() => { copy().catch(() => undefined); }}
-                style={{ fontSize: 11 }}>
+                onClick={() => { copy().catch(() => undefined); }}>
           {copied ? 'Copied ✓' : 'Copy'}
         </button>
       </div>

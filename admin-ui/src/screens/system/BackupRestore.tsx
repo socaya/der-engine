@@ -274,7 +274,7 @@ function BackupSectionTab(
       <UiIcon icon={icon} size={14} />
       <span>{label}</span>
       {count != null && count > 0 && (
-        <span className="ea-text-muted" style={{ fontSize: 11 }}>· {count}</span>
+        <span className="ea-text-muted ea-text-2xs">· {count}</span>
       )}
     </button>
   );

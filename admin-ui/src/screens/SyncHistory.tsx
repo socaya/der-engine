@@ -445,14 +445,13 @@ export function SyncHistoryDetail(): JSX.Element {
                           <UiIcon icon={entityTypeIcon(op.entityType)} size={16} />
                         </span>
                         <span className="ea-fw-medium">{entityTypeLabel(op.entityType)}</span>
-                        <span className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>
+                        <span className="ea-text-muted ea-mono ea-text-2xs">
                           {op.entityRef}
                         </span>
                         <span className="ea-chip ea-chip--info" style={{ marginLeft: 'auto' }}>
                           {humaniseState(op.state)}
                         </span>
-                        <Link to={`/data/queue/${op.operationId}`} className="ea-link-btn"
-                              style={{ fontSize: 11 }}>
+                        <Link to={`/data/queue/${op.operationId}`} className="ea-link-btn ea-text-2xs">
                           Open record →
                         </Link>
                       </div>

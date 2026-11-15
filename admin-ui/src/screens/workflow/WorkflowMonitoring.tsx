@@ -381,7 +381,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
       <div hidden={section !== 'attention'}>
       <Panel title="Blockages — review and troubleshoot"
              action={blockages.length > 0
-               ? <span className="ea-text-muted" style={{ fontSize: 11 }}>
+               ? <span className="ea-text-muted ea-text-2xs">
                    {blockages.length} step{blockages.length === 1 ? '' : 's'} waiting
                  </span>
                : undefined}>
@@ -407,7 +407,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                      data-test={`wf-monitor-blocked-${b.stepId}`}>
                   <td className="ea-fw-medium">
                     {b.stepName ?? '—'}
-                    <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                    <div className="ea-text-muted ea-text-2xs">
                       <Link to={`/workflows/${b.workflowId}`}>{b.workflowName ?? '—'}</Link>
                     </div>
                   </td>
@@ -433,7 +433,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
 
       <Panel title="Open issues"
              action={issues.length > 0
-               ? <span className="ea-text-muted" style={{ fontSize: 11 }}>
+               ? <span className="ea-text-muted ea-text-2xs">
                    {issues.length} issue{issues.length === 1 ? '' : 's'}
                  </span>
                : undefined}>
@@ -472,7 +472,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                     <br/>
                     <Link to={`/workflows/${i.workflowId}`}>{i.workflowName ?? '—'}</Link>
                   </td>
-                  <td className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>
+                  <td className="ea-text-muted ea-mono ea-text-2xs">
                     {i.fieldRef ?? '—'}
                   </td>
                   <td className="ea-text-muted" title={i.detectedAt}>
@@ -487,7 +487,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
 
       <Panel title="Pending conflicts"
              action={conflicts.length > 0
-               ? <span className="ea-text-muted" style={{ fontSize: 11 }}>
+               ? <span className="ea-text-muted ea-text-2xs">
                    {conflicts.length} conflict{conflicts.length === 1 ? '' : 's'}
                  </span>
                : undefined}>
@@ -533,7 +533,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
       <div hidden={section !== 'activity'}>
       <Panel title="Draft data captured so far"
              action={drafts.length > 0
-               ? <span className="ea-text-muted" style={{ fontSize: 11 }}>
+               ? <span className="ea-text-muted ea-text-2xs">
                    {drafts.length} contribution{drafts.length === 1 ? '' : 's'} in flight
                  </span>
                : undefined}>
@@ -561,7 +561,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                      data-test={`wf-monitor-draft-${d.contributionId}`}>
                   <td className="ea-fw-medium">
                     {d.stepName ?? '—'}
-                    <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                    <div className="ea-text-muted ea-text-2xs">
                       <Link to={`/workflows/${d.workflowId}`}>{d.workflowName ?? '—'}</Link>
                     </div>
                   </td>
@@ -623,7 +623,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                   </td>
                   <td>
                     <span className="ea-fw-medium">{f.stepName ?? '—'}</span>
-                    <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                    <div className="ea-text-muted ea-text-2xs">
                       <Link to={`/workflows/${f.workflowId}`}>{f.workflowName ?? '—'}</Link>
                       {' · '}
                       <Link to={`/workflows/monitoring/runs/${f.runId}`}

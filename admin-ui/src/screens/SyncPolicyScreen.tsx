@@ -279,10 +279,9 @@ function PolicyRow(
         <strong>{label}</strong>
         <ModeChip mode={effective} />
         {held > 0 && effective === 'PAUSED' && (
-          <span className="ea-chip ea-chip--warning"
+          <span className="ea-chip ea-chip--warning ea-text-2xs"
                 data-test={`sync-policy-held-${row.scope}`}
-                title={`${held} pending row${held === 1 ? '' : 's'} held by this paused scope`}
-                style={{ fontSize: 11 }}>
+                title={`${held} pending row${held === 1 ? '' : 's'} held by this paused scope`}>
             {held} held
           </span>
         )}
@@ -375,8 +374,7 @@ function ModeChip({ mode }: { mode: edgeApi.SyncMode }): JSX.Element {
   const tone = mode === 'INSTANT' ? 'success'
     : mode === 'SCHEDULED' ? 'info' : 'warning';
   return (
-    <span className={`ea-chip ea-chip--${tone}`}
-          style={{ fontSize: 11 }}>
+    <span className={`ea-chip ea-chip--${tone} ea-text-2xs`}>
       {mode[0] + mode.slice(1).toLowerCase()}
     </span>
   );
@@ -404,7 +402,7 @@ function PolicyAuditPanel(
               {entries.map((e) => (
                 <tr key={e.at + e.eventType}
                     data-test={`sync-policy-audit-row-${e.at}`}>
-                  <td className="ea-mono" style={{ fontSize: 11 }}>
+                  <td className="ea-mono ea-text-2xs">
                     {new Date(e.at).toLocaleString()}
                   </td>
                   <td>

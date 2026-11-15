@@ -259,8 +259,7 @@ export function SiteConfig(): JSX.Element {
                   <tr key={k} data-test={`site-row-${k}`}>
                     <td>
                       <div className="ea-fw-medium">{meta.label}</div>
-                      <div className="ea-text-muted ea-mono"
-                           style={{ fontSize: 11 }}>
+                      <div className="ea-text-muted ea-mono ea-text-2xs">
                         {k}
                       </div>
                       {meta.hint && (
@@ -279,7 +278,7 @@ export function SiteConfig(): JSX.Element {
                              onChange={(e) => setDraft(
                                (d) => ({ ...d, [k]: e.target.value }))} />
                       {isDefault && (
-                        <span className="ea-text-muted" style={{ fontSize: 11 }}>
+                        <span className="ea-text-muted ea-text-2xs">
                           (default)
                         </span>
                       )}

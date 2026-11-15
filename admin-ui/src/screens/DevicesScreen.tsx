@@ -227,7 +227,7 @@ export function DevicesScreen(
                         ))}
                       </div>
                     </td>
-                    <td className="ea-mono" style={{ fontSize: 11 }}>
+                    <td className="ea-mono ea-text-2xs">
                       {d.lastSeenAt ? fmtRel(d.lastSeenAt) : '—'}
                     </td>
                     <td className="ea-text-xs">

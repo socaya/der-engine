@@ -271,8 +271,8 @@ export function Metadata(): JSX.Element {
                       onClick={() => navigate(`/dhis2/metadata/${r.resource}/${r.id}`)}
                       data-test={`meta-row-${r.id}`}>
                     <td>{r.name || <span className="ea-text-muted">(unnamed)</span>}</td>
-                    <td className="ea-mono" style={{ fontSize: 13 }}>{r.id}</td>
-                    <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{r.code ?? '—'}</td>
+                    <td className="ea-mono ea-text-sm">{r.id}</td>
+                    <td className="ea-text-muted ea-mono ea-text-sm">{r.code ?? '—'}</td>
                     <td className="ea-text-muted">{r.shortName ?? '—'}</td>
                     <td className="ea-mono">{r.lastUpdated ? fmtDate(r.lastUpdated) : '—'}</td>
                     <td><Dot tone="success" /> mirrored</td>
@@ -509,7 +509,7 @@ function MetadataDetailTabs({ sel, tab, setTab }: {
                       {r.id}
                     </Link>
                   ) : (
-                    <span className="ea-mono" style={{ fontSize: 11 }}>
+                    <span className="ea-mono ea-text-2xs">
                       {r.id}
                     </span>
                   );
@@ -556,8 +556,8 @@ function MetadataDetailTabs({ sel, tab, setTab }: {
                 {rules.map((r, i) => (
                   <tr key={i}>
                     <td>
-                      <span className="ea-chip ea-chip--neutral"
-                            style={{ fontSize: 11 }}>
+                      <span className="ea-chip ea-chip--neutral ea-text-2xs"
+                            >
                         {r.kind}
                       </span>
                     </td>

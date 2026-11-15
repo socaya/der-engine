@@ -99,7 +99,7 @@ export function SnapshotList({ api = edgeApi }:
                 <td>
                   <strong>#{s.snapshotId}</strong>
                   {s.fingerprint && (
-                    <div className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>
+                    <div className="ea-text-muted ea-mono ea-text-2xs">
                       {s.fingerprint.slice(0, 12)}…
                     </div>
                   )}

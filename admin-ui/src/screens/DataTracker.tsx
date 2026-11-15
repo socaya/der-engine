@@ -340,7 +340,7 @@ function TrackerTable(
                   {r.kind}
                 </span>
               </td>
-              <td className="ea-mono" style={{ fontSize: 11 }}
+              <td className="ea-mono ea-text-2xs"
                   title={r.rowId}>
                 {r.rowId}
               </td>
@@ -367,19 +367,19 @@ function TrackerTable(
                   <>
                     <div className="ea-fw-medium">{r.programName}</div>
                     {r.programStageName && (
-                      <div className="ea-text-muted"
-                           style={{ fontSize: 11 }}>
+                      <div className="ea-text-muted ea-text-2xs"
+                           >
                         {r.programStageName}
                       </div>
                     )}
                   </>
                 ) : (
-                  <span className="ea-mono" style={{ fontSize: 11 }}>
+                  <span className="ea-mono ea-text-2xs">
                     {r.programUid ?? '—'}
                   </span>
                 )}
               </td>
-              <td className="ea-mono" style={{ fontSize: 11 }}
+              <td className="ea-mono ea-text-2xs"
                   title={r.orgUnitUid ?? ''}>
                 {r.orgUnitUid}
               </td>

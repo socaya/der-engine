@@ -223,7 +223,7 @@ export function DeviceMessaging(): JSX.Element {
                         title={k.x25519PublicKeyBase64}>
                       {k.x25519PublicKeyBase64.slice(0, 20)}…
                     </td>
-                    <td className="ea-mono" style={{ fontSize: 11 }}>
+                    <td className="ea-mono ea-text-2xs">
                       {k.ed25519PublicKeyBase64
                         ? k.ed25519PublicKeyBase64.slice(0, 20) + '…'
                         : '—'}

@@ -229,8 +229,7 @@ function ProgressRow({ label, state, message, onDismiss }: {
       <strong>{label}</strong>
       <span style={{ flex: 1 }}>{message}</span>
       {onDismiss && (
-        <button type="button" className="ea-link-btn"
-                style={{ fontSize: 11 }}
+        <button type="button" className="ea-link-btn ea-text-2xs"
                 onClick={onDismiss}>Dismiss</button>
       )}
     </div>

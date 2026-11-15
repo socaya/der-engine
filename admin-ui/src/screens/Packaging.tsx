@@ -139,13 +139,13 @@ export function Packaging(): JSX.Element {
                     <td className="ea-mono">{a.version}</td>
                     <td className="ea-mono">{a.arch || '—'}</td>
                     <td className="ea-mono">{fmtSize(a.sizeBytes)}</td>
-                    <td className="ea-mono" style={{ fontSize: 11 }} title={a.sha256}>
+                    <td className="ea-mono ea-text-2xs" title={a.sha256}>
                       {a.sha256.slice(0, 12)}…
                     </td>
-                    <td className="ea-mono" style={{ fontSize: 11 }}>
+                    <td className="ea-mono ea-text-2xs">
                       {a.sourceCommit ? a.sourceCommit.slice(0, 8) : '—'}
                     </td>
-                    <td className="ea-mono" style={{ fontSize: 11 }}>{a.outputPath}</td>
+                    <td className="ea-mono ea-text-2xs">{a.outputPath}</td>
                     <td className="ea-mono ea-text-xs">{a.builtBy ?? '—'}</td>
                   </tr>
                 ))}

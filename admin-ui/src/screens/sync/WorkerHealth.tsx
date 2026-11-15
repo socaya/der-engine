@@ -65,8 +65,7 @@ export function WorkerHealthScreen(): JSX.Element {
                     {attention.toLocaleString()}
                   </strong>
                   {' '}·{' '}
-                  <Link to="/sync/attention" className="ea-link-btn"
-                        style={{ fontSize: 11 }}
+                  <Link to="/sync/attention" className="ea-link-btn ea-text-2xs"
                         title="Open attention queue in Sync module"
                         data-cross-module="Sync">
                     Sync › Open attention →

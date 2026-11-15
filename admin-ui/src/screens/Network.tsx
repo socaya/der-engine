@@ -224,7 +224,7 @@ export function NetworkOverview(): JSX.Element {
                     <td className="ea-mono">{fmtAgo(e.observedAt)}</td>
                     <td className="ea-fw-medium">{humaniseEventType(e.eventType)}</td>
                     <td className="ea-mono ea-text-muted">{e.interfaceName ?? '—'}</td>
-                    <td className="ea-mono ea-text-muted" style={{ fontSize: 13 }}>
+                    <td className="ea-mono ea-text-muted ea-text-sm">
                       {e.deviceId ?? e.nodeId ?? '—'}
                     </td>
                     <td className="ea-mono ea-text-muted">{e.actor ?? '—'}</td>
@@ -793,7 +793,7 @@ function EnrolTokensPanel(): JSX.Element {
                                     : { label: 'ACTIVE',   tone: 'success' };
                 return (
                   <tr key={t.tokenHash}>
-                    <td className="ea-mono" style={{ fontSize: 11 }}>
+                    <td className="ea-mono ea-text-2xs">
                       {t.tokenHash.slice(0, 20)}…
                     </td>
                     <td>{t.deviceIdHint ?? '—'}</td>
@@ -1837,7 +1837,7 @@ export function NetworkDiagnostics(): JSX.Element {
                     <td className="ea-mono">{fmtDate(e.observedAt)}</td>
                     <td className="ea-fw-medium">{humaniseEventType(e.eventType)}</td>
                     <td className="ea-mono ea-text-muted">{e.interfaceName ?? '—'}</td>
-                    <td className="ea-mono ea-text-muted" style={{ fontSize: 13 }}>
+                    <td className="ea-mono ea-text-muted ea-text-sm">
                       {e.deviceId ?? e.nodeId ?? '—'}
                     </td>
                     <td>

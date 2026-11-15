@@ -170,7 +170,7 @@ export function UsersDashboard(): JSX.Element {
                       </span>
                     </td>
                     <td className="ea-fw-medium">{u.displayName}</td>
-                    <td className="ea-text-muted ea-mono" style={{ fontSize: 13 }}>{u.username}</td>
+                    <td className="ea-text-muted ea-mono ea-text-sm">{u.username}</td>
                     <td>
                       {u.roles.map((r) => (
                         <span key={r} className="ea-chip ea-chip--primary"
@@ -340,7 +340,7 @@ export function UserDetail(): JSX.Element {
         {tab === 'details' && (
           <dl className="ea-def-list" data-test="user-detail-dl">
             <div className="ea-def-row"><dt>User ID</dt>
-              <dd className="ea-mono" style={{ fontSize: 13 }}>{user.userId}</dd></div>
+              <dd className="ea-mono ea-text-sm">{user.userId}</dd></div>
             <div className="ea-def-row"><dt>Username</dt>
               <dd className="ea-mono">{user.username}</dd></div>
             <div className="ea-def-row"><dt>Display name</dt><dd>{user.displayName}</dd></div>
@@ -661,7 +661,7 @@ export function UserDhis2Mapping(): JSX.Element {
           </div>
           <div className="ea-def-row">
             <dt>User ID</dt>
-            <dd className="ea-mono" style={{ fontSize: 13 }}>{user.userId}</dd>
+            <dd className="ea-mono ea-text-sm">{user.userId}</dd>
           </div>
         </dl>
       </Panel>

@@ -96,7 +96,7 @@ export function Fleet(): JSX.Element {
               <tbody>
                 {data.edges.map((e) => (
                   <tr key={e.edgeId}>
-                    <td className="ea-mono" style={{ fontSize: 11 }}
+                    <td className="ea-mono ea-text-2xs"
                         title={e.edgeId}>{e.edgeId.slice(0, 20)}…</td>
                     <td>
                       <Status tone={e.role === 'self' ? 'info' : 'muted'}>

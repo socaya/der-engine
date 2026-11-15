@@ -191,7 +191,7 @@ export function Compliance(): JSX.Element {
                         {r.status}
                       </Status>
                     </td>
-                    <td className="ea-mono" style={{ fontSize: 11 }}
+                    <td className="ea-mono ea-text-2xs"
                         title={r.receiptHash ?? ''}>
                       {r.receiptHash ? r.receiptHash.slice(0, 24) + '…' : '—'}
                     </td>
@@ -227,7 +227,7 @@ export function Compliance(): JSX.Element {
                   <tr key={a.anchorAt}>
                     <td className="ea-mono">{fmtDate(a.anchorAt)}</td>
                     <td className="ea-mono">{a.rowCount}</td>
-                    <td className="ea-mono" style={{ fontSize: 11 }}
+                    <td className="ea-mono ea-text-2xs"
                         title={a.chainHead}>{a.chainHead.slice(0, 32)}…</td>
                     <td className="ea-text-muted">{a.uploadedAt ? fmtAgo(a.uploadedAt) : '—'}</td>
                   </tr>

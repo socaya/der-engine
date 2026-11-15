@@ -289,7 +289,7 @@ function AggregateTable(
                 {r.dataSetName
                   ? <span className="ea-fw-medium">{r.dataSetName}</span>
                   : r.dataSetUid
-                    ? <span className="ea-mono" style={{ fontSize: 11 }}>
+                    ? <span className="ea-mono ea-text-2xs">
                         {r.dataSetUid}
                       </span>
                     : <span className="ea-text-muted" style={{ fontStyle: 'italic' }}>
@@ -327,15 +327,15 @@ function AggregateTable(
                   </span>
                 )}
               </td>
-              <td className="ea-mono" style={{ fontSize: 11 }}
+              <td className="ea-mono ea-text-2xs"
                   title={r.dataElementUid}>
                 {r.dataElementUid}
               </td>
-              <td className="ea-mono" style={{ fontSize: 11 }}
+              <td className="ea-mono ea-text-2xs"
                   title={r.orgUnitUid}>
                 {r.orgUnitUid}
               </td>
-              <td className="ea-mono" style={{ fontSize: 11 }}>{r.periodIso}</td>
+              <td className="ea-mono ea-text-2xs">{r.periodIso}</td>
               <td className="ea-mono"
                   style={{ textAlign: 'right', fontWeight: 500 }}>
                 {r.valueText}

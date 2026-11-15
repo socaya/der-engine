@@ -689,19 +689,19 @@ export function CapOrgUnitBinding(): JSX.Element {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))',
                         gap: 12, padding: '10px 0 0' }}>
             <div className="ea-stat ea-stat--info">
-              <div className="ea-stat-value ea-mono" style={{ fontSize: 13 }}>{b.orgUnitId ?? '—'}</div>
+              <div className="ea-stat-value ea-mono ea-text-sm">{b.orgUnitId ?? '—'}</div>
               <div className="ea-stat-label">DHIS2 UID</div>
             </div>
             <div className="ea-stat ea-stat--info">
-              <div className="ea-stat-value" style={{ fontSize: 13 }}>Level {level || '—'}</div>
+              <div className="ea-stat-value ea-text-sm">Level {level || '—'}</div>
               <div className="ea-stat-label">Hierarchy depth</div>
             </div>
             <div className="ea-stat ea-stat--muted">
-              <div className="ea-stat-value" style={{ fontSize: 13 }}>{b.boundAt ? fmtBindAt(b.boundAt) : '—'}</div>
+              <div className="ea-stat-value ea-text-sm">{b.boundAt ? fmtBindAt(b.boundAt) : '—'}</div>
               <div className="ea-stat-label">Bound at</div>
             </div>
             <div className="ea-stat ea-stat--muted">
-              <div className="ea-stat-value" style={{ fontSize: 13 }}>{b.boundBy ?? '—'}</div>
+              <div className="ea-stat-value ea-text-sm">{b.boundBy ?? '—'}</div>
               <div className="ea-stat-label">Bound by</div>
             </div>
           </div>
@@ -1385,8 +1385,8 @@ export function CapMetadataSync(): JSX.Element {
           <strong>Pull metadata</strong>
           <span style={{ flex: 1 }}>{pull.message}</span>
           {(pull.state === 'done' || pull.state === 'failed' || pull.state === 'timeout') && (
-            <button type="button" className="ea-link-btn"
-                    style={{ fontSize: 11 }}
+            <button type="button" className="ea-link-btn ea-text-2xs"
+                    
                     onClick={pull.reset}>Dismiss</button>
           )}
         </div>
@@ -2685,7 +2685,7 @@ function DraftsTable(
                                 title={d.scheduledPublishAt ?? ''}>
                             Scheduled
                           </span>
-                          <span className="ea-text-muted" style={{ fontSize: 11 }}>
+                          <span className="ea-text-muted ea-text-2xs">
                             {d.scheduledPublishAt
                               ? new Date(d.scheduledPublishAt).toLocaleString()
                               : ''}
@@ -3146,7 +3146,7 @@ export function CapUserMappings(): JSX.Element {
               <tr key={u.userId}>
                 <td>
                   <div className="ea-fw-medium">{u.displayName}</div>
-                  <div className="ea-text-muted ea-mono" style={{ fontSize: 11 }}>{u.username}</div>
+                  <div className="ea-text-muted ea-mono ea-text-2xs">{u.username}</div>
                 </td>
                 <td>
                   {u.roles.map((r) => (
@@ -4268,7 +4268,7 @@ export function CapDeviceEnrolment(): JSX.Element {
                           {r.deviceId}
                         </div>
                         {r.displayName && (
-                          <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                          <div className="ea-text-muted ea-text-2xs">
                             {r.displayName}
                           </div>
                         )}
@@ -4437,7 +4437,7 @@ export function CapOwnership(): JSX.Element {
                           {r.deviceId}
                         </div>
                         {r.displayName && (
-                          <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                          <div className="ea-text-muted ea-text-2xs">
                             {r.displayName}
                           </div>
                         )}
@@ -4570,7 +4570,7 @@ export function CapConnections(): JSX.Element {
                             {r.deviceId}
                           </div>
                           {r.displayName && (
-                            <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                            <div className="ea-text-muted ea-text-2xs">
                               {r.displayName}
                             </div>
                           )}
@@ -4730,7 +4730,7 @@ export function CapDeviceDiagnostics(): JSX.Element {
                           {r.deviceId}
                         </div>
                         {r.displayName && (
-                          <div className="ea-text-muted" style={{ fontSize: 11 }}>
+                          <div className="ea-text-muted ea-text-2xs">
                             {r.displayName}
                           </div>
                         )}
