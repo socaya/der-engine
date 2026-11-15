@@ -170,6 +170,23 @@ public class EdgeUserRepository {
         return count != null && count > 0;
     }
 
+    /**
+     * FR-02-09 — break-glass fallback lookup. Returns the earliest
+     * user that still carries {@code role}, regardless of the
+     * {@code disabled} flag (a disabled admin is exactly the
+     * recovery target). Ordered by {@code created_at ASC} so the
+     * bootstrap admin is preferred when it still exists.
+     */
+    public Optional<EdgeUser> findOldestByRole(final EdgeRole role) {
+        final List<UUID> ids = jdbc.query(
+                "SELECT eu.user_id FROM der.edge_user eu "
+                        + "JOIN der.edge_role er ON er.user_id = eu.user_id "
+                        + "WHERE er.role = ? "
+                        + "ORDER BY eu.created_at ASC LIMIT 1",
+                (rs, n) -> (UUID) rs.getObject(1), role.name());
+        return ids.isEmpty() ? Optional.empty() : findById(ids.get(0));
+    }
+
     /** FR-01-10 decommission + FR-02-08 central disable propagation. */
     public int setDisabled(final UUID userId, final boolean disabled) {
         return jdbc.update(

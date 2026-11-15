@@ -76,6 +76,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/edge-api/v1/system/health").permitAll()
                         .requestMatchers("/edge-api/v1/auth/sign-in").permitAll()
+                        // FR-02-09 — break-glass recovery is unauth
+                        // by design (the caller is locked out). The
+                        // service itself enforces physical-presence
+                        // via host-filesystem token-file match.
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                                "/edge-api/v1/break-glass/recover").permitAll()
                         // V090 login page settings — the device shell
                         // needs to paint the sign-in screen before the
                         // operator has a session. Both reads are safe

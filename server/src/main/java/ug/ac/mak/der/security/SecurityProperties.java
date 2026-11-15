@@ -16,7 +16,8 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
 @ConfigurationProperties(prefix = "der.security")
 public record SecurityProperties(Session session, SignIn signIn, Bootstrap bootstrap,
                                     DeviceApproval deviceApproval,
-                                    FirstTimeOffline firstTimeOffline) {
+                                    FirstTimeOffline firstTimeOffline,
+                                    BreakGlass breakGlass) {
 
     @ConstructorBinding
     public SecurityProperties {
@@ -35,14 +36,25 @@ public record SecurityProperties(Session session, SignIn signIn, Bootstrap boots
         if (firstTimeOffline == null) {
             firstTimeOffline = new FirstTimeOffline(FirstTimeOffline.Policy.REQUIRE_ONLINE_FIRST);
         }
+        if (breakGlass == null) {
+            breakGlass = new BreakGlass(false,
+                    "/var/lib/der/break-glass.token", "");
+        }
     }
 
-    /** Pre-FR-02-07 convenience ctor — callers that don't yet carry
-     *  a first-time-offline block get the default policy. */
+    /** Pre-FR-02-07 convenience ctor. */
     public SecurityProperties(final Session session, final SignIn signIn,
                                 final Bootstrap bootstrap,
                                 final DeviceApproval deviceApproval) {
-        this(session, signIn, bootstrap, deviceApproval, null);
+        this(session, signIn, bootstrap, deviceApproval, null, null);
+    }
+
+    /** Pre-FR-02-09 convenience ctor — FR-02-07 landed first. */
+    public SecurityProperties(final Session session, final SignIn signIn,
+                                final Bootstrap bootstrap,
+                                final DeviceApproval deviceApproval,
+                                final FirstTimeOffline firstTimeOffline) {
+        this(session, signIn, bootstrap, deviceApproval, firstTimeOffline, null);
     }
 
     /**
@@ -126,6 +138,37 @@ public record SecurityProperties(Session session, SignIn signIn, Bootstrap boots
             DISABLED,
             REQUIRE_ONLINE_FIRST,
             BOOTSTRAP_ONLY
+        }
+    }
+
+    /**
+     * FR-02-09 — audited break-glass admin-recovery flow. Gated by
+     * host-filesystem proof-of-presence: a one-time token written to
+     * {@link #tokenPath} by someone with shell-level access to the
+     * appliance. Disabled by default; even when enabled, the endpoint
+     * returns 404 unless the token file is present AND the submitted
+     * token matches constant-time.
+     *
+     * @param enabled        when {@code false} (default) the recover
+     *                       endpoint responds 404 regardless of input.
+     * @param tokenPath      file the operator places on the host; its
+     *                       contents are the one-use token the request
+     *                       body must echo back.
+     * @param adminUsername  which account to recover when triggered.
+     *                       Blank → fall back to
+     *                       {@link Bootstrap#adminUsername} → then the
+     *                       oldest ADMIN row in {@code edge_user}.
+     */
+    public record BreakGlass(boolean enabled, String tokenPath,
+                               String adminUsername) {
+
+        public BreakGlass {
+            if (tokenPath == null || tokenPath.isBlank()) {
+                tokenPath = "/var/lib/der/break-glass.token";
+            }
+            if (adminUsername == null) {
+                adminUsername = "";
+            }
         }
     }
 }
