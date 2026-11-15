@@ -208,7 +208,7 @@ export function NetworkOverview(): JSX.Element {
       <Panel title={`Live activity · ${events.length} events`}
              action={<Link to="/audit/events?category=network" className="ea-link-btn" data-cross-module="Security">View all →</Link>}>
         {events.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
+          <p className="ea-text-muted" style={{ padding: 10 }}>
             No network events yet.
           </p>
         ) : (
@@ -442,8 +442,8 @@ function ApEditDialog({ ap, onClose, onSaved }: {
       <div className="ea-modal" onClick={(e) => e.stopPropagation()}
            style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
                     padding: 24, maxWidth: 560, width: '90%', boxShadow: 'var(--el-3)' }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Edit Access Point</h3>
-        <p className="ea-text-muted" style={{ margin: '0 0 12px', fontSize: 12 }}>
+        <h3 className="ea-dialog-section-title">Edit Access Point</h3>
+        <p className="ea-form-intro">
           Changes take effect on the next AP (re)start. Clients will need the new PSK on security-mode change.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -483,7 +483,7 @@ function ApEditDialog({ ap, onClose, onSaved }: {
         </div>
         {err && <div className="ea-text-muted" style={{ marginTop: 10, fontSize: 12,
                      color: 'var(--der-danger-ink)' }}>{err}</div>}
-        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div className="ea-dialog-actions">
           <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={onClose}>Cancel</button>
           <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                   disabled={saving || !ssid} onClick={save}>
@@ -533,7 +533,7 @@ function QrEnrolDialog({ onClose }: { onClose: () => void }): JSX.Element {
       <div className="ea-modal" onClick={(e) => e.stopPropagation()}
            style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
                     padding: 24, maxWidth: 460, width: '90%', boxShadow: 'var(--el-3)' }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>
+        <h3 className="ea-dialog-section-title">
           Enrol a device — {qr?.ssid ?? '…'}
         </h3>
         <ol className="ea-text-muted" style={{ margin: '0 0 14px', paddingLeft: 20, fontSize: 13, lineHeight: 1.6 }}>
@@ -585,7 +585,7 @@ function QrEnrolDialog({ onClose }: { onClose: () => void }): JSX.Element {
             </div>
           )}
         </div>
-        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div className="ea-dialog-actions">
           <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                   disabled={!qr} onClick={copyPayload}>
             <UiIcon icon="copy" size={14} />
@@ -691,7 +691,7 @@ export function NetworkConnectedDevices(): JSX.Element {
                         onChange={(e) => setQuery(e.target.value)} />
                }>
           {filtered.length === 0 ? (
-            <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>No devices on the local network.</p>
+            <p className="ea-text-muted" style={{ padding: 10 }}>No devices on the local network.</p>
           ) : (
             <div className="ea-table-wrap">
               <table className="ea-table ea-table--dense">
@@ -772,7 +772,7 @@ function EnrolTokensPanel(): JSX.Element {
              <UiIcon icon="refresh" size={14} /><span>Refresh</span>
            </button>}>
       {tokens.length === 0 ? (
-        <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
+        <p className="ea-text-muted" style={{ padding: 10 }}>
           No enrol tokens issued yet. Use <strong>Enrol a device</strong> above to issue one.
         </p>
       ) : (
@@ -842,8 +842,8 @@ function ClientLabelDialog({ client, onClose, onSaved }: {
       <div className="ea-modal" onClick={(e) => e.stopPropagation()}
            style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
                     padding: 24, maxWidth: 460, width: '90%', boxShadow: 'var(--el-3)' }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Edit label — {client.deviceId}</h3>
-        <div style={{ display: 'grid', gap: 10 }}>
+        <h3 className="ea-dialog-section-title">Edit label — {client.deviceId}</h3>
+        <div className="ea-dialog-grid">
           <label className="ea-text-xs">Owner / role
             <input className="ea-input" value={owner}
                    placeholder="e.g. Registration, Laboratory"
@@ -857,7 +857,7 @@ function ClientLabelDialog({ client, onClose, onSaved }: {
         </div>
         {err && <div className="ea-text-muted" style={{ marginTop: 10, fontSize: 12,
                      color: 'var(--der-danger-ink)' }}>{err}</div>}
-        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div className="ea-dialog-actions">
           <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={onClose}>Cancel</button>
           <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                   disabled={saving} onClick={save}>
@@ -884,7 +884,7 @@ function DeviceCertDialog({ client, onClose }: {
       <div className="ea-modal" onClick={(e) => e.stopPropagation()}
            style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
                     padding: 24, maxWidth: 560, width: '90%', boxShadow: 'var(--el-3)' }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Certificate — {client.deviceId}</h3>
+        <h3 className="ea-dialog-section-title">Certificate — {client.deviceId}</h3>
         <dl className="ea-def-list">
           <div className="ea-def-row"><dt>Trust</dt>
             <dd><Status tone={client.trust === 'APPROVED' ? 'success'
@@ -915,7 +915,7 @@ function DeviceCertDialog({ client, onClose }: {
             </div>
           </div>
         )}
-        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div className="ea-dialog-actions">
           <button type="button" className="ea-btn ea-btn--primary ea-btn--sm" onClick={onClose}>Close</button>
         </div>
       </div>
@@ -1027,7 +1027,7 @@ export function NetworkInterfaces(): JSX.Element {
       <Panel title={`Routes · ${routes.length}`}
              action={<span className="ea-text-muted ea-text-xs">Lower metric evaluated first.</span>}>
         {routes.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>No routes.</p>
+          <p className="ea-text-muted" style={{ padding: 10 }}>No routes.</p>
         ) : (
           <div className="ea-table-wrap">
             <table className="ea-table ea-table--dense">
@@ -1066,7 +1066,7 @@ export function NetworkInterfaces(): JSX.Element {
                <UiIcon icon="plus" size={14} /><span>Pin static lease</span>
              </button>}>
         {leases.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
+          <p className="ea-text-muted" style={{ padding: 10 }}>
             No active DHCP leases. Devices appear here once the local DHCP server grants an address.
           </p>
         ) : (
@@ -1132,12 +1132,12 @@ function StaticLeaseDialog({ onClose, onSaved }: {
       <div className="ea-modal" onClick={(e) => e.stopPropagation()}
            style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
                     padding: 24, maxWidth: 460, width: '90%', boxShadow: 'var(--el-3)' }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Pin static DHCP lease</h3>
-        <p className="ea-text-muted" style={{ margin: '0 0 12px', fontSize: 12 }}>
+        <h3 className="ea-dialog-section-title">Pin static DHCP lease</h3>
+        <p className="ea-form-intro">
           Reserve an IP for a specific MAC. The DHCP server will always
           hand out this IP when the device joins the network.
         </p>
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div className="ea-dialog-grid">
           <label className="ea-text-xs">MAC address
             <input className="ea-input" value={mac}
                    placeholder="aa:bb:cc:00:00:01"
@@ -1156,7 +1156,7 @@ function StaticLeaseDialog({ onClose, onSaved }: {
         </div>
         {err && <div className="ea-text-muted" style={{ marginTop: 10, fontSize: 12,
                      color: 'var(--der-danger-ink)' }}>{err}</div>}
-        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div className="ea-dialog-actions">
           <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={onClose}>Cancel</button>
           <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                   disabled={saving || !mac || !ip} onClick={save}>
@@ -1193,12 +1193,12 @@ function InterfaceConfigDialog({ iface, onClose, onSaved }: {
       <div className="ea-modal" onClick={(e) => e.stopPropagation()}
            style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
                     padding: 24, maxWidth: 460, width: '90%', boxShadow: 'var(--el-3)' }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Edit interface — {iface.name}</h3>
-        <p className="ea-text-muted" style={{ margin: '0 0 12px', fontSize: 12 }}>
+        <h3 className="ea-dialog-section-title">Edit interface — {iface.name}</h3>
+        <p className="ea-form-intro">
           Priority drives WAN failover — lowest value wins. Purpose
           controls whether the interface is eligible as a WAN candidate.
         </p>
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div className="ea-dialog-grid">
           <label className="ea-text-xs">Purpose
             <select className="ea-input" value={purpose}
                     onChange={(e) => setPurpose(e.target.value)}>
@@ -1216,7 +1216,7 @@ function InterfaceConfigDialog({ iface, onClose, onSaved }: {
         </div>
         {err && <div className="ea-text-muted" style={{ marginTop: 10, fontSize: 12,
                      color: 'var(--der-danger-ink)' }}>{err}</div>}
-        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div className="ea-dialog-actions">
           <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={onClose}>Cancel</button>
           <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                   disabled={saving} onClick={save}>
@@ -1395,7 +1395,7 @@ function PeerDialog({ mode, peer, onClose, onSaved }: {
       <div className="ea-modal" onClick={(e) => e.stopPropagation()}
            style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
                     padding: 24, maxWidth: 520, width: '90%', boxShadow: 'var(--el-3)' }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>
+        <h3 className="ea-dialog-section-title">
           {mode === 'edit' ? 'Edit WireGuard peer' : 'Add WireGuard peer'}
         </h3>
         <p className="ea-text-muted" style={{ margin: '0 0 14px', fontSize: 13 }}>
@@ -1403,7 +1403,7 @@ function PeerDialog({ mode, peer, onClose, onSaved }: {
           required. Connection is established after you click Connect
           on the Peers row.
         </p>
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div className="ea-dialog-grid">
           <label className="ea-text-xs">Node ID
             <input className="ea-input" value={nodeId}
                    placeholder="edge-012" onChange={(e) => setNodeId(e.target.value)} />
@@ -1432,7 +1432,7 @@ function PeerDialog({ mode, peer, onClose, onSaved }: {
         </div>
         {err && <div className="ea-text-muted" style={{ marginTop: 10, fontSize: 12,
                      color: 'var(--der-danger-ink)' }}>{err}</div>}
-        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div className="ea-dialog-actions">
           <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={onClose}>Cancel</button>
           <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                   disabled={saving || !endpoint || !publicKey}
@@ -1611,7 +1611,7 @@ function TlsCertPanel(): JSX.Element {
           Couldn&apos;t load TLS state — {err}
         </p>
       ) : !tls ? (
-        <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>Loading…</p>
+        <p className="ea-text-muted" style={{ padding: 10 }}>Loading…</p>
       ) : (
         <dl className="ea-def-list">
           <div className="ea-def-row"><dt>Status</dt>
@@ -1676,10 +1676,10 @@ function PolicyDialog({ mode, rule, onClose, onSaved }: {
       <div className="ea-modal" onClick={(e) => e.stopPropagation()}
            style={{ background: 'var(--der-surface)', border: '1px solid var(--der-border)',
                     padding: 24, maxWidth: 520, width: '90%', boxShadow: 'var(--el-3)' }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>
+        <h3 className="ea-dialog-section-title">
           {mode === 'edit' ? 'Edit firewall rule' : 'Add firewall rule'}
         </h3>
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div className="ea-dialog-grid">
           <label className="ea-text-xs">Source zone
             <input className="ea-input" value={src} onChange={(e) => setSrc(e.target.value)} />
           </label>
@@ -1708,7 +1708,7 @@ function PolicyDialog({ mode, rule, onClose, onSaved }: {
         </div>
         {err && <div className="ea-text-muted" style={{ marginTop: 10, fontSize: 12,
                      color: 'var(--der-danger-ink)' }}>{err}</div>}
-        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div className="ea-dialog-actions">
           <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm" onClick={onClose}>Cancel</button>
           <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                   disabled={saving || !dst} onClick={save}>
@@ -1820,7 +1820,7 @@ export function NetworkDiagnostics(): JSX.Element {
 
       <Panel title="Network events">
         {events.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
+          <p className="ea-text-muted" style={{ padding: 10 }}>
             No network events yet.
           </p>
         ) : (
@@ -1883,7 +1883,7 @@ function MdnsPanel(): JSX.Element {
              Advertised on the local segment via Avahi.
            </span>}>
       {services.length === 0 ? (
-        <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
+        <p className="ea-text-muted" style={{ padding: 10 }}>
           No services advertised.
         </p>
       ) : (
@@ -2033,7 +2033,7 @@ export function NetworkSettings(): JSX.Element {
 
       <Panel title={`Network settings · ${keys.length}`}>
         {keys.length === 0 ? (
-          <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>No settings.</p>
+          <p className="ea-text-muted" style={{ padding: 10 }}>No settings.</p>
         ) : (
           <div className="ea-table-wrap">
             <table className="ea-table ea-table--dense">

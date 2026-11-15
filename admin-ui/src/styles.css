@@ -103,6 +103,15 @@ body{
 /* Dialog / modal title for the Capability aggregates — flat, no
  * ornamental box. Matches .ea-panel-title weight/size. */
 .ea-dialog-title{margin:0;font-size:var(--fs-xl);font-weight:600;color:var(--der-ink-900)}
+/* Subsection heading inside a dialog — one step smaller than the
+ * main .ea-dialog-title; used to split a dialog into labelled blocks. */
+.ea-dialog-section-title{margin:0 0 12px;font-size:var(--fs-lg);font-weight:600;color:var(--der-ink-900)}
+/* Footer action strip inside a dialog — Cancel + Save on the right,
+ * standard 8px gutter. */
+.ea-dialog-actions{margin-top:16px;display:flex;gap:var(--sp-2);justify-content:flex-end}
+/* Dialog form grid — stacks fields vertically with a 10px gutter.
+ * Pair with .ea-grid-full for full-width fields. */
+.ea-dialog-grid{display:grid;gap:10px}
 /* One-line intro paragraph above an inline form (DHIS2 drafts, OU
  * binding, etc.). Rhythm comes from the form below, not from <p>. */
 .ea-form-intro{margin:0 0 10px;font-size:var(--fs-xs);color:var(--der-ink-500)}
