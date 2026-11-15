@@ -63,6 +63,7 @@ import { Dhis2Overview } from './screens/Dhis2Overview';
 import { Workspace } from './screens/Workspace';
 import { AdminTasks } from './screens/AdminTasks';
 import { SystemInformation } from './screens/SystemInformation';
+import { SystemApps } from './screens/SystemApps';
 import { CompatMatrix } from './screens/CompatMatrix';
 import {
   DriftInspector, ConflictList, AttentionDetailScreen,
@@ -276,6 +277,7 @@ export default function App(): JSX.Element {
           <Route path="/dashboard" element={<Navigate to="/" replace />} />
           <Route path="/admin-tasks" element={<RequireAuth><AdminTasks /></RequireAuth>} />
           <Route path="/system/information" element={<RequireAuth><SystemInformation /></RequireAuth>} />
+          <Route path="/system/apps" element={<RequireAuth><SystemApps /></RequireAuth>} />
           {/* /integration and /integration/* were the pre-2.0.17
               paths for DHIS2 surfaces; canonical names now live
               under /dhis2/*. */}

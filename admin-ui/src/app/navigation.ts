@@ -252,6 +252,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'recovery',       label: 'Recovery', to: '/recovery', status: 'contextual', tabIcon: 'recovery' },
       { id: 'metrics-operators', label: 'Capture operators', to: '/admin/metrics/operators', status: 'contextual', tabIcon: 'activity' },
       { id: 'reldiag',        label: 'Tracker diagnostics', to: '/diagnostics/relationships', status: 'contextual', tabIcon: 'diagnostics' },
+      { id: 'system-apps',    label: 'Installed apps', to: '/system/apps', status: 'contextual' },
       { id: 'analytics',      label: 'Analytics', to: '/analytics', status: 'contextual' },
       { id: 'evaluation',     label: 'Evaluation', to: '/evaluation', status: 'contextual' },
       { id: 'testing',        label: 'Testing', to: '/testing', status: 'contextual' },

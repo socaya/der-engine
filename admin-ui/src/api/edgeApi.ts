@@ -2978,6 +2978,30 @@ export function listDevices(): Promise<{ devices: EdgeDeviceRow[] }> {
   return request<{ devices: EdgeDeviceRow[] }>('GET', '/edge-api/v1/devices');
 }
 
+/** DER-APPS-DHIS2-001 FR-DIAG-001 — admin diagnostic listing of every
+ *  installed app with Phase 2a provenance (hostKind, source, trustLevel,
+ *  installedAt, lastOpenedAt). Enabled vs disabled both surfaced.
+ *  Named to not collide with the legacy EA-31..34 placeholder that
+ *  still lives at /edge-api/v1/apps/installed. */
+export interface AdminAppRow {
+  readonly appId: string;
+  readonly appKey: string;
+  readonly displayName: string;
+  readonly version: string;
+  readonly enabled: boolean;
+  readonly hostKind: 'DER_ESM' | 'DHIS2_IFRAME';
+  readonly source: 'DER_BUILTIN' | 'MANUAL_UPLOAD' | 'CENTRAL_SYNC';
+  readonly trustLevel: 'SIGNED' | 'UNSIGNED';
+  readonly installedAt: string;
+  readonly installedBy: string;
+  readonly lastOpenedAt: string | null;
+  readonly centralAppId: string | null;
+}
+export function listAdminApps(): Promise<{ count: number; apps: AdminAppRow[] }> {
+  return request<{ count: number; apps: AdminAppRow[] }>(
+    'GET', '/edge-api/v1/admin/apps');
+}
+
 export function approveDevice(id: string): Promise<{ outcome: string }> {
   return request('POST', `/edge-api/v1/devices/${id}/approve`);
 }

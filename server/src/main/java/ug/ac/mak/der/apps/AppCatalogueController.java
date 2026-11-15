@@ -111,6 +111,42 @@ public class AppCatalogueController {
         return ResponseEntity.ok(body);
     }
 
+    /** FR-DIAG-001 — admin diagnostic listing. Unlike the public
+     *  /edge-api/v1/apps catalogue (enabled apps with their active
+     *  version), this surfaces every installed_app row with its
+     *  Phase 2a provenance so operators can audit what's running on
+     *  the appliance and when it was last opened. Admin-only. */
+    @GetMapping(path = "/edge-api/v1/admin/apps",
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> adminList(
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.user().roles().contains(ug.ac.mak.der.security.EdgeRole.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of("code", "FORBIDDEN"));
+        }
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        for (final InstalledApp app : installedApps.findAll()) {
+            final Map<String, Object> m = new LinkedHashMap<>();
+            m.put("appId", app.appId().toString());
+            m.put("appKey", app.appKey());
+            m.put("displayName", app.displayName());
+            m.put("version", app.version());
+            m.put("enabled", app.enabled());
+            m.put("hostKind", app.hostKind().name());
+            m.put("source", app.source().name());
+            m.put("trustLevel", app.trustLevel().name());
+            m.put("installedAt", app.installedAt().toString());
+            m.put("installedBy", app.installedBy().toString());
+            m.put("lastOpenedAt", app.lastOpenedAt() == null ? null
+                    : app.lastOpenedAt().toString());
+            m.put("centralAppId", app.centralAppId());
+            rows.add(m);
+        }
+        return ResponseEntity.ok(Map.of("count", rows.size(), "apps", rows));
+    }
+
     @GetMapping(path = "/edge-api/v1/apps/signing-key",
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> signingKey() {
@@ -131,6 +167,14 @@ public class AppCatalogueController {
             return ResponseEntity.notFound().build();
         }
         final AppCatalogueRepository.BundleRow r = row.get();
+        // FR-DIAG-001 — stamp last-opened so the admin diagnostic screen
+        // can show which installed apps are actually being run. Best
+        // effort; a storage blip here must not fail the bundle fetch.
+        try {
+            installedApps.touchLastOpened(appId, java.time.Instant.now());
+        } catch (RuntimeException ex) {
+            // swallow; diagnostic telemetry is non-essential.
+        }
         final String etag = etagOf(r.sha256());
         if (ifNoneMatch != null && matches(ifNoneMatch, r.sha256())) {
             return ResponseEntity.status(304).eTag(etag).build();

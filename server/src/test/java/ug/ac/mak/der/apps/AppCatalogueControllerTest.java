@@ -1165,4 +1165,47 @@ class AppCatalogueControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.apps[0].iconUrl").isEmpty());
     }
+
+    // ---- FR-DIAG-001 — admin apps list --------------------------------
+
+    @Test
+    void adminListReturnsAllInstalledAppsWithProvenance() throws Exception {
+        final UUID appId = UUID.randomUUID();
+        when(installedApps.findAll()).thenReturn(List.of(
+                new InstalledApp(appId, "analytics", "0.1.0", "Analytics",
+                        "{}", "db://analytics", UUID.randomUUID(),
+                        NOW, true,
+                        InstalledApp.HostKind.DER_ESM,
+                        InstalledApp.Source.DER_BUILTIN,
+                        InstalledApp.TrustLevel.SIGNED,
+                        NOW.plusSeconds(600), null)));
+        mockMvc.perform(get("/edge-api/v1/admin/apps").with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.apps[0].appKey").value("analytics"))
+                .andExpect(jsonPath("$.apps[0].hostKind").value("DER_ESM"))
+                .andExpect(jsonPath("$.apps[0].source").value("DER_BUILTIN"))
+                .andExpect(jsonPath("$.apps[0].trustLevel").value("SIGNED"))
+                .andExpect(jsonPath("$.apps[0].lastOpenedAt").isNotEmpty())
+                .andExpect(jsonPath("$.apps[0].enabled").value(true));
+    }
+
+    @Test
+    void adminListRejectsNonAdmin() throws Exception {
+        final EdgeUser u = new EdgeUser(UUID.randomUUID(), "op", "Op",
+                EdgeUser.Origin.BOOTSTRAP, null, false,
+                EnumSet.of(EdgeRole.OPERATOR), NOW, NOW);
+        final EdgeSession s = new EdgeSession(UUID.randomUUID(), u.userId(), "h",
+                NOW, NOW, NOW.plusSeconds(3600), null, null, null);
+        mockMvc.perform(get("/edge-api/v1/admin/apps")
+                        .with(authentication(new EdgeUserPrincipal(u, s))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void adminListRejectsAnonymous() throws Exception {
+        mockMvc.perform(get("/edge-api/v1/admin/apps"))
+                .andExpect(status().isUnauthorized());
+    }
 }

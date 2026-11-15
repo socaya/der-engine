@@ -95,6 +95,18 @@ public class AppStaticHandler {
             return ResponseEntity.notFound().build();
         }
         String relative = uri.substring(prefix.length());
+        if (relative.isEmpty() || "index.html".equals(relative)) {
+            // FR-DIAG-001 — stamp last-opened on each index.html serve so
+            // the admin diagnostic screen can see which DHIS2 apps are
+            // actually being run. Only triggers on the entry point, not
+            // every static asset.
+            try {
+                repository.touchLastOpened(app.appId(),
+                        java.time.Instant.now());
+            } catch (RuntimeException ex) {
+                // best-effort — telemetry must never fail the serve.
+            }
+        }
         if (relative.isEmpty()) {
             // D8 — top-level visits to /dhis-web-<key>/ get shell-wrapped;
             // iframe loads (Sec-Fetch-Dest=iframe) go through and serve
