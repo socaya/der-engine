@@ -5,7 +5,9 @@
 > column in `docs/verification/traceability-matrix.csv` (which was
 > never updated as alphas landed).
 
-**Last updated:** 2026-10-23 · prepared for `der-2.0.3-alpha.3`.
+**Last updated:** 2026-11-15 · DER-APPS-DHIS2-001 Phases 1–5 wrap
+(see §"DHIS2 app support initiative" below). Prior snapshot
+2026-10-23 for `der-2.0.3-alpha.3`.
 **Scope:** All 211 requirements (176 FR + 35 NFR) from
 `docs/requirements/source-functional-register.csv` and
 `source-nonfunctional-register.csv`.
@@ -292,6 +294,129 @@ local DHIS2 2.44-SNAPSHOT pilot stack:
 - **125 additional FRs/NFRs flipped to DONE** via a conservative,
   per-item code-sweep. See "Remaining partials" below for the 53 that
   stayed in-progress with specific gap notes.
+
+## DHIS2 app support initiative (DER-APPS-DHIS2-001)
+
+Six-phase plan documented in `docs/dhis2-apps-req.md`. Phases 1–5
+wrapped 2026-11-15; Phase 6 is explicitly gated on Initiative 3 P2P
+direction and remains deferred.
+
+### Scorecard
+
+| Phase | Scope | Status |
+|---|---|:---:|
+| **1** | OU auto-fill Tier 1 (`/api/me`) + Tier 2 (bound-subtree filter on `/api/organisationUnits`) | ✅ DONE |
+| **2a** | Hybrid dispatcher backend — `host_kind` / `source` / `trust_level` columns, `/dhis-web-*` interceptor extension | ✅ DONE |
+| **2b** | Client `AppDispatcher` + `IframeHost` (D4 sandbox tokens) | ✅ DONE |
+| **2c** | Admin `/system/apps` diagnostic screen (FR-DIAG-001) | ✅ DONE |
+| **3a** | Emulator gap-fill — `/api/userSettings`, `/api/systemSettings`, `/api/i18n`, FR-EMU-007 envelope + miss log (FR-DIAG-002) | ✅ DONE |
+| **3b** | `POST /api/tracker?async=true` envelope + poll + admin miss panel | ✅ DONE |
+| **4** | Central auto-sync (`APPS_SYNC_FROM_CENTRAL` scheduled job + dry-run + audit `APP_INSTALLED_FROM_CENTRAL`) | ✅ DONE |
+| **5a** | FR-SYNC-004 per-tenant allow/deny-list | ✅ DONE |
+| **5b** | FR-SYNC-008 pinned-key signature verify + `APP_UNSIGNED_CENTRAL_ACCEPTED` audit | ✅ DONE |
+| **5c** | FR-SYNC-006 7-day rollback window (version listing + rollback API + daily sweep) | ✅ DONE |
+| **5d** | Stock DHIS2 Hub install path (DHIS2_IFRAME host + deep-link launch, not iframe-in-shell) | ✅ DONE |
+| **5e** | Retention sweeps for `tracker_job` + `app_central_sync_run` | ✅ DONE |
+| **5f** | FR-EMU-006 `/api/schemas` endpoint | ✅ DONE |
+| **5g** | FR-EMU-005 ETag / If-Match concurrency on `/api/events/{id}` + `/api/trackedEntityInstances/{id}` | ✅ DONE |
+| **5h** | FR-OU-005 user-level OU scope override (Tier 3 of auto-fill) | ✅ DONE |
+| **5 (FR-APP-007)** | Signing policy clarifier → ADR-0037 | ✅ DONE |
+| **6** | FR-WORKFLOW-002/003/004 cleanup | ⏳ **Deferred** — gated on Initiative 3 P2P decision |
+
+### What was delivered in Phase 5 (2026-11-15)
+
+**Phase 4 hardening** (5a-c) — central auto-sync is safe to enable:
+admins can scope it (`CentralSyncPolicy` with 3 modes, UI editor on
+`/system/apps`), verify it (pinned-key Ed25519 via
+`CentralSigningVerifier`; unsigned-override gated behind
+`apps.allow-unsigned-central` system setting + dedicated audit
+event), and reverse it (GET `/versions` + POST `/rollback` on the
+admin surface, 7-day retention via `AppVersionRetentionService`).
+
+**Stock DHIS2 install path** (5d) — resolved the Phase 4 blocker.
+`parseZipBytes` now branches on shape: `bundle.js` → DER_ESM (signed);
+`index.html` without `bundle.js` → DHIS2_IFRAME (zip is the versioned
+artifact, no DER-side signature). `AppStaticHandler.serveFromZip`
+reads entries from the stored zip on demand — no filesystem
+extraction, rollback keeps working. Design pivot documented: **the
+default launch model for DHIS2 apps is a deep-link new tab, not
+iframe-in-shell**, matching the Phase 03 pattern in project memory.
+Admins can pin `launchMode=IFRAME` per app to keep the in-shell
+`IframeHost`. V125 migration drops the NOT NULL on `signature_b64`.
+
+**Retention sweeps** (5e) — daily sweeps at 03:30 and 03:45 enforce
+the retention windows V123 (7-day `tracker_job`) and V124 (90-day
+`app_central_sync_run`) called out as design intent. Both preserve
+RUNNING rows so stuck jobs stay visible until an operator clears
+them.
+
+**Emulator breadth** (5f-g):
+- `GET /api/schemas` + `GET /api/schemas/{singular}` return a static
+  registry of 10 schemas (dataElement, program, organisationUnit,
+  categoryCombo, dataSet, trackedEntityType, trackedEntityAttribute,
+  programStage, categoryOption, categoryOptionCombo) in DHIS2's
+  Jackson-rendered shape. Unknown singulars route to the FR-EMU-007
+  envelope so the miss log keeps surfacing real demand.
+- `GET /api/events/{id}` + `GET /api/trackedEntityInstances/{id}`
+  emit `ETag: "<version>"` on single-row reads; `DELETE` paths
+  honour `If-Match` and return 412 `STALE_ETAG` on mismatch. RFC
+  7232 matcher tolerates bare / `W/"..."` / quoted / comma-list /
+  wildcard forms. Back-compat preserved: no `If-Match` → old
+  behaviour.
+
+**OU scoping Tier 3** (5h) — admin surface at
+`/edge-api/v1/admin/users/{userId}/scope-assignment` for per-user
+narrowing within the device's bound facility. `MeController`
+projects the effective scope across all three OU arrays with
+precedence `narrowed > bound > empty`; emits
+`SCOPE_ASSIGNMENT_OUT_OF_BOUND` warning when a stored scope falls
+outside the current bound subtree (e.g. after a rebind).
+
+**Signing policy** (FR-APP-007) — ADR-0037 formalises the
+per-host-kind decision table: DER_ESM signed + verify required;
+DHIS2_IFRAME unsigned + verify skipped. Central-side signing
+(FR-SYNC-008) is orthogonal.
+
+### Migrations landed
+
+| ID | Purpose |
+|---|---|
+| V117–V121 | Phase 2a host-kind / source / trust-level columns on `installed_app` |
+| V122 | `user_setting`, `system_setting`, `emulator_miss` (Phase 3a) |
+| V123 | `tracker_job` (Phase 3b async envelope) |
+| V124 | `app_central_sync_run` (Phase 4) |
+| V125 | `installed_app_version.signature_b64` nullable (Phase 5d) |
+
+### FR delivery counts
+
+| Register bucket | Delivered this initiative |
+|---|---:|
+| FR-APP-001..007 | 7 |
+| FR-SYNC-001..008 | 5 (004, 006, 008 shipped; 001/002/003/005/007 shipped Phase 4) |
+| FR-OU-001..005 | 5 |
+| FR-EMU-001..007 | 7 |
+| FR-DIAG-001..002 | 2 |
+| FR-WRITE-002 | 1 (via Phase 3b tracker async) |
+| FR-WORKFLOW-002..004 | **0** — Phase 6 (deferred) |
+
+### Follow-up anchors
+
+- **Stock-DHIS2 central downloadUrl.** Phase 4 sync machinery is
+  ready; standard DHIS2 `/api/apps` doesn't advertise a bundle
+  download endpoint. A central-side shim (or a DER-flavoured app
+  manifest) is the remaining unblocker before auto-sync pulls real
+  stock bundles.
+- **FR-EMU-005 PUT/PATCH on events/TEIs.** Phase 5g covered
+  GET + DELETE; mutation beyond delete lands when a driver surfaces
+  (events currently immutable per the write pipeline; TEIs have a
+  PUT path on `/edge-api/v1/tracked-entities` that could grow
+  If-Match).
+- **Phase 6.** `FR-WORKFLOW-002` (audit event relabel),
+  `FR-WORKFLOW-003` (DISPATCH placeholder resolution),
+  `FR-WORKFLOW-004` (ADR-0018 cross-reference) — scoped out
+  until Initiative 3 P2P direction is set.
+
+---
 
 ## Remaining 53 PARTIAL items — specific gaps
 
