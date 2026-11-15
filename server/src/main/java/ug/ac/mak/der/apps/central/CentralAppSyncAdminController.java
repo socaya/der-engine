@@ -8,8 +8,11 @@ import java.util.Objects;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -29,11 +32,14 @@ public class CentralAppSyncAdminController {
 
     private final CentralAppSyncService service;
     private final CentralAppSyncRunRepository runs;
+    private final CentralSyncPolicyService policies;
 
     public CentralAppSyncAdminController(final CentralAppSyncService service,
-                                           final CentralAppSyncRunRepository runs) {
+                                           final CentralAppSyncRunRepository runs,
+                                           final CentralSyncPolicyService policies) {
         this.service = Objects.requireNonNull(service, "service");
         this.runs = Objects.requireNonNull(runs, "runs");
+        this.policies = Objects.requireNonNull(policies, "policies");
     }
 
     /** Status + last-N runs. Useful on the /system/apps diagnostic. */
@@ -62,6 +68,35 @@ public class CentralAppSyncAdminController {
         final CentralAppSyncService.SyncReport report =
                 service.sync(true, principal.user().userId());
         return ResponseEntity.ok(reportJson(report));
+    }
+
+    /** DER-APPS-DHIS2-001 FR-SYNC-004 — current allow/deny-list. */
+    @GetMapping(path = "/policy")
+    public ResponseEntity<Map<String, Object>> getPolicy(final Authentication auth) {
+        final ResponseEntity<Map<String, Object>> gate = requireAdmin(auth);
+        if (gate != null) {
+            return gate;
+        }
+        return ResponseEntity.ok(policyJson(policies.read()));
+    }
+
+    /** Replace the policy. Admin-only. Body: {@code
+     *  { "mode": "ALLOW_ALL" | "ALLOW_LIST" | "DENY_LIST", "keys": [...] }}. */
+    @PutMapping(path = "/policy")
+    public ResponseEntity<Map<String, Object>> putPolicy(
+            final Authentication auth,
+            @RequestBody final CentralSyncPolicy body) {
+        final ResponseEntity<Map<String, Object>> gate = requireAdmin(auth);
+        if (gate != null) {
+            return gate;
+        }
+        if (body == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", "body required"));
+        }
+        final EdgeUserPrincipal principal = (EdgeUserPrincipal) auth;
+        policies.write(body, principal.user().userId());
+        return ResponseEntity.ok(policyJson(policies.read()));
     }
 
     /** Admin-triggered real run. */
@@ -101,6 +136,13 @@ public class CentralAppSyncAdminController {
         m.put("updated", r.updated());
         m.put("skipped", r.skipped());
         m.put("failed", r.failed());
+        return m;
+    }
+
+    private static Map<String, Object> policyJson(final CentralSyncPolicy p) {
+        final Map<String, Object> m = new LinkedHashMap<>();
+        m.put("mode", p.mode().name());
+        m.put("keys", p.keys());
         return m;
     }
 

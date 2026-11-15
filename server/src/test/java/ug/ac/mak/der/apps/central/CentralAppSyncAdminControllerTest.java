@@ -41,7 +41,8 @@ class CentralAppSyncAdminControllerTest {
         final CentralAppSyncService svc = mock(CentralAppSyncService.class);
         final CentralAppSyncRunRepository runs = mock(CentralAppSyncRunRepository.class);
         final ResponseEntity<Map<String, Object>> res =
-                new CentralAppSyncAdminController(svc, runs).status(null);
+                new CentralAppSyncAdminController(svc, runs,
+                        mock(CentralSyncPolicyService.class)).status(null);
         assertThat(res.getStatusCode().value()).isEqualTo(401);
     }
 
@@ -50,7 +51,8 @@ class CentralAppSyncAdminControllerTest {
         final CentralAppSyncService svc = mock(CentralAppSyncService.class);
         final CentralAppSyncRunRepository runs = mock(CentralAppSyncRunRepository.class);
         final ResponseEntity<Map<String, Object>> res =
-                new CentralAppSyncAdminController(svc, runs)
+                new CentralAppSyncAdminController(svc, runs,
+                        mock(CentralSyncPolicyService.class))
                         .status(principal(EdgeRole.OPERATOR));
         assertThat(res.getStatusCode().value()).isEqualTo(403);
     }
@@ -66,7 +68,8 @@ class CentralAppSyncAdminControllerTest {
                 "OK", "fine", false, null, 1, 1, 0, 0, 0)));
         when(runs.recent(20)).thenReturn(List.of());
         final ResponseEntity<Map<String, Object>> res =
-                new CentralAppSyncAdminController(svc, runs)
+                new CentralAppSyncAdminController(svc, runs,
+                        mock(CentralSyncPolicyService.class))
                         .status(principal(EdgeRole.ADMIN));
         assertThat(res.getStatusCode().value()).isEqualTo(200);
         @SuppressWarnings("unchecked")
@@ -85,11 +88,56 @@ class CentralAppSyncAdminControllerTest {
                         List.of()));
         final ResponseEntity<Map<String, Object>> res =
                 new CentralAppSyncAdminController(svc,
-                        mock(CentralAppSyncRunRepository.class))
-                        .preview(principal(EdgeRole.ADMIN));
+                        mock(CentralAppSyncRunRepository.class),
+                        mock(CentralSyncPolicyService.class))
+.preview(principal(EdgeRole.ADMIN));
         assertThat(res.getStatusCode().value()).isEqualTo(200);
         assertThat(res.getBody()).containsEntry("outcome", "OK");
         verify(svc).sync(eq(true), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getPolicyReturnsCurrentPolicy() {
+        final CentralSyncPolicyService pol = mock(CentralSyncPolicyService.class);
+        when(pol.read()).thenReturn(new CentralSyncPolicy(
+                CentralSyncPolicy.Mode.ALLOW_LIST, List.of("capture", "dashboard")));
+        final ResponseEntity<Map<String, Object>> res =
+                new CentralAppSyncAdminController(
+                        mock(CentralAppSyncService.class),
+                        mock(CentralAppSyncRunRepository.class), pol)
+                        .getPolicy(principal(EdgeRole.ADMIN));
+        assertThat(res.getStatusCode().value()).isEqualTo(200);
+        assertThat(res.getBody()).containsEntry("mode", "ALLOW_LIST");
+        assertThat((List<Object>) res.getBody().get("keys")).contains("capture");
+    }
+
+    @Test
+    void putPolicyWithoutAdminIs403() {
+        final ResponseEntity<Map<String, Object>> res =
+                new CentralAppSyncAdminController(
+                        mock(CentralAppSyncService.class),
+                        mock(CentralAppSyncRunRepository.class),
+                        mock(CentralSyncPolicyService.class))
+                        .putPolicy(principal(EdgeRole.OPERATOR),
+                                CentralSyncPolicy.allowAll());
+        assertThat(res.getStatusCode().value()).isEqualTo(403);
+    }
+
+    @Test
+    void putPolicyPersistsAndReturnsNewState() {
+        final CentralSyncPolicyService pol = mock(CentralSyncPolicyService.class);
+        final CentralSyncPolicy next = new CentralSyncPolicy(
+                CentralSyncPolicy.Mode.DENY_LIST, List.of("capture"));
+        when(pol.read()).thenReturn(next);
+        final ResponseEntity<Map<String, Object>> res =
+                new CentralAppSyncAdminController(
+                        mock(CentralAppSyncService.class),
+                        mock(CentralAppSyncRunRepository.class), pol)
+                        .putPolicy(principal(EdgeRole.ADMIN), next);
+        assertThat(res.getStatusCode().value()).isEqualTo(200);
+        assertThat(res.getBody()).containsEntry("mode", "DENY_LIST");
+        verify(pol).write(eq(next), any());
     }
 
     @Test
@@ -102,8 +150,9 @@ class CentralAppSyncAdminControllerTest {
                         List.of()));
         final ResponseEntity<Map<String, Object>> res =
                 new CentralAppSyncAdminController(svc,
-                        mock(CentralAppSyncRunRepository.class))
-                        .run(principal(EdgeRole.ADMIN));
+                        mock(CentralAppSyncRunRepository.class),
+                        mock(CentralSyncPolicyService.class))
+.run(principal(EdgeRole.ADMIN));
         assertThat(res.getStatusCode().value()).isEqualTo(200);
         verify(svc).sync(eq(false), any());
     }

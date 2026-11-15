@@ -56,6 +56,7 @@ public class CentralAppSyncService {
     private final InstalledAppRepository installedApps;
     private final CentralAppSyncRunRepository runs;
     private final SecurityAuditRepository audit;
+    private final CentralSyncPolicyService policies;
     private final boolean enabled;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
@@ -64,6 +65,7 @@ public class CentralAppSyncService {
                                    final InstalledAppRepository installedApps,
                                    final CentralAppSyncRunRepository runs,
                                    final SecurityAuditRepository audit,
+                                   final CentralSyncPolicyService policies,
                                    @Value("${der.apps.central-sync.enabled:false}")
                                        final boolean enabled) {
         this.client = Objects.requireNonNull(client, "client");
@@ -71,6 +73,7 @@ public class CentralAppSyncService {
         this.installedApps = Objects.requireNonNull(installedApps, "installedApps");
         this.runs = Objects.requireNonNull(runs, "runs");
         this.audit = Objects.requireNonNull(audit, "audit");
+        this.policies = Objects.requireNonNull(policies, "policies");
         this.enabled = enabled;
     }
 
@@ -136,6 +139,7 @@ public class CentralAppSyncService {
             return new SyncReport(runId, "FAILED",
                     ex.getMessage(), counters, List.of());
         }
+        final CentralSyncPolicy policy = policies.read();
         int installed = 0;
         int updated = 0;
         int skipped = 0;
@@ -148,6 +152,16 @@ public class CentralAppSyncService {
             }
             final Optional<InstalledApp> local = installedApps.findByKey(app.key());
             final String localVersion = local.map(InstalledApp::version).orElse(null);
+            // FR-SYNC-004 — allow/deny-list filter runs before the
+            // version diff so blocked candidates never land in detail
+            // as "would install" (which is noisy and misleading).
+            if (!policy.admits(app.key())) {
+                skipped++;
+                details.add(new CentralAppSyncRunRepository.CandidateDetail(
+                        app.key(), app.version(), localVersion,
+                        "SKIP", policy.rejectionReason(), null));
+                continue;
+            }
             final String action = decideAction(local, app);
             if ("SKIP".equals(action)) {
                 skipped++;

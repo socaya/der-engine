@@ -23,12 +23,28 @@ export function SystemApps(): JSX.Element {
     = useState<edgeApi.CentralSyncReport | null>(null);
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncErr, setSyncErr] = useState<string | null>(null);
+  const [policy, setPolicy] = useState<edgeApi.CentralSyncPolicy | null>(null);
+  const [policyDraft, setPolicyDraft]
+    = useState<{ mode: edgeApi.CentralSyncPolicyMode; keysText: string }>({
+      mode: 'ALLOW_ALL', keysText: '',
+    });
+  const [policyErr, setPolicyErr] = useState<string | null>(null);
+  const [policyBusy, setPolicyBusy] = useState(false);
 
   const loadSyncStatus = (): void => {
     edgeApi.centralSyncStatus()
       .then((r) => setSyncStatus(r))
       .catch((e: unknown) =>
         setSyncErr(e instanceof Error ? e.message : String(e)));
+  };
+  const loadPolicy = (): void => {
+    edgeApi.getCentralSyncPolicy()
+      .then((p) => {
+        setPolicy(p);
+        setPolicyDraft({ mode: p.mode, keysText: p.keys.join(', ') });
+      })
+      .catch((e: unknown) =>
+        setPolicyErr(e instanceof Error ? e.message : String(e)));
   };
 
   useEffect(() => {
@@ -41,7 +57,26 @@ export function SystemApps(): JSX.Element {
       .catch((e: unknown) =>
         setMissErr(e instanceof Error ? e.message : String(e)));
     loadSyncStatus();
+    loadPolicy();
   }, []);
+
+  const onSavePolicy = async (): Promise<void> => {
+    setPolicyBusy(true); setPolicyErr(null);
+    try {
+      const keys = policyDraft.keysText.split(',')
+        .map((s) => s.trim()).filter((s) => s.length > 0);
+      const saved = await edgeApi.putCentralSyncPolicy({
+        mode: policyDraft.mode, keys,
+      });
+      setPolicy(saved);
+      setPolicyDraft({ mode: saved.mode, keysText: saved.keys.join(', ') });
+    } catch (e) {
+      setPolicyErr(e instanceof Error ? e.message : String(e));
+    } finally { setPolicyBusy(false); }
+  };
+  const policyDirty = policy !== null
+    && (policy.mode !== policyDraft.mode
+      || policy.keys.join(', ') !== policyDraft.keysText.trim());
 
   const onPreview = async (): Promise<void> => {
     setSyncBusy(true); setSyncErr(null);
@@ -189,6 +224,42 @@ export function SystemApps(): JSX.Element {
                    : `${syncStatus.latest.outcome} · ${fmtAgo(syncStatus.latest.startedAt ?? '')}`}
                </span>
              }>
+        <div className="ea-mb-md" data-test="system-apps-policy">
+          <label className="ea-label" htmlFor="sync-policy-mode">Policy</label>
+          <select id="sync-policy-mode"
+                  className="ea-input ea-mr-md"
+                  value={policyDraft.mode}
+                  disabled={policyBusy}
+                  onChange={(e) => setPolicyDraft({
+                    ...policyDraft,
+                    mode: e.target.value as edgeApi.CentralSyncPolicyMode,
+                  })}
+                  data-test="system-apps-policy-mode">
+            <option value="ALLOW_ALL">Allow all discovered apps</option>
+            <option value="ALLOW_LIST">Allow-list (only these keys)</option>
+            <option value="DENY_LIST">Deny-list (everything except these keys)</option>
+          </select>
+          <input id="sync-policy-keys"
+                 className="ea-input"
+                 placeholder="comma-separated central_app_id keys"
+                 value={policyDraft.keysText}
+                 disabled={policyBusy || policyDraft.mode === 'ALLOW_ALL'}
+                 onChange={(e) => setPolicyDraft({
+                   ...policyDraft, keysText: e.target.value,
+                 })}
+                 data-test="system-apps-policy-keys" />
+          <button className="ea-btn ea-btn--secondary ea-ml-md"
+                  type="button"
+                  disabled={policyBusy || !policyDirty}
+                  onClick={() => { void onSavePolicy(); }}
+                  data-test="system-apps-policy-save">
+            Save policy
+          </button>
+          {policyErr !== null && (
+            <p className="ea-text-muted ea-text-xs"
+               data-test="system-apps-policy-error">{policyErr}</p>
+          )}
+        </div>
         <div className="ea-flex ea-gap-md ea-mb-md">
           <button className="ea-btn ea-btn--secondary"
                   type="button"

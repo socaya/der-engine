@@ -33,6 +33,7 @@ class CentralAppSyncServiceTest {
     private InstalledAppRepository installedApps;
     private CentralAppSyncRunRepository runs;
     private SecurityAuditRepository audit;
+    private CentralSyncPolicyService policies;
 
     @BeforeEach
     void setUp() {
@@ -41,12 +42,14 @@ class CentralAppSyncServiceTest {
         installedApps = mock(InstalledAppRepository.class);
         runs = mock(CentralAppSyncRunRepository.class);
         audit = mock(SecurityAuditRepository.class);
+        policies = mock(CentralSyncPolicyService.class);
         when(runs.insertStarted(anyBoolean(), any())).thenReturn(UUID.randomUUID());
+        when(policies.read()).thenReturn(CentralSyncPolicy.allowAll());
     }
 
     private CentralAppSyncService service(final boolean enabled) {
         return new CentralAppSyncService(client, catalogue, installedApps,
-                runs, audit, enabled);
+                runs, audit, policies, enabled);
     }
 
     private static InstalledApp local(final String key, final String version) {
@@ -136,6 +139,52 @@ class CentralAppSyncServiceTest {
         assertThat(r.outcome()).isEqualTo("PARTIAL");
         assertThat(r.counters().installed()).isEqualTo(1);
         assertThat(r.counters().failed()).isEqualTo(1);
+    }
+
+    @Test
+    void allowListPolicyFiltersOutUnlistedApps() throws Exception {
+        when(client.centralConfigured()).thenReturn(true);
+        when(client.listApps()).thenReturn(List.of(
+                new CentralApp("blessed", "Blessed", "1.0", "/b", null),
+                new CentralApp("random", "Random", "1.0", "/r", null)));
+        when(installedApps.findByKey(any())).thenReturn(Optional.empty());
+        when(policies.read()).thenReturn(new CentralSyncPolicy(
+                CentralSyncPolicy.Mode.ALLOW_LIST, List.of("blessed")));
+        when(client.fetchBundle("/b")).thenReturn(new byte[]{1});
+        when(catalogue.installZipBytesForSync(any(), eq("blessed"), any()))
+                .thenReturn(Map.of("version", "1.0"));
+
+        final var r = service(true).sync(false, UUID.randomUUID());
+        assertThat(r.counters().installed()).isEqualTo(1);
+        assertThat(r.counters().skipped()).isEqualTo(1);
+        verify(catalogue, never()).installZipBytesForSync(any(),
+                eq("random"), any());
+        assertThat(r.details().stream().anyMatch(d ->
+                "random".equals(d.key()) && "not in allow-list".equals(d.reason())))
+                .isTrue();
+    }
+
+    @Test
+    void denyListPolicyBlocksListedApps() throws Exception {
+        when(client.centralConfigured()).thenReturn(true);
+        when(client.listApps()).thenReturn(List.of(
+                new CentralApp("blocked", "Blocked", "1.0", "/b", null),
+                new CentralApp("ok", "OK", "1.0", "/o", null)));
+        when(installedApps.findByKey(any())).thenReturn(Optional.empty());
+        when(policies.read()).thenReturn(new CentralSyncPolicy(
+                CentralSyncPolicy.Mode.DENY_LIST, List.of("blocked")));
+        when(client.fetchBundle("/o")).thenReturn(new byte[]{1});
+        when(catalogue.installZipBytesForSync(any(), eq("ok"), any()))
+                .thenReturn(Map.of("version", "1.0"));
+
+        final var r = service(true).sync(false, UUID.randomUUID());
+        assertThat(r.counters().installed()).isEqualTo(1);
+        assertThat(r.counters().skipped()).isEqualTo(1);
+        verify(catalogue, never()).installZipBytesForSync(any(),
+                eq("blocked"), any());
+        assertThat(r.details().stream().anyMatch(d ->
+                "blocked".equals(d.key()) && "on deny-list".equals(d.reason())))
+                .isTrue();
     }
 
     @Test

@@ -3061,6 +3061,21 @@ export function centralSyncStatus(): Promise<{
 }> {
   return request('GET', '/edge-api/v1/admin/apps/central-sync');
 }
+
+/** DER-APPS-DHIS2-001 FR-SYNC-004 — allow/deny-list policy. */
+export type CentralSyncPolicyMode = 'ALLOW_ALL' | 'ALLOW_LIST' | 'DENY_LIST';
+export interface CentralSyncPolicy {
+  readonly mode: CentralSyncPolicyMode;
+  readonly keys: string[];
+}
+export function getCentralSyncPolicy(): Promise<CentralSyncPolicy> {
+  return request('GET', '/edge-api/v1/admin/apps/central-sync/policy');
+}
+export function putCentralSyncPolicy(
+  policy: CentralSyncPolicy,
+): Promise<CentralSyncPolicy> {
+  return request('PUT', '/edge-api/v1/admin/apps/central-sync/policy', policy);
+}
 export function centralSyncPreview(): Promise<CentralSyncReport> {
   return request('GET', '/edge-api/v1/admin/apps/central-sync/preview');
 }
