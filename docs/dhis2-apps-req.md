@@ -137,6 +137,314 @@ Every installed app row gains:
 
 ---
 
+## 4a. Coexistence architecture — DER-native + DHIS2 apps on one appliance
+
+### 4a.1 The two app types are structurally different
+
+| | DER-native apps | DHIS2 apps |
+|---|---|---|
+| **Entry shape** | ESM module with `default export` React component | `index.html` + classic JS (UMD, inline, module, mixed) |
+| **Manifest field** | `derAppManifest` in `package.json` | `manifest.webapp` with `launchUrl`, `icons`, etc. |
+| **Build** | Rollup/Vite ESM bundle, Ed25519-signed | DHIS2 d2-app-scripts or any build tool; .zip distribution |
+| **SDK** | `@der/app-sdk` (useAuth, useOrgUnitBinding, useOnlineStatus) | `d2` / `@dhis2/app-runtime` — talks HTTP to `/api/*` |
+| **Styling** | DER design tokens (`--der-*`) | App ships its own CSS |
+| **Delivery** | One `bundle.js` file | A tree of static files (html/js/css/images) |
+| **Isolation** | Same-origin, shares shell globals | Sandboxed `<iframe>`, strict CSP, HTTP-only comms |
+| **Example** | `apps/analytics`, `apps/workflow-capture` | DHIS2 Hub's Social Protection, custom "WHO ANC" |
+
+They are not merged into one host — they are two hosts sitting
+side-by-side, discovered through the same catalogue.
+
+### 4a.2 End-to-end topology
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                       DER Client Shell                             │
+│     (client/src/App.tsx + navigation + session + OU context)       │
+│                                                                    │
+│   ┌──────────────────────────────────────────────────────────┐    │
+│   │               AppLauncher  (menu tile grid)              │    │
+│   │                                                          │    │
+│   │  reads /edge-api/v1/apps — one unified catalogue         │    │
+│   │                                                          │    │
+│   │  [Analytics]  [Capture]  [Social Prot.]  [WHO ANC]  ...  │    │
+│   │    DER_ESM     DER_ESM    DHIS2_IFRAME   DHIS2_IFRAME    │    │
+│   └────────┬────────────────────────────┬────────────────────┘    │
+│            │                            │                          │
+│            │ route: /apps/analytics     │ route: /apps/social-prot │
+│            ▼                            ▼                          │
+│   ┌────────────────┐           ┌────────────────────────┐          │
+│   │  AppHost.tsx   │           │   IframeHost.tsx (new) │          │
+│   │  (ESM dynamic  │           │  <iframe sandbox="..." │          │
+│   │   import())    │           │           src="..."/>  │          │
+│   └───────┬────────┘           └───────────┬────────────┘          │
+│           │                                │                       │
+│           │ mounted as                     │ iframe navigates to   │
+│           │ React component                │ /dhis-web-social-prot │
+│           │                                │                       │
+│           │ uses @der/app-sdk hooks        │ uses d2.config.baseUrl│
+│           │  ↓                             │  = '/' (DER origin)   │
+│           │                                │                       │
+└───────────┼────────────────────────────────┼───────────────────────┘
+            │                                │
+            │ ESM calls                      │ HTTP /api/* + /dhis-web-*/static
+            │  /edge-api/v1/*                │  /api/me, /api/dataValueSets, etc.
+            │                                │
+            ▼                                ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                           DER Server                               │
+│                                                                    │
+│  ┌──────────────────────┐        ┌──────────────────────────────┐  │
+│  │ /edge-api/v1/apps    │        │  AppStaticHandler            │  │
+│  │ AppCatalogueController│       │  /dhis-web-{appKey}/*        │  │
+│  │                      │        │  (serves html/js/css)        │  │
+│  │ serves signed .js    │        │  + CSP header                │  │
+│  │ bundles              │        │  + session cookie required   │  │
+│  └──────────┬───────────┘        └──────────────┬───────────────┘  │
+│             │                                   │                  │
+│             │                                   │                  │
+│  ┌──────────┴──────────────────┐   ┌────────────┴──────────────┐   │
+│  │  DER-native REST surface    │   │  DHIS2 emulator surface   │   │
+│  │  /edge-api/v1/*             │   │  /api/*                   │   │
+│  │                             │   │                           │   │
+│  │  - /capabilities            │   │  - /me                    │   │
+│  │  - /query                   │   │  - /dataValueSets         │   │
+│  │  - /devices                 │   │  - /events                │   │
+│  │  - /system/*                │   │  - /tracker/*             │   │
+│  │                             │   │  - /organisationUnits     │   │
+│  │                             │   │  - /dataElements          │   │
+│  │                             │   │  - ...                    │   │
+│  └──────────┬──────────────────┘   └────────────┬──────────────┘   │
+│             │                                   │                  │
+│             └──────────────┬────────────────────┘                  │
+│                            │                                       │
+│                            │  Same interceptor chain (shared!)     │
+│                            ▼                                       │
+│                                                                    │
+│   OrgUnitScopeInterceptor →                                        │
+│   DeviceApprovalInterceptor →                                      │
+│   DeviceOwnerEnforcementInterceptor →                              │
+│                                                                    │
+│                            │                                       │
+│                            ▼                                       │
+│                                                                    │
+│                  operation_journal  (unified write queue)          │
+│                            │                                       │
+│                            ▼                                       │
+│                  JOURNAL_WORKER_DRAIN → central                    │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### 4a.3 What's shared vs what diverges
+
+**Shared (single source of truth, both app types consume):**
+
+| Infrastructure | Purpose | Consumed by |
+|---|---|---|
+| Session cookie `DER_SESSION` | Auth identity | Both — browser carries it in every request |
+| `X-DER-Device-Id` header | Device identity | Both — client shell injects on every write |
+| `DeviceApprovalInterceptor` | Enforces strict / permissive policy | Both — gates both `/dhis-web-*` and `/edge-api/v1/apps/*/bundle.js` |
+| `OrgUnitScopeInterceptor` | Enforces write OU ∈ bound subtree | Both — fires on any `/api/dataValueSets\|events\|tracker/*` write regardless of origin |
+| `operation_journal` | Queued writes to central | Both — a DHIS2 app's `/api/events` write and a DER-native app's edge-api equivalent both land here |
+| OU binding (`der.edge_node`) | Bound org unit | Both — DER-native reads via `useOrgUnitBinding()` from the SDK; DHIS2 reads via `/api/me` populated from the same row |
+| App catalogue (`/edge-api/v1/apps`) | Single install registry | Both — one list, differentiated by `host_kind` |
+| App launcher menu | Operator entry point | Both — same tile grid, no visual distinction |
+
+**Diverges (each app type's problem):**
+
+| Surface | DER-native | DHIS2 |
+|---|---|---|
+| Bundle format | ESM | Static tree |
+| Runtime API | `@der/app-sdk` hooks (React) | `d2` / `@dhis2/app-runtime` (HTTP) |
+| URL base inside the app | Shell-provided | `d2.config.baseUrl = '/'` |
+| Styling | DER tokens | App's own CSS (CSP-constrained) |
+| JavaScript globals | Full access to shell `window` | Sandboxed — can't touch shell state |
+| Shell navigation | Imports shell router hook | Uses `postMessage` (opt-in) or just full page nav |
+
+### 4a.4 Catalogue schema — one table, two app shapes
+
+The existing `app_installation` table gains three columns via Phase 2's
+new migration:
+
+```sql
+ALTER TABLE der.app_installation
+  ADD COLUMN host_kind TEXT NOT NULL DEFAULT 'DER_ESM'
+    CHECK (host_kind IN ('DER_ESM', 'DHIS2_IFRAME')),
+  ADD COLUMN source TEXT NOT NULL DEFAULT 'MANUAL_UPLOAD'
+    CHECK (source IN ('DER_BUILTIN', 'MANUAL_UPLOAD', 'CENTRAL_SYNC')),
+  ADD COLUMN trust_level TEXT NOT NULL DEFAULT 'SIGNED'
+    CHECK (trust_level IN ('SIGNED', 'UNSIGNED'));
+```
+
+- `host_kind` picked at install time from manifest shape: `derAppManifest`
+  present → `DER_ESM`; `manifest.webapp` present and no `derAppManifest`
+  → `DHIS2_IFRAME`.
+- `source` tracks provenance (built-in DER apps shipped with server,
+  manual admin upload, or central auto-sync).
+- `trust_level = UNSIGNED` only allowed for `DHIS2_IFRAME` and only when
+  `apps.allow-unsigned-central = true` or the admin manually ticks
+  "accept unsigned".
+
+### 4a.5 Catalogue response — one list, enough info for the client to route
+
+`GET /edge-api/v1/apps` returns:
+
+```json
+{
+  "apps": [
+    {
+      "appId": "uuid",
+      "appKey": "analytics",
+      "displayName": "Analytics",
+      "version": "0.1.0-alpha.1",
+      "hostKind": "DER_ESM",
+      "bundleUrl": "/edge-api/v1/apps/uuid/0.1.0-alpha.1/bundle.js",
+      "bundleSha256": "abc123…",
+      "signatureB64": "sig…",
+      "iconUrl": "/edge-api/v1/apps/uuid/0.1.0-alpha.1/icon",
+      "source": "DER_BUILTIN",
+      "trustLevel": "SIGNED"
+    },
+    {
+      "appId": "uuid2",
+      "appKey": "social-protection",
+      "displayName": "Social Protection",
+      "version": "2.1.3",
+      "hostKind": "DHIS2_IFRAME",
+      "launchUrl": "/dhis-web-social-protection/",
+      "iconUrl": "/dhis-web-social-protection/icon-48.png",
+      "source": "CENTRAL_SYNC",
+      "trustLevel": "UNSIGNED"
+    }
+  ]
+}
+```
+
+One client-side loop renders both as tiles. One click opens the right
+host.
+
+### 4a.6 Client-side routing — unified `/apps/{appKey}` namespace (D8)
+
+Both app types live under the **same URL namespace**: `/apps/{appKey}`.
+The client shell routes every entry through one `AppDispatcher`
+component which inspects the catalogue entry's `hostKind` and picks the
+appropriate host. Rationale is captured in resolved decision D8 (§8).
+
+For muscle-memory compatibility with operators moving from DHIS2
+central, DER server serves a 302 redirect from `/dhis-web-{appKey}/` →
+`/apps/{appKey}` so that bookmarks and inter-app links continue to
+resolve. The iframe itself still loads its assets from `/dhis-web-*/*`
+paths — only the top-level shell URL is unified.
+
+In `client/src/App.tsx`:
+
+```tsx
+<Route path="/apps/:appKey" element={
+  <RequireAuth>
+    <AppDispatcher />
+  </RequireAuth>
+} />
+
+// AppDispatcher picks the host based on catalogue
+function AppDispatcher() {
+  const { appKey } = useParams();
+  const app = useAppFromCatalogue(appKey);
+  if (!app) return <UnknownApp />;
+  if (app.hostKind === 'DER_ESM') return <AppHost app={app} />;
+  return <IframeHost app={app} />;    // new component
+}
+```
+
+The shell's chrome (top bar, nav, breadcrumbs, OU indicator, device
+banner) wraps both hosts identically.
+
+### 4a.7 Isolation boundary (the security story)
+
+DER-native apps are **trusted** — they ran through Ed25519 signature
+verification at install time, and at mount time they execute in the
+shell's JavaScript realm. They can read the session cookie, see device
+status, use `@der/app-sdk` hooks that reach into shell internals. The
+trust comes from the signing key.
+
+DHIS2 apps are **untrusted** — they came from the DHIS2 Hub or a partner
+team, and DER didn't sign them. They execute inside a `<iframe
+sandbox="allow-scripts allow-same-origin allow-forms allow-downloads">`
+under a strict CSP. They can:
+
+- ✅ Make HTTP calls to the DER emulator's `/api/*` (same-origin)
+- ✅ Store data in their own iframe's `localStorage` (isolated from
+  shell's)
+- ✅ Render forms, submit them, trigger downloads
+- ❌ Access the shell's `window`, cookies, or localStorage directly
+- ❌ Load scripts from external CDNs (CSP blocks)
+- ❌ Navigate the top frame away (no `allow-top-navigation`)
+
+An XSS in a DHIS2 app can only reach what the iframe can reach — which
+is limited to the DER emulator surface, which is itself behind the same
+auth + approval interceptors that DER-native apps go through. So a
+compromised DHIS2 app has the same blast radius as a logged-in
+operator, no more.
+
+### 4a.8 OU context flow — the same binding, two consumption styles
+
+```
+                   der.edge_node  (singleton, V012)
+                         │
+            ┌────────────┴─────────────┐
+            │                          │
+            ▼                          ▼
+   OrgUnitBindingService          MeController
+   .current()                     (populates /api/me
+            │                      with [boundOrgUnit]
+            ▼                      per Phase 1 FR-OU-001)
+   /edge-api/v1/system/org-unit            │
+            │                              ▼
+            ▼                     /api/me  → DHIS2 app
+   DER-native app reads via         sees the bound OU
+   useOrgUnitBinding() hook         as the only one
+   (from @der/app-sdk)              in its list
+            │                              │
+            ▼                              ▼
+   Renders operator-facing        Renders OU-selector
+   UI with bound OU               dropdown with one
+   preselected                    entry (the bound OU)
+                                  preselected
+```
+
+Both reach the same underlying row; the SDK path is one function call,
+the DHIS2 path is an HTTP round-trip and a populated JSON response.
+Same source of truth, same semantics, no divergence possible.
+
+### 4a.9 Write flow convergence
+
+A DHIS2 app writing `/api/dataValueSets` and a DER-native app writing
+its own edge-api equivalent **both land in the same journal** after
+passing the same interceptor chain. The journal doesn't distinguish by
+app type — it only cares about payload + idempotency key + OU + device.
+Central sync drains both transparently. From the operator's point of
+view, there's one "pending submissions" queue, not two.
+
+This is the key property that makes coexistence sustainable: no
+parallel pipelines, no reconciliation between different queues.
+
+### 4a.10 What this means for implementation ordering
+
+The architecture explains why Phase 1 (OU auto-fill) delivers so much:
+
+- It shares the same `der.edge_node` row DER-native apps already read
+- It reaches DHIS2 apps through the existing `MeController` — no new
+  surface, just populating an empty field
+- It unlocks the DHIS2-app path to interact with the write pipeline that
+  already works
+
+Phase 2 (hybrid dispatcher + iframe host) is the biggest architectural
+lift because it introduces the second mount path. But once the
+catalogue + launcher learn to switch on `host_kind`, the architecture
+is locked and later phases just add surface area (more mirrored
+endpoints, central sync, etc.) without changing the shape.
+
+---
+
 ## 5. Functional requirements
 
 ### FR-APP — app hosting
@@ -276,9 +584,9 @@ Initiative 3 (P2P) direction is set; otherwise premature.
 
 ---
 
-## 8. Resolved decisions (D1–D7, 2026-11-15)
+## 8. Resolved decisions (D1–D8, 2026-11-15)
 
-All seven open decisions resolved on the recommended defaults. This
+All eight open decisions resolved on the recommended defaults. This
 section is the binding contract for Phase 1–6 implementation.
 
 | # | Decision | **Resolution** | Implementation implications |
@@ -290,6 +598,7 @@ section is the binding contract for Phase 1–6 implementation.
 | D5 | CSP policy on `/dhis-web-*/` | **`default-src 'self'; img-src 'self' data:; connect-src 'self'`** | `AppStaticHandler` emits this exact `Content-Security-Policy` header on every response under `/dhis-web-{appKey}/*`. Apps that call third-party CDNs will fail — admins see the violation in the browser console and can request per-app CSP exceptions via a future `apps.csp-override` setting (Phase 5). |
 | D6 | i18n fallback strategy | **English stub on all non-English locales** | `GET /api/i18n` returns the English bundle regardless of `Accept-Language` header value. The response body includes `warnings: ["I18N_FALLBACK"]` when the requested locale was not English, so apps that honour the warning can surface it. Localisation packs stay out of scope until a pilot demands them. |
 | D7 | Unmirrored-endpoint behaviour | **404 with code `EMULATOR_NOT_IMPLEMENTED` + diagnostic log** | Any `/api/*` route not registered by the DHIS2 emulator returns `404 { code: "EMULATOR_NOT_IMPLEMENTED", endpoint: "<path>", appOrigin: "<referrer>" }`. Every miss is logged to a new `emulator_miss` table (path + referrer + timestamp + count), surfaced on the `/system/apps` admin screen (FR-DIAG-002). No proxy-to-central fallback (kills offline-first). |
+| D8 | Client-side URL namespace for mounted apps | **Unified `/apps/{appKey}`** for both host kinds, with a server-side 302 redirect from `/dhis-web-{appKey}/` → `/apps/{appKey}` for muscle-memory compatibility | One `AppDispatcher` component in `client/src/App.tsx` routes every mounted app through `/apps/{appKey}`, inspects the catalogue entry's `hostKind`, and picks `AppHost.tsx` (DER_ESM) or `IframeHost.tsx` (DHIS2_IFRAME). Operators learn one URL shape; the shell wraps both uniformly. The iframe still loads its assets from `/dhis-web-*/*` — only the top-level shell URL unifies. See §4a.6. |
 
 ---
 
