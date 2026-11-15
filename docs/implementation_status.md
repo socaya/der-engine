@@ -424,7 +424,7 @@ DHIS2_IFRAME unsigned + verify skipped. Central-side signing
 |---|---|
 | ~~FR-02-07~~ | ~~First-time offline sign-in gate exists but policy enum not configurable~~ — ✅ **DONE** as of 2026-11-15 (commit `202b3e5f`); 3-tier policy enum enforced in `AuthenticationService` with distinct 403 + `FIRST_TIME_OFFLINE_DENIED` audit reason. |
 | ~~FR-02-09~~ | ~~Emergency-access procedure is bootstrap-only; no runtime break-glass flow~~ — ✅ **DONE** as of 2026-11-15 (commit `b12a4bbb`); audited `BREAK_GLASS_*` flow at `POST /edge-api/v1/break-glass/recover` gated by host-filesystem token-file, one-use, disabled by default, caps blast radius by recovering an existing admin rather than minting. |
-| FR-02-10 | Clock-skew detection surfaces in `/system/health`; no automatic session invalidation on drift |
+| ~~FR-02-10~~ | ~~Clock-skew detection surfaces in `/system/health`; no automatic session invalidation on drift~~ — ✅ **DONE** as of 2026-11-15 (commit `4a047744`); configurable `WARN_ONLY`/`REVOKE_SESSION`/`REVOKE_ALL_FOR_USER` action on `POST /admin/metrics/clock/report` + no-grace-window invariant pinned by test on `EdgeSession.isActive`. |
 | FR-04-02 | DER emulates reads but UI asset serving is PWA-only, not full DHIS2 app shell |
 | FR-04-06 | 502 vs 503 distinction exists; "unsupported operation" taxonomy incomplete |
 | FR-04-09 | Period semantics covered; timezone/locale fallbacks TODO |
