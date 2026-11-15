@@ -1618,6 +1618,9 @@ kbd{
 /* Dense table (used in Queues / Metadata / History / Data mockups) */
 .ea-table--dense th, .ea-table--dense td{padding:3px 8px;font-size:13px;line-height:1.3}
 .ea-table--dense thead th{font-size:13px}
+/* Roomier cell padding for diagnostic tables where the operator is
+ * scanning per-row detail rather than grep-ing a compact log. */
+.ea-table--roomy th, .ea-table--roomy td{padding:8px 10px}
 .ea-table--dense tbody td{color:var(--der-ink-900)}
 .ea-table--dense tbody tr{min-height:28px}
 .ea-table--selectable tbody tr{cursor:pointer}

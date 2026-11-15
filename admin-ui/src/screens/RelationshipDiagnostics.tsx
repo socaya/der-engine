@@ -118,7 +118,7 @@ export function RelationshipDiagnostics(): JSX.Element {
         <h1 style={{ margin: 0, fontSize: 20 }}>
           Relationships diagnostics
         </h1>
-        <span style={{ color: 'var(--der-text-muted)', fontSize: 13 }}>
+        <span className="ea-text-muted ea-text-sm">
           as of {fmtAgo(data.asOf)}
         </span>
         <span style={{ flex: 1 }} />
@@ -166,20 +166,20 @@ export function RelationshipDiagnostics(): JSX.Element {
               .map((r) => r.syncStatus))).join(' · ') || 'none'} />
         </div>
         {data.instances.byStatusAndClass.length === 0 ? (
-          <p style={{ color: 'var(--der-text-muted)' }}>No relationship rows yet.</p>
+          <p className="ea-text-muted">No relationship rows yet.</p>
         ) : (
           <table data-test="reldiag-instances-table"
-                 style={{ width: '100%', borderCollapse: 'collapse' }}>
+                 className="ea-table ea-table--roomy">
             <thead>
               <tr style={{ textAlign: 'left',
                 borderBottom: '1px solid #d9dde6' }}>
-                <th style={{ padding: '8px 10px', fontSize: 13 }}>
+                <th className="ea-text-sm">
                   Sync status
                 </th>
-                <th style={{ padding: '8px 10px', fontSize: 13 }}>
+                <th className="ea-text-sm">
                   Class
                 </th>
-                <th style={{ padding: '8px 10px', fontSize: 13,
+                <th style={{ fontSize: 13,
                   textAlign: 'right' }}>
                   Count
                 </th>
@@ -189,14 +189,14 @@ export function RelationshipDiagnostics(): JSX.Element {
               {data.instances.byStatusAndClass.map((r) => (
                 <tr key={r.syncStatus + '/' + r.relClass}
                     style={{ borderBottom: '1px solid #ebeef3' }}>
-                  <td style={{ padding: '8px 10px', fontSize: 13 }}>
+                  <td className="ea-text-sm">
                     <SyncPill status={r.syncStatus} />
                   </td>
-                  <td style={{ padding: '8px 10px', fontSize: 13,
-                    color: 'var(--der-text-muted)' }}>
+                  <td style={{ fontSize: 13,
+                    color: 'var(--der-ink-500)' }}>
                     {r.relClass}
                   </td>
-                  <td style={{ padding: '8px 10px', fontSize: 13,
+                  <td style={{ fontSize: 13,
                     textAlign: 'right',
                     fontVariantNumeric: 'tabular-nums' }}>
                     {r.count}
@@ -220,7 +220,7 @@ export function RelationshipDiagnostics(): JSX.Element {
 
       <Panel title={`Attention queue (${data.attention.length})`}
              action={data.attention.length === 0 ? undefined : (
-               <span style={{ color: 'var(--der-text-muted)', fontSize: 13 }}>
+               <span className="ea-text-muted ea-text-sm">
                  Showing the 50 most recent FAILED / BLOCKED /
                  CONFLICT rows. Retry re-enqueues the drain;
                  Acknowledge marks SYNCED without a central
@@ -239,18 +239,17 @@ export function RelationshipDiagnostics(): JSX.Element {
                     onClear={() => setSelAttn(new Set())} />
         )}
         {data.attention.length === 0 ? (
-          <p style={{ color: 'var(--der-text-muted)' }}>
+          <p className="ea-text-muted">
             Nothing needs attention — all live rows are SYNCED,
             PENDING or LOCAL.
           </p>
         ) : (
           <table data-test="reldiag-attention-table"
-                 style={{ width: '100%', borderCollapse: 'collapse',
-                   fontSize: 13 }}>
+                 className="ea-table ea-table--roomy ea-text-sm">
             <thead>
               <tr style={{ textAlign: 'left',
                 borderBottom: '1px solid #d9dde6' }}>
-                <th style={{ padding: '8px 10px', width: 28 }}>
+                <th className="ea-col-w-32">
                   <input type="checkbox"
                          data-test="reldiag-attn-selectall"
                          checked={selAttn.size > 0
@@ -265,13 +264,13 @@ export function RelationshipDiagnostics(): JSX.Element {
                                  (r) => r.relationshipUid))
                              : new Set())} />
                 </th>
-                <th style={{ padding: '8px 10px' }}>Status</th>
-                <th style={{ padding: '8px 10px' }}>Type</th>
-                <th style={{ padding: '8px 10px' }}>From</th>
-                <th style={{ padding: '8px 10px' }}>To</th>
-                <th style={{ padding: '8px 10px' }}>Class</th>
-                <th style={{ padding: '8px 10px' }}>Updated</th>
-                <th style={{ padding: '8px 10px' }}>Actions</th>
+                <th>Status</th>
+                <th>Type</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Class</th>
+                <th>Updated</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -280,7 +279,7 @@ export function RelationshipDiagnostics(): JSX.Element {
                     style={{ borderBottom: '1px solid #ebeef3',
                       background: selAttn.has(r.relationshipUid)
                         ? '#eef4fa' : undefined }}>
-                  <td style={{ padding: '8px 10px' }}>
+                  <td>
                     <input type="checkbox"
                            data-test={'reldiag-attn-sel-'
                              + r.relationshipUid}
@@ -295,16 +294,15 @@ export function RelationshipDiagnostics(): JSX.Element {
                              setSelAttn(next);
                            }} />
                   </td>
-                  <td style={{ padding: '8px 10px' }}>
+                  <td>
                     <SyncPill status={r.syncStatus} />
                   </td>
-                  <td style={{ padding: '8px 10px',
-                    fontFamily: 'ui-monospace, Menlo, monospace',
-                    color: 'var(--der-text-muted)' }}>
+                  <td style={{ fontFamily: 'ui-monospace, Menlo, monospace',
+                    color: 'var(--der-ink-500)' }}>
                     {r.relationshipType}
                   </td>
-                  <td style={{ padding: '8px 10px' }}>
-                    <span style={{ color: 'var(--der-text-muted)' }}>
+                  <td>
+                    <span className="ea-text-muted">
                       {r.fromEntityType}
                     </span>
                     {' '}
@@ -312,8 +310,8 @@ export function RelationshipDiagnostics(): JSX.Element {
                       {r.fromEntityUid}
                     </code>
                   </td>
-                  <td style={{ padding: '8px 10px' }}>
-                    <span style={{ color: 'var(--der-text-muted)' }}>
+                  <td>
+                    <span className="ea-text-muted">
                       {r.toEntityType}
                     </span>
                     {' '}
@@ -321,16 +319,13 @@ export function RelationshipDiagnostics(): JSX.Element {
                       {r.toEntityUid}
                     </code>
                   </td>
-                  <td style={{ padding: '8px 10px',
-                    color: 'var(--der-text-muted)' }}>
+                  <td style={{ color: 'var(--der-ink-500)' }}>
                     {r.relClass}
                   </td>
-                  <td style={{ padding: '8px 10px',
-                    color: 'var(--der-text-muted)' }}>
+                  <td style={{ color: 'var(--der-ink-500)' }}>
                     {fmtAgo(r.updatedAt)}
                   </td>
-                  <td style={{ padding: '8px 10px',
-                    whiteSpace: 'nowrap' }}>
+                  <td style={{ whiteSpace: 'nowrap' }}>
                     <ActionButton kind="retry"
                                    uid={r.relationshipUid}
                                    busy={actionBusy}
@@ -350,7 +345,7 @@ export function RelationshipDiagnostics(): JSX.Element {
 
       <Panel title={`Soft-deleted tombstones (${data.tombstones.length})`}
              action={data.tombstones.length === 0 ? undefined : (
-               <span style={{ color: 'var(--der-text-muted)', fontSize: 13 }}>
+               <span className="ea-text-muted ea-text-sm">
                  Rows unlinked by the operator but not yet
                  physically purged (usually waiting on a
                  central DELETE round-trip). Purge removes the
@@ -368,7 +363,7 @@ export function RelationshipDiagnostics(): JSX.Element {
                     onClear={() => setSelTomb(new Set())} />
         )}
         {data.tombstones.length === 0 ? (
-          <p style={{ color: 'var(--der-text-muted)' }}>
+          <p className="ea-text-muted">
             No tombstones — every unlinked row has been
             physically purged.
           </p>
@@ -379,7 +374,7 @@ export function RelationshipDiagnostics(): JSX.Element {
             <thead>
               <tr style={{ textAlign: 'left',
                 borderBottom: '1px solid #d9dde6' }}>
-                <th style={{ padding: '8px 10px', width: 28 }}>
+                <th className="ea-col-w-32">
                   <input type="checkbox"
                          data-test="reldiag-tomb-selectall"
                          checked={selTomb.size > 0
@@ -394,12 +389,12 @@ export function RelationshipDiagnostics(): JSX.Element {
                                  (r) => r.relationshipUid))
                              : new Set())} />
                 </th>
-                <th style={{ padding: '8px 10px' }}>Status</th>
-                <th style={{ padding: '8px 10px' }}>Type</th>
-                <th style={{ padding: '8px 10px' }}>From</th>
-                <th style={{ padding: '8px 10px' }}>To</th>
-                <th style={{ padding: '8px 10px' }}>Deleted</th>
-                <th style={{ padding: '8px 10px' }}>Actions</th>
+                <th>Status</th>
+                <th>Type</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Deleted</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -408,7 +403,7 @@ export function RelationshipDiagnostics(): JSX.Element {
                     style={{ borderBottom: '1px solid #ebeef3',
                       background: selTomb.has(r.relationshipUid)
                         ? '#eef4fa' : undefined }}>
-                  <td style={{ padding: '8px 10px' }}>
+                  <td>
                     <input type="checkbox"
                            data-test={'reldiag-tomb-sel-'
                              + r.relationshipUid}
@@ -423,16 +418,15 @@ export function RelationshipDiagnostics(): JSX.Element {
                              setSelTomb(next);
                            }} />
                   </td>
-                  <td style={{ padding: '8px 10px' }}>
+                  <td>
                     <SyncPill status={r.syncStatus} />
                   </td>
-                  <td style={{ padding: '8px 10px',
-                    fontFamily: 'ui-monospace, Menlo, monospace',
-                    color: 'var(--der-text-muted)' }}>
+                  <td style={{ fontFamily: 'ui-monospace, Menlo, monospace',
+                    color: 'var(--der-ink-500)' }}>
                     {r.relationshipType}
                   </td>
-                  <td style={{ padding: '8px 10px' }}>
-                    <span style={{ color: 'var(--der-text-muted)' }}>
+                  <td>
+                    <span className="ea-text-muted">
                       {r.fromEntityType}
                     </span>
                     {' '}
@@ -440,8 +434,8 @@ export function RelationshipDiagnostics(): JSX.Element {
                       {r.fromEntityUid}
                     </code>
                   </td>
-                  <td style={{ padding: '8px 10px' }}>
-                    <span style={{ color: 'var(--der-text-muted)' }}>
+                  <td>
+                    <span className="ea-text-muted">
                       {r.toEntityType}
                     </span>
                     {' '}
@@ -449,12 +443,10 @@ export function RelationshipDiagnostics(): JSX.Element {
                       {r.toEntityUid}
                     </code>
                   </td>
-                  <td style={{ padding: '8px 10px',
-                    color: 'var(--der-text-muted)' }}>
+                  <td style={{ color: 'var(--der-ink-500)' }}>
                     {fmtAgo(r.deletedAt)}
                   </td>
-                  <td style={{ padding: '8px 10px',
-                    whiteSpace: 'nowrap' }}>
+                  <td style={{ whiteSpace: 'nowrap' }}>
                     <ActionButton kind="purge"
                                    uid={r.relationshipUid}
                                    busy={actionBusy}
@@ -515,7 +507,7 @@ function BulkBar({ count, actions, busy, onApply, onClear }: {
               onClick={onClear}
               style={{ padding: '4px 10px', fontSize: 13,
                 border: 0, background: 'transparent',
-                color: 'var(--der-text-muted)',
+                color: 'var(--der-ink-500)',
                 cursor: anyBusy ? 'default' : 'pointer' }}>
         Clear
       </button>
@@ -565,12 +557,12 @@ function StatCard({ label, value, hint }: {
       padding: '12px 14px' }}>
       <div style={{ fontSize: 11, fontWeight: 600,
         letterSpacing: '0.04em', textTransform: 'uppercase',
-        color: 'var(--der-text-muted)' }}>{label}</div>
+        color: 'var(--der-ink-500)' }}>{label}</div>
       <div style={{ fontSize: 18, fontWeight: 500,
         color: '#101a32', marginTop: 4,
         fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       {hint && (
-        <div style={{ fontSize: 12, color: 'var(--der-text-muted)',
+        <div style={{ fontSize: 12, color: 'var(--der-ink-500)',
           marginTop: 6 }}>{hint}</div>
       )}
     </div>
@@ -581,11 +573,11 @@ function SyncPill({ status }: { status: string }): JSX.Element {
   const [bg, fg] =
       status === 'SYNCED'   ? ['var(--der-success-soft)', 'var(--der-success-ink)']
     : status === 'PENDING'  ? ['var(--der-warning-soft)', 'var(--der-warning-ink)']
-    : status === 'LOCAL'    ? ['#eef0f5', 'var(--der-text-muted)']
+    : status === 'LOCAL'    ? ['#eef0f5', 'var(--der-ink-500)']
     : status === 'FAILED'   ? ['var(--der-danger-soft)', 'var(--der-danger-ink)']
     : status === 'BLOCKED'  ? ['var(--der-danger-soft)', 'var(--der-danger-ink)']
     : status === 'CONFLICT' ? ['var(--der-warning-soft)', 'var(--der-warning-ink)']
-    : ['#eef0f5', 'var(--der-text-muted)'];
+    : ['#eef0f5', 'var(--der-ink-500)'];
   return (
     <span style={{ display: 'inline-block',
       background: bg, color: fg,
