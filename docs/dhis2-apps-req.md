@@ -457,7 +457,7 @@ endpoints, central sync, etc.) without changing the shape.
 | FR-APP-004 | Client renders DHIS2 apps in a `<iframe sandbox="allow-scripts allow-same-origin allow-forms allow-downloads">` frame sized to its container | P1 |
 | FR-APP-005 | Device-approval interceptor applies to both `/edge-api/v1/apps/*/bundle.js` and `/dhis-web-*` — unapproved devices get the same `DEVICE_NOT_APPROVED` error | P1 |
 | FR-APP-006 | App launcher shows unified catalogue; iframe apps open in the same shell layout as ESM apps (header + content, no second navigation chrome) | P1 |
-| FR-APP-007 | Ed25519 signing enforced on `DER_ESM` apps; optional on `DHIS2_IFRAME` apps with per-installation `trust_level` | P2 |
+| FR-APP-007 | Ed25519 signing enforced on `DER_ESM` apps; optional on `DHIS2_IFRAME` apps with per-installation `trust_level` | P2 — **shipped** Phase 5d (commit `119a3beb`); formalised by ADR-0037 |
 | FR-APP-008 | Uninstall path identical for both host kinds (one admin action removes the catalogue row + the stored bytes) | P2 |
 
 ### FR-SYNC — central app sync
