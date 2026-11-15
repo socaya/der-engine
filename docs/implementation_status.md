@@ -422,7 +422,7 @@ DHIS2_IFRAME unsigned + verify skipped. Central-side signing
 
 | ID | Gap |
 |---|---|
-| FR-02-07 | First-time offline sign-in gate exists but policy enum not configurable |
+| ~~FR-02-07~~ | ~~First-time offline sign-in gate exists but policy enum not configurable~~ — ✅ **DONE** as of 2026-11-15 (commit `202b3e5f`); 3-tier policy enum enforced in `AuthenticationService` with distinct 403 + `FIRST_TIME_OFFLINE_DENIED` audit reason. |
 | FR-02-09 | Emergency-access procedure is bootstrap-only; no runtime break-glass flow |
 | FR-02-10 | Clock-skew detection surfaces in `/system/health`; no automatic session invalidation on drift |
 | FR-04-02 | DER emulates reads but UI asset serving is PWA-only, not full DHIS2 app shell |
