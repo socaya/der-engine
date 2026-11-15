@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import ug.ac.mak.der.apps.AppCatalogueController;
 import ug.ac.mak.der.apps.InstalledApp;
 import ug.ac.mak.der.apps.InstalledAppRepository;
+import ug.ac.mak.der.dhis2emulator.SystemSettingsRepository;
 import ug.ac.mak.der.security.AuditEvent;
 import ug.ac.mak.der.security.SecurityAuditRepository;
 
@@ -51,12 +52,20 @@ public class CentralAppSyncService {
 
     private static final Logger LOG = LoggerFactory.getLogger(CentralAppSyncService.class);
 
+    /** FR-SYNC-008 — system setting that overrides the default
+     *  "unsigned installs rejected" posture when a pinned key is
+     *  configured. Toggle via the systemSettings API — admin only. */
+    public static final String SETTING_ALLOW_UNSIGNED =
+            "apps.allow-unsigned-central";
+
     private final CentralAppClient client;
     private final AppCatalogueController catalogue;
     private final InstalledAppRepository installedApps;
     private final CentralAppSyncRunRepository runs;
     private final SecurityAuditRepository audit;
     private final CentralSyncPolicyService policies;
+    private final CentralSigningVerifier verifier;
+    private final SystemSettingsRepository systemSettings;
     private final boolean enabled;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
@@ -66,6 +75,8 @@ public class CentralAppSyncService {
                                    final CentralAppSyncRunRepository runs,
                                    final SecurityAuditRepository audit,
                                    final CentralSyncPolicyService policies,
+                                   final CentralSigningVerifier verifier,
+                                   final SystemSettingsRepository systemSettings,
                                    @Value("${der.apps.central-sync.enabled:false}")
                                        final boolean enabled) {
         this.client = Objects.requireNonNull(client, "client");
@@ -74,6 +85,8 @@ public class CentralAppSyncService {
         this.runs = Objects.requireNonNull(runs, "runs");
         this.audit = Objects.requireNonNull(audit, "audit");
         this.policies = Objects.requireNonNull(policies, "policies");
+        this.verifier = Objects.requireNonNull(verifier, "verifier");
+        this.systemSettings = Objects.requireNonNull(systemSettings, "systemSettings");
         this.enabled = enabled;
     }
 
@@ -193,6 +206,41 @@ public class CentralAppSyncService {
             try {
                 final byte[] bytes = client.fetchBundle(app.downloadUrl());
                 final String sha = sha256Hex(bytes);
+                // FR-SYNC-008 gate: when a pinned key is configured,
+                // every bundle must either verify under it or be
+                // explicitly allowed as "unsigned-override".
+                final SignatureDecision sigDecision =
+                        decideSignature(bytes, app);
+                if (sigDecision == SignatureDecision.REJECT_BAD_SIGNATURE) {
+                    failed++;
+                    details.add(new CentralAppSyncRunRepository.CandidateDetail(
+                            app.key(), app.version(), localVersion, action,
+                            "signature did not verify against pinned key", sha));
+                    continue;
+                }
+                if (sigDecision == SignatureDecision.REJECT_UNSIGNED) {
+                    failed++;
+                    details.add(new CentralAppSyncRunRepository.CandidateDetail(
+                            app.key(), app.version(), localVersion, action,
+                            "unsigned and apps.allow-unsigned-central is false",
+                            sha));
+                    continue;
+                }
+                if (sigDecision == SignatureDecision.ACCEPT_UNSIGNED_OVERRIDE) {
+                    // D2 — every override install writes its own audit
+                    // event so operators have a tamper-evident log of
+                    // what bypassed the pinned-key check.
+                    audit.append(new AuditEvent(
+                            "APP_UNSIGNED_CENTRAL_ACCEPTED",
+                            AuditEvent.Outcome.SUCCESS,
+                            triggeredBy, null, null, null,
+                            Map.of(
+                                    "centralAppId", app.key(),
+                                    "version", app.version() == null ? "" : app.version(),
+                                    "sha256", sha,
+                                    "action", action)),
+                            java.time.Instant.now());
+                }
                 final Map<String, Object> result =
                         catalogue.installZipBytesForSync(bytes, app.key(), triggeredBy);
                 final String installedVersion = (String) result.get("version");
@@ -232,6 +280,41 @@ public class CentralAppSyncService {
                         + failed + " failed";
         runs.markComplete(runId, outcome, msg, counters, details);
         return new SyncReport(runId, outcome, msg, counters, details);
+    }
+
+    /** Signature outcomes for the FR-SYNC-008 gate. */
+    private enum SignatureDecision {
+        /** No pinned key configured — behave as pre-FR-SYNC-008. */
+        PASS_NO_PINNED_KEY,
+        /** Pinned key present and bundle verified. */
+        PASS_VERIFIED,
+        /** Bundle unsigned and admin has toggled on the override. */
+        ACCEPT_UNSIGNED_OVERRIDE,
+        /** Bundle unsigned and no admin override. */
+        REJECT_UNSIGNED,
+        /** Bundle signed but signature does not verify. */
+        REJECT_BAD_SIGNATURE,
+    }
+
+    private SignatureDecision decideSignature(final byte[] bytes,
+                                                 final CentralApp app) {
+        if (!verifier.pinnedKeyConfigured()) {
+            return SignatureDecision.PASS_NO_PINNED_KEY;
+        }
+        final String sigB64 = app.signatureB64();
+        if (sigB64 == null || sigB64.isBlank()) {
+            return isUnsignedAllowed()
+                    ? SignatureDecision.ACCEPT_UNSIGNED_OVERRIDE
+                    : SignatureDecision.REJECT_UNSIGNED;
+        }
+        return verifier.verify(bytes, sigB64)
+                ? SignatureDecision.PASS_VERIFIED
+                : SignatureDecision.REJECT_BAD_SIGNATURE;
+    }
+
+    private boolean isUnsignedAllowed() {
+        final String raw = systemSettings.read(SETTING_ALLOW_UNSIGNED);
+        return "true".equalsIgnoreCase(raw);
     }
 
     private static String decideAction(final Optional<InstalledApp> local,

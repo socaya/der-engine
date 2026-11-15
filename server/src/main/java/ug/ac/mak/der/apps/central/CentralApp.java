@@ -18,4 +18,5 @@ public record CentralApp(
         String displayName,
         String version,
         String downloadUrl,
-        String sha256) { }
+        String sha256,
+        String signatureB64) { }

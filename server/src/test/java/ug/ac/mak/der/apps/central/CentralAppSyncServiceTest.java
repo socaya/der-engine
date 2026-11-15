@@ -34,6 +34,8 @@ class CentralAppSyncServiceTest {
     private CentralAppSyncRunRepository runs;
     private SecurityAuditRepository audit;
     private CentralSyncPolicyService policies;
+    private CentralSigningVerifier verifier;
+    private ug.ac.mak.der.dhis2emulator.SystemSettingsRepository systemSettings;
 
     @BeforeEach
     void setUp() {
@@ -43,13 +45,18 @@ class CentralAppSyncServiceTest {
         runs = mock(CentralAppSyncRunRepository.class);
         audit = mock(SecurityAuditRepository.class);
         policies = mock(CentralSyncPolicyService.class);
+        verifier = mock(CentralSigningVerifier.class);
+        systemSettings = mock(ug.ac.mak.der.dhis2emulator.SystemSettingsRepository.class);
         when(runs.insertStarted(anyBoolean(), any())).thenReturn(UUID.randomUUID());
         when(policies.read()).thenReturn(CentralSyncPolicy.allowAll());
+        // Default: no pinned key → FR-SYNC-008 falls through to legacy
+        // behaviour so existing tests keep their semantics.
+        when(verifier.pinnedKeyConfigured()).thenReturn(false);
     }
 
     private CentralAppSyncService service(final boolean enabled) {
         return new CentralAppSyncService(client, catalogue, installedApps,
-                runs, audit, policies, enabled);
+                runs, audit, policies, verifier, systemSettings, enabled);
     }
 
     private static InstalledApp local(final String key, final String version) {
@@ -82,9 +89,9 @@ class CentralAppSyncServiceTest {
     void dryRunCountsCandidatesWithoutInstalling() throws Exception {
         when(client.centralConfigured()).thenReturn(true);
         when(client.listApps()).thenReturn(List.of(
-                new CentralApp("new-app", "New App", "1.0", "url", null),
-                new CentralApp("existing", "Existing", "2.0", "url", null),
-                new CentralApp("same", "Same", "3.0", "url", null)));
+                new CentralApp("new-app", "New App", "1.0", "url", null, null),
+                new CentralApp("existing", "Existing", "2.0", "url", null, null),
+                new CentralApp("same", "Same", "3.0", "url", null, null)));
         when(installedApps.findByKey("new-app")).thenReturn(Optional.empty());
         when(installedApps.findByKey("existing")).thenReturn(Optional.of(local("existing", "1.0")));
         when(installedApps.findByKey("same")).thenReturn(Optional.of(local("same", "3.0")));
@@ -103,7 +110,7 @@ class CentralAppSyncServiceTest {
     void liveRunInstallsNewAppAndAudits() throws Exception {
         when(client.centralConfigured()).thenReturn(true);
         when(client.listApps()).thenReturn(List.of(
-                new CentralApp("new-app", "New App", "1.0", "/download/new-app", null)));
+                new CentralApp("new-app", "New App", "1.0", "/download/new-app", null, null)));
         when(installedApps.findByKey("new-app")).thenReturn(Optional.empty());
         when(client.fetchBundle("/download/new-app")).thenReturn(new byte[]{1, 2, 3});
         when(catalogue.installZipBytesForSync(any(), eq("new-app"), any()))
@@ -126,8 +133,8 @@ class CentralAppSyncServiceTest {
     void failedInstallRecordsFailurePartialOutcome() throws Exception {
         when(client.centralConfigured()).thenReturn(true);
         when(client.listApps()).thenReturn(List.of(
-                new CentralApp("good", "Good", "1.0", "/g", null),
-                new CentralApp("bad", "Bad", "1.0", "/b", null)));
+                new CentralApp("good", "Good", "1.0", "/g", null, null),
+                new CentralApp("bad", "Bad", "1.0", "/b", null, null)));
         when(installedApps.findByKey("good")).thenReturn(Optional.empty());
         when(installedApps.findByKey("bad")).thenReturn(Optional.empty());
         when(client.fetchBundle("/g")).thenReturn(new byte[]{1});
@@ -145,8 +152,8 @@ class CentralAppSyncServiceTest {
     void allowListPolicyFiltersOutUnlistedApps() throws Exception {
         when(client.centralConfigured()).thenReturn(true);
         when(client.listApps()).thenReturn(List.of(
-                new CentralApp("blessed", "Blessed", "1.0", "/b", null),
-                new CentralApp("random", "Random", "1.0", "/r", null)));
+                new CentralApp("blessed", "Blessed", "1.0", "/b", null, null),
+                new CentralApp("random", "Random", "1.0", "/r", null, null)));
         when(installedApps.findByKey(any())).thenReturn(Optional.empty());
         when(policies.read()).thenReturn(new CentralSyncPolicy(
                 CentralSyncPolicy.Mode.ALLOW_LIST, List.of("blessed")));
@@ -168,8 +175,8 @@ class CentralAppSyncServiceTest {
     void denyListPolicyBlocksListedApps() throws Exception {
         when(client.centralConfigured()).thenReturn(true);
         when(client.listApps()).thenReturn(List.of(
-                new CentralApp("blocked", "Blocked", "1.0", "/b", null),
-                new CentralApp("ok", "OK", "1.0", "/o", null)));
+                new CentralApp("blocked", "Blocked", "1.0", "/b", null, null),
+                new CentralApp("ok", "OK", "1.0", "/o", null, null)));
         when(installedApps.findByKey(any())).thenReturn(Optional.empty());
         when(policies.read()).thenReturn(new CentralSyncPolicy(
                 CentralSyncPolicy.Mode.DENY_LIST, List.of("blocked")));
@@ -191,11 +198,83 @@ class CentralAppSyncServiceTest {
     void candidateWithNullDownloadUrlIsCountedAsFailedNotCrash() throws Exception {
         when(client.centralConfigured()).thenReturn(true);
         when(client.listApps()).thenReturn(List.of(
-                new CentralApp("no-url", "No URL", "1.0", null, null)));
+                new CentralApp("no-url", "No URL", "1.0", null, null, null)));
         when(installedApps.findByKey("no-url")).thenReturn(Optional.empty());
         final var r = service(true).sync(false, UUID.randomUUID());
         assertThat(r.outcome()).isEqualTo("FAILED");
         assertThat(r.counters().failed()).isEqualTo(1);
+    }
+
+    @Test
+    void pinnedKeyRejectsUnsignedByDefault() throws Exception {
+        when(client.centralConfigured()).thenReturn(true);
+        when(verifier.pinnedKeyConfigured()).thenReturn(true);
+        when(client.listApps()).thenReturn(List.of(
+                new CentralApp("no-sig", "No Sig", "1.0", "/u", null, null)));
+        when(installedApps.findByKey("no-sig")).thenReturn(Optional.empty());
+        when(client.fetchBundle("/u")).thenReturn(new byte[]{1, 2, 3});
+        when(systemSettings.read(CentralAppSyncService.SETTING_ALLOW_UNSIGNED))
+                .thenReturn(null);
+        final var r = service(true).sync(false, UUID.randomUUID());
+        assertThat(r.outcome()).isEqualTo("FAILED");
+        assertThat(r.counters().failed()).isEqualTo(1);
+        assertThat(r.details().get(0).reason()).contains("allow-unsigned-central is false");
+        verify(catalogue, never()).installZipBytesForSync(any(), any(), any());
+    }
+
+    @Test
+    void pinnedKeyAcceptsUnsignedWhenOverrideOnAndEmitsAudit() throws Exception {
+        when(client.centralConfigured()).thenReturn(true);
+        when(verifier.pinnedKeyConfigured()).thenReturn(true);
+        when(client.listApps()).thenReturn(List.of(
+                new CentralApp("override", "O", "1.0", "/u", null, null)));
+        when(installedApps.findByKey("override")).thenReturn(Optional.empty());
+        when(client.fetchBundle("/u")).thenReturn(new byte[]{1});
+        when(systemSettings.read(CentralAppSyncService.SETTING_ALLOW_UNSIGNED))
+                .thenReturn("true");
+        when(catalogue.installZipBytesForSync(any(), eq("override"), any()))
+                .thenReturn(Map.of("version", "1.0"));
+        final UUID actor = UUID.randomUUID();
+        final var r = service(true).sync(false, actor);
+        assertThat(r.outcome()).isEqualTo("OK");
+        verify(audit).append(argThat((AuditEvent e) ->
+                "APP_UNSIGNED_CENTRAL_ACCEPTED".equals(e.eventType())
+                        && actor.equals(e.actorUserId())), any());
+        verify(audit).append(argThat((AuditEvent e) ->
+                "APP_INSTALLED_FROM_CENTRAL".equals(e.eventType())), any());
+    }
+
+    @Test
+    void pinnedKeyRejectsBadSignature() throws Exception {
+        when(client.centralConfigured()).thenReturn(true);
+        when(verifier.pinnedKeyConfigured()).thenReturn(true);
+        when(client.listApps()).thenReturn(List.of(
+                new CentralApp("bad-sig", "B", "1.0", "/b", null, "badsig")));
+        when(installedApps.findByKey("bad-sig")).thenReturn(Optional.empty());
+        when(client.fetchBundle("/b")).thenReturn(new byte[]{1});
+        when(verifier.verify(any(), eq("badsig"))).thenReturn(false);
+        final var r = service(true).sync(false, UUID.randomUUID());
+        assertThat(r.outcome()).isEqualTo("FAILED");
+        assertThat(r.details().get(0).reason()).contains("did not verify");
+        verify(catalogue, never()).installZipBytesForSync(any(), any(), any());
+    }
+
+    @Test
+    void pinnedKeyAcceptsValidSignature() throws Exception {
+        when(client.centralConfigured()).thenReturn(true);
+        when(verifier.pinnedKeyConfigured()).thenReturn(true);
+        when(client.listApps()).thenReturn(List.of(
+                new CentralApp("good-sig", "G", "1.0", "/g", null, "goodsig")));
+        when(installedApps.findByKey("good-sig")).thenReturn(Optional.empty());
+        when(client.fetchBundle("/g")).thenReturn(new byte[]{1, 2, 3});
+        when(verifier.verify(any(), eq("goodsig"))).thenReturn(true);
+        when(catalogue.installZipBytesForSync(any(), eq("good-sig"), any()))
+                .thenReturn(Map.of("version", "1.0"));
+        final var r = service(true).sync(false, UUID.randomUUID());
+        assertThat(r.outcome()).isEqualTo("OK");
+        assertThat(r.counters().installed()).isEqualTo(1);
+        verify(audit, never()).append(argThat((AuditEvent e) ->
+                "APP_UNSIGNED_CENTRAL_ACCEPTED".equals(e.eventType())), any());
     }
 
     @Test
