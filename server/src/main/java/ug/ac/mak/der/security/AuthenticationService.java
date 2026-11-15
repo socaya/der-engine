@@ -113,6 +113,29 @@ public class AuthenticationService {
             return SignInOutcome.invalidCredentials();
         }
 
+        // FR-02-07 — first-time-offline gate. Password was correct;
+        // decide whether the configured policy permits the sign-in.
+        if (!firstTimeOfflineAllowed(user)) {
+            audit.append(new AuditEvent(
+                    "SIGN_IN_FAILURE",
+                    AuditEvent.Outcome.DENIED,
+                    null, user.userId(),
+                    clientIp, userAgent,
+                    Map.of(
+                            "username", normalisedUsername,
+                            "reason", "FIRST_TIME_OFFLINE_DENIED",
+                            "origin", user.origin().name(),
+                            "policy", props.firstTimeOffline().policy().name())
+            ), now);
+            AUTH_LOG.warn("AUTH_FAIL username={} ip={} reason=FIRST_TIME_OFFLINE_DENIED "
+                            + "origin={} policy={}",
+                    normalisedUsername,
+                    clientIp == null ? "unknown" : clientIp,
+                    user.origin(),
+                    props.firstTimeOffline().policy());
+            return SignInOutcome.firstTimeOfflineDenied(user);
+        }
+
         final String rawToken = sessionIssuer.issueToken();
         final EdgeSession session = sessions.insert(new EdgeSession(
                 UUID.randomUUID(),
@@ -153,9 +176,39 @@ public class AuthenticationService {
         return props.session().ttl();
     }
 
-    /** Returned by {@link #signIn}. One of three disjoint cases. */
+    /**
+     * FR-02-07 — resolve whether the user is permitted to sign in
+     * right now under the configured first-time-offline policy. The
+     * check runs AFTER password verification succeeded; if the
+     * answer is false, we treat it as a sign-in failure with a
+     * dedicated audit reason so operators can see the gate firing.
+     */
+    private boolean firstTimeOfflineAllowed(final EdgeUser user) {
+        final SecurityProperties.FirstTimeOffline.Policy policy =
+                props.firstTimeOffline().policy();
+        if (policy == SecurityProperties.FirstTimeOffline.Policy.DISABLED) {
+            return true;
+        }
+        // Prior success anywhere in audit history is the primary
+        // "has proven itself" signal — once a user has signed in
+        // once (regardless of policy), they're not first-time.
+        if (audit.hasEverSignedInSuccessfully(user.userId())) {
+            return true;
+        }
+        return switch (policy) {
+            case REQUIRE_ONLINE_FIRST ->
+                    user.origin() == EdgeUser.Origin.BOOTSTRAP
+                            || user.origin() == EdgeUser.Origin.DHIS2;
+            case BOOTSTRAP_ONLY ->
+                    user.origin() == EdgeUser.Origin.BOOTSTRAP;
+            case DISABLED -> true;
+        };
+    }
+
+    /** Returned by {@link #signIn}. One of four disjoint cases. */
     public sealed interface SignInOutcome permits
-            SignInOutcome.Success, SignInOutcome.InvalidCredentials, SignInOutcome.RateLimited {
+            SignInOutcome.Success, SignInOutcome.InvalidCredentials,
+            SignInOutcome.RateLimited, SignInOutcome.FirstTimeOfflineDenied {
 
         static SignInOutcome success(final EdgeUser user, final EdgeSession session, final String rawToken) {
             return new Success(user, session, rawToken);
@@ -169,6 +222,10 @@ public class AuthenticationService {
             return RateLimitedHolder.INSTANCE;
         }
 
+        static SignInOutcome firstTimeOfflineDenied(final EdgeUser user) {
+            return new FirstTimeOfflineDenied(user);
+        }
+
         record Success(EdgeUser user, EdgeSession session, String rawToken) implements SignInOutcome { }
 
         /** The username did not exist or the password did not match. */
@@ -176,6 +233,13 @@ public class AuthenticationService {
 
         /** The sign-in attempt was throttled before verification. */
         final class RateLimited implements SignInOutcome { }
+
+        /**
+         * FR-02-07 — password matched but the user has never
+         * signed in before and the configured policy requires an
+         * approved provisioning method the user doesn't carry.
+         */
+        record FirstTimeOfflineDenied(EdgeUser user) implements SignInOutcome { }
     }
 
     private static final class InvalidCredentialsHolder {

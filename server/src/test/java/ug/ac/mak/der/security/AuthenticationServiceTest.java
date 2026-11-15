@@ -218,4 +218,150 @@ class AuthenticationServiceTest {
                         "raw");
         assertThat(s.rawToken()).isEqualTo("raw");
     }
+
+    // ---- FR-02-07 first-time-offline policy -----------------------
+
+    private static SecurityProperties propsWithPolicy(
+            final SecurityProperties.FirstTimeOffline.Policy policy) {
+        return new SecurityProperties(
+                new SecurityProperties.Session(Duration.ofHours(1),
+                        "DER_SESSION", false, "Strict", "s"),
+                new SecurityProperties.SignIn(100, 100),
+                new SecurityProperties.Bootstrap("", ""),
+                new SecurityProperties.DeviceApproval(false),
+                new SecurityProperties.FirstTimeOffline(policy));
+    }
+
+    private AuthenticationService svcWithUser(final EdgeUser u,
+                                                final boolean hasEverSignedIn,
+                                                final SecurityProperties props) {
+        final EdgeUserRepository users = mock(EdgeUserRepository.class);
+        final EdgeSessionRepository sessions = mock(EdgeSessionRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        final PasswordHasher hasher = mock(PasswordHasher.class);
+        final SessionIssuer issuer = mock(SessionIssuer.class);
+        final RateLimiter limiter = mock(RateLimiter.class);
+        when(limiter.tryAcquire(any(), any(), anyInt())).thenReturn(true);
+        when(users.findByUsername(u.username())).thenReturn(Optional.of(u));
+        when(users.findVerifier(u.userId())).thenReturn(Optional.of("v"));
+        when(hasher.verify(anyString(), anyString())).thenReturn(true);
+        when(issuer.issueToken()).thenReturn("tok");
+        when(issuer.hash(anyString())).thenReturn("h");
+        when(sessions.insert(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(audit.hasEverSignedInSuccessfully(u.userId())).thenReturn(hasEverSignedIn);
+        return new AuthenticationService(users, sessions, audit, hasher, issuer,
+                limiter, props, Clock.fixed(NOW, ZoneOffset.UTC));
+    }
+
+    private static EdgeUser userWithOrigin(final EdgeUser.Origin origin) {
+        return new EdgeUser(UUID.randomUUID(), "u-" + origin.name().toLowerCase(),
+                "U " + origin.name(), origin, null, false,
+                EnumSet.of(EdgeRole.OPERATOR), NOW, NOW);
+    }
+
+    @Test
+    void firstTimeOfflineAllowedForBootstrapUnderDefaultPolicy() {
+        final EdgeUser u = userWithOrigin(EdgeUser.Origin.BOOTSTRAP);
+        final AuthenticationService svc = svcWithUser(u, false,
+                propsWithPolicy(SecurityProperties.FirstTimeOffline.Policy
+                        .REQUIRE_ONLINE_FIRST));
+        final var outcome = svc.signIn(u.username(), "pw", "1.1.1.1", "UA");
+        assertThat(outcome).isInstanceOf(
+                AuthenticationService.SignInOutcome.Success.class);
+    }
+
+    @Test
+    void firstTimeOfflineAllowedForDhis2OriginUnderDefaultPolicy() {
+        final EdgeUser u = userWithOrigin(EdgeUser.Origin.DHIS2);
+        final AuthenticationService svc = svcWithUser(u, false,
+                propsWithPolicy(SecurityProperties.FirstTimeOffline.Policy
+                        .REQUIRE_ONLINE_FIRST));
+        final var outcome = svc.signIn(u.username(), "pw", "1.1.1.1", "UA");
+        assertThat(outcome).isInstanceOf(
+                AuthenticationService.SignInOutcome.Success.class);
+    }
+
+    @Test
+    void firstTimeOfflineDeniedUnderBootstrapOnlyForDhis2User() {
+        final EdgeUser u = userWithOrigin(EdgeUser.Origin.DHIS2);
+        final AuthenticationService svc = svcWithUser(u, false,
+                propsWithPolicy(SecurityProperties.FirstTimeOffline.Policy
+                        .BOOTSTRAP_ONLY));
+        final var outcome = svc.signIn(u.username(), "pw", "1.1.1.1", "UA");
+        assertThat(outcome).isInstanceOf(
+                AuthenticationService.SignInOutcome.FirstTimeOfflineDenied.class);
+    }
+
+    @Test
+    void firstTimeOfflineAllowedUnderBootstrapOnlyForBootstrapUser() {
+        final EdgeUser u = userWithOrigin(EdgeUser.Origin.BOOTSTRAP);
+        final AuthenticationService svc = svcWithUser(u, false,
+                propsWithPolicy(SecurityProperties.FirstTimeOffline.Policy
+                        .BOOTSTRAP_ONLY));
+        final var outcome = svc.signIn(u.username(), "pw", "1.1.1.1", "UA");
+        assertThat(outcome).isInstanceOf(
+                AuthenticationService.SignInOutcome.Success.class);
+    }
+
+    @Test
+    void priorSignInBypassesPolicyEvenUnderStrict() {
+        // Even under BOOTSTRAP_ONLY — a user who has signed in before
+        // is no longer "first-time." The policy gates onboarding, not
+        // ongoing sign-in.
+        final EdgeUser u = userWithOrigin(EdgeUser.Origin.DHIS2);
+        final AuthenticationService svc = svcWithUser(u, true,
+                propsWithPolicy(SecurityProperties.FirstTimeOffline.Policy
+                        .BOOTSTRAP_ONLY));
+        final var outcome = svc.signIn(u.username(), "pw", "1.1.1.1", "UA");
+        assertThat(outcome).isInstanceOf(
+                AuthenticationService.SignInOutcome.Success.class);
+    }
+
+    @Test
+    void disabledPolicyLetsAnyFirstTimeUserIn() {
+        // Belt-and-braces check that DISABLED actually turns the gate
+        // off — a hypothetical user with no origin at all still signs
+        // in. (We can't actually construct one without an origin, so
+        // DHIS2-origin + first-time acts as the probe.)
+        final EdgeUser u = userWithOrigin(EdgeUser.Origin.DHIS2);
+        final AuthenticationService svc = svcWithUser(u, false,
+                propsWithPolicy(SecurityProperties.FirstTimeOffline.Policy
+                        .DISABLED));
+        final var outcome = svc.signIn(u.username(), "pw", "1.1.1.1", "UA");
+        assertThat(outcome).isInstanceOf(
+                AuthenticationService.SignInOutcome.Success.class);
+    }
+
+    @Test
+    void firstTimeDeniedAuditsReasonAndDoesNotIssueSession() {
+        final EdgeUser u = userWithOrigin(EdgeUser.Origin.DHIS2);
+        final EdgeUserRepository users = mock(EdgeUserRepository.class);
+        final EdgeSessionRepository sessions = mock(EdgeSessionRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        final PasswordHasher hasher = mock(PasswordHasher.class);
+        final SessionIssuer issuer = mock(SessionIssuer.class);
+        final RateLimiter limiter = mock(RateLimiter.class);
+        when(limiter.tryAcquire(any(), any(), anyInt())).thenReturn(true);
+        when(users.findByUsername(anyString())).thenReturn(Optional.of(u));
+        when(users.findVerifier(any())).thenReturn(Optional.of("v"));
+        when(hasher.verify(anyString(), anyString())).thenReturn(true);
+        when(audit.hasEverSignedInSuccessfully(u.userId())).thenReturn(false);
+
+        final AuthenticationService svc = new AuthenticationService(users,
+                sessions, audit, hasher, issuer, limiter,
+                propsWithPolicy(SecurityProperties.FirstTimeOffline.Policy
+                        .BOOTSTRAP_ONLY),
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        final var outcome = svc.signIn(u.username(), "pw", "1.1.1.1", "UA");
+        assertThat(outcome).isInstanceOf(
+                AuthenticationService.SignInOutcome.FirstTimeOfflineDenied.class);
+        // Session NOT issued; audit captures the reason.
+        verify(sessions, never()).insert(any());
+        verify(audit).append(
+                org.mockito.ArgumentMatchers.argThat((AuditEvent e) ->
+                        "SIGN_IN_FAILURE".equals(e.eventType())
+                                && "FIRST_TIME_OFFLINE_DENIED"
+                                    .equals(e.detail().get("reason"))),
+                any());
+    }
 }

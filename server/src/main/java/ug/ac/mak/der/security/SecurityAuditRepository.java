@@ -30,6 +30,25 @@ public class SecurityAuditRepository {
         this.json = Objects.requireNonNull(json, "json");
     }
 
+    /**
+     * DER-APPS / FR-02-07 — existence probe for a prior
+     * {@code SIGN_IN_SUCCESS} audit row attributed to the given user.
+     * Used by {@link AuthenticationService} to detect first-time
+     * sign-in and apply the configured offline-login policy.
+     */
+    public boolean hasEverSignedInSuccessfully(final UUID actorUserId) {
+        if (actorUserId == null) {
+            return false;
+        }
+        final Integer count = jdbc.query(
+                "SELECT 1 FROM der.security_audit "
+                        + "WHERE event_type = 'SIGN_IN_SUCCESS' "
+                        + "  AND actor_user_id = ? "
+                        + "LIMIT 1",
+                rs -> rs.next() ? 1 : 0, actorUserId);
+        return count != null && count == 1;
+    }
+
     /** C2: list audit events, optionally filtered by event type and/or actor. */
     public List<Row> findRecent(final String eventType, final UUID actorUserId, final int limit) {
         final int cap = Math.min(Math.max(1, limit), 500);

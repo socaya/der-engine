@@ -3,6 +3,7 @@ package ug.ac.mak.der.security;
 import java.time.Duration;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 /**
  * Typed Phase 02 security configuration.
@@ -14,8 +15,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "der.security")
 public record SecurityProperties(Session session, SignIn signIn, Bootstrap bootstrap,
-                                    DeviceApproval deviceApproval) {
+                                    DeviceApproval deviceApproval,
+                                    FirstTimeOffline firstTimeOffline) {
 
+    @ConstructorBinding
     public SecurityProperties {
         if (session == null) {
             session = new Session(Duration.ofHours(4), "DER_SESSION", false, "Strict", "");
@@ -29,6 +32,17 @@ public record SecurityProperties(Session session, SignIn signIn, Bootstrap boots
         if (deviceApproval == null) {
             deviceApproval = new DeviceApproval(true);
         }
+        if (firstTimeOffline == null) {
+            firstTimeOffline = new FirstTimeOffline(FirstTimeOffline.Policy.REQUIRE_ONLINE_FIRST);
+        }
+    }
+
+    /** Pre-FR-02-07 convenience ctor — callers that don't yet carry
+     *  a first-time-offline block get the default policy. */
+    public SecurityProperties(final Session session, final SignIn signIn,
+                                final Bootstrap bootstrap,
+                                final DeviceApproval deviceApproval) {
+        this(session, signIn, bootstrap, deviceApproval, null);
     }
 
     /**
@@ -69,4 +83,49 @@ public record SecurityProperties(Session session, SignIn signIn, Bootstrap boots
      *                 non-blocking banner posture.
      */
     public record DeviceApproval(boolean required) { }
+
+    /**
+     * FR-02-07 — "Deny first-time offline authentication unless a
+     * specifically approved provisioning method exists." The gate
+     * fires in {@link AuthenticationService#signIn} after password
+     * verification when the user has no prior {@code SIGN_IN_SUCCESS}
+     * audit row.
+     *
+     * @param policy which users bypass the gate.
+     */
+    public record FirstTimeOffline(Policy policy) {
+
+        public FirstTimeOffline {
+            policy = policy == null ? Policy.REQUIRE_ONLINE_FIRST : policy;
+        }
+
+        /**
+         * Approved-provisioning-method tiers, strictest last:
+         *
+         * <ul>
+         *   <li>{@code DISABLED} — the gate is off. Any password-
+         *     correct user signs in on first contact. Not for
+         *     production; useful in test / demo environments.</li>
+         *   <li>{@code REQUIRE_ONLINE_FIRST} — default. A user with
+         *     no prior {@code SIGN_IN_SUCCESS} can only sign in if
+         *     their origin is {@link EdgeUser.Origin#DHIS2} (their
+         *     verifier was mirrored from central during an online
+         *     reconciliation) or {@link EdgeUser.Origin#BOOTSTRAP}
+         *     (first-boot admin, provisioned by an operator with
+         *     physical access).</li>
+         *   <li>{@code BOOTSTRAP_ONLY} — strictest; only the
+         *     bootstrap admin may sign in without a prior success.
+         *     DHIS2-mirrored users must have completed at least one
+         *     online sign-in (e.g. during initial onboarding) before
+         *     the device is permitted to authenticate them offline.
+         *     Right posture for high-assurance deployments post-
+         *     provisioning.</li>
+         * </ul>
+         */
+        public enum Policy {
+            DISABLED,
+            REQUIRE_ONLINE_FIRST,
+            BOOTSTRAP_ONLY
+        }
+    }
 }

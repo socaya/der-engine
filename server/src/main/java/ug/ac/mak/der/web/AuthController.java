@@ -52,6 +52,12 @@ public class AuthController {
         if (outcome instanceof AuthenticationService.SignInOutcome.InvalidCredentials) {
             return ResponseEntity.status(401).build();
         }
+        if (outcome instanceof AuthenticationService.SignInOutcome.FirstTimeOfflineDenied) {
+            // FR-02-07 — distinct status so the client can present a
+            // "contact your administrator / complete online sign-in"
+            // message rather than the generic bad-password UX.
+            return ResponseEntity.status(403).build();
+        }
         final AuthenticationService.SignInOutcome.Success ok = (AuthenticationService.SignInOutcome.Success) outcome;
         final ResponseCookie cookie = buildCookie(ok.rawToken(), props.session().ttl());
         return ResponseEntity.ok()
