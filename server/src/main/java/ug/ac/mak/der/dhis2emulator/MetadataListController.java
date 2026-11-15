@@ -16,8 +16,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.beans.factory.ObjectProvider;
+
 import ug.ac.mak.der.metadata.MetadataMirrorRepository;
 import ug.ac.mak.der.metadata.MirroredEntity;
+import ug.ac.mak.der.orgunit.EdgeOrgUnitBinding;
+import ug.ac.mak.der.orgunit.OrgUnitBindingService;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 
 /**
@@ -44,11 +48,14 @@ public class MetadataListController {
 
     private final MetadataMirrorRepository mirror;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    private final ObjectProvider<OrgUnitBindingService> bindingProvider;
 
     public MetadataListController(final MetadataMirrorRepository mirror,
-                                   final org.springframework.jdbc.core.JdbcTemplate jdbc) {
+                                   final org.springframework.jdbc.core.JdbcTemplate jdbc,
+                                   final ObjectProvider<OrgUnitBindingService> bindingProvider) {
         this.mirror = mirror;
         this.jdbc = jdbc;
+        this.bindingProvider = bindingProvider;
     }
 
     @GetMapping("/organisationUnits")
@@ -56,14 +63,97 @@ public class MetadataListController {
             final Authentication auth,
             @RequestParam(name = "pageSize", defaultValue = "50") final int pageSize,
             @RequestParam(name = "page", defaultValue = "1") final int page,
-            @RequestParam(name = "filter", required = false) final List<String> filters) {
+            @RequestParam(name = "filter", required = false) final List<String> filters,
+            @RequestParam(name = "level", required = false) final Integer level) {
         if (!(auth instanceof EdgeUserPrincipal)) {
             return ResponseEntity.status(401).build();
         }
-        final List<ug.ac.mak.der.metadata.MirroredOrganisationUnit> all = mirror.findAllOrganisationUnits();
-        final List<ug.ac.mak.der.metadata.MirroredOrganisationUnit> filtered =
-                applyOrgUnitFilters(all, filters);
-        return ResponseEntity.ok(buildList("organisationUnits", filtered, page, pageSize));
+        final OrgUnitBindingService svc = bindingProvider.getIfAvailable();
+        final EdgeOrgUnitBinding binding = svc == null ? null : svc.current();
+
+        List<ug.ac.mak.der.metadata.MirroredOrganisationUnit> rows =
+                mirror.findAllOrganisationUnits();
+
+        // FR-OU-003 — when the appliance is bound and the caller gave no
+        // explicit filter, scope the list to the bound subtree so DHIS2
+        // apps cannot see or write into other facilities by accident.
+        final boolean noExplicitFilter = filters == null || filters.isEmpty();
+        if (noExplicitFilter && binding != null && binding.isBound()) {
+            rows = filterByBoundSubtree(rows, binding.orgUnitPath());
+        }
+
+        // FR-OU-004 — a DHIS2 app treating the bound OU as its root asks
+        // for `?level=1` and expects the bound OU back. Rewrite the
+        // requested level into the absolute level the mirror stores so the
+        // bound OU shows up at app-level=1, its children at app-level=2,
+        // etc.
+        final Integer absoluteLevel = rewriteRequestedLevel(level, binding, rows);
+        if (absoluteLevel != null) {
+            rows = filterByLevel(rows, absoluteLevel);
+        }
+
+        rows = applyOrgUnitFilters(rows, filters);
+        return ResponseEntity.ok(buildList("organisationUnits", rows, page, pageSize));
+    }
+
+    /** FR-OU-003 — keep rows whose path falls under the bound OU's path
+     *  (including the bound OU itself). Path format in the mirror is the
+     *  DHIS2 convention: {@code /A/B/C} where each segment is an OU UID. */
+    static List<ug.ac.mak.der.metadata.MirroredOrganisationUnit> filterByBoundSubtree(
+            final List<ug.ac.mak.der.metadata.MirroredOrganisationUnit> rows,
+            final String boundPath) {
+        if (boundPath == null || boundPath.isBlank()) {
+            return rows;
+        }
+        final List<ug.ac.mak.der.metadata.MirroredOrganisationUnit> out =
+                new java.util.ArrayList<>(rows.size());
+        for (final var ou : rows) {
+            final String p = ou.path();
+            if (p == null) {
+                continue;
+            }
+            if (p.equals(boundPath) || p.startsWith(boundPath + "/")) {
+                out.add(ou);
+            }
+        }
+        return out;
+    }
+
+    static List<ug.ac.mak.der.metadata.MirroredOrganisationUnit> filterByLevel(
+            final List<ug.ac.mak.der.metadata.MirroredOrganisationUnit> rows,
+            final int level) {
+        final List<ug.ac.mak.der.metadata.MirroredOrganisationUnit> out =
+                new java.util.ArrayList<>(rows.size());
+        for (final var ou : rows) {
+            if (ou.level() != null && ou.level() == level) {
+                out.add(ou);
+            }
+        }
+        return out;
+    }
+
+    /** Resolve the bound OU's absolute level by looking it up in the
+     *  filtered row set (we already restricted to the subtree so the
+     *  bound OU row is in {@code rows}), then rewrite the app-supplied
+     *  level offset onto the absolute hierarchy. Returns {@code null}
+     *  when there's nothing to rewrite — caller should skip level
+     *  filtering. */
+    private static Integer rewriteRequestedLevel(
+            final Integer requested,
+            final EdgeOrgUnitBinding binding,
+            final List<ug.ac.mak.der.metadata.MirroredOrganisationUnit> rows) {
+        if (requested == null) {
+            return null;
+        }
+        if (binding == null || !binding.isBound()) {
+            return requested;
+        }
+        for (final var ou : rows) {
+            if (binding.orgUnitId().equals(ou.dhis2Uid()) && ou.level() != null) {
+                return ou.level() + requested - 1;
+            }
+        }
+        return requested;
     }
 
     /**

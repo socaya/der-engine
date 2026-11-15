@@ -30,6 +30,8 @@ import ug.ac.mak.der.metadata.MirroredDataSet;
 import ug.ac.mak.der.metadata.MirroredOrganisationUnit;
 import ug.ac.mak.der.metadata.MirroredProgram;
 import ug.ac.mak.der.metadata.MirroredTrackedEntityType;
+import ug.ac.mak.der.orgunit.EdgeOrgUnitBinding;
+import ug.ac.mak.der.orgunit.OrgUnitBindingService;
 import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeSession;
 import ug.ac.mak.der.security.EdgeUser;
@@ -46,6 +48,7 @@ class MetadataListControllerTest {
     @Autowired MockMvc mockMvc;
     @MockBean MetadataMirrorRepository mirror;
     @MockBean org.springframework.jdbc.core.JdbcTemplate jdbc;
+    @MockBean OrgUnitBindingService binding;
 
     private RequestPostProcessor as() {
         final Instant now = Instant.now();
@@ -181,5 +184,74 @@ class MetadataListControllerTest {
                 .andExpect(jsonPath("$.id").value("t"));
         mockMvc.perform(get("/api/trackedEntityTypes")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/trackedEntityTypes/x")).andExpect(status().isUnauthorized());
+    }
+
+    // -------- FR-OU-003 / FR-OU-004 — bound-subtree filter --------
+
+    @Test
+    void organisationUnitsFilteredToBoundSubtreeWhenNoExplicitFilter() throws Exception {
+        when(mirror.findAllOrganisationUnits()).thenReturn(List.of(
+                new MirroredOrganisationUnit("ROOT", "Country", "/ROOT", 1, null, node("ROOT", "Country")),
+                new MirroredOrganisationUnit("OTHER", "Other region", "/ROOT/OTHER", 2, "ROOT", node("OTHER", "Other region")),
+                new MirroredOrganisationUnit("CLINIC", "Clinic", "/ROOT/REG/CLINIC", 3, "REG", node("CLINIC", "Clinic")),
+                new MirroredOrganisationUnit("WARD", "Ward A", "/ROOT/REG/CLINIC/WARD", 4, "CLINIC", node("WARD", "Ward A"))));
+        when(binding.current()).thenReturn(EdgeOrgUnitBinding.bound(
+                "CLINIC", "Clinic", "/ROOT/REG/CLINIC", UUID.randomUUID()));
+        mockMvc.perform(get("/api/organisationUnits").with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pager.total").value(2))
+                .andExpect(jsonPath("$.organisationUnits[0].id").value("CLINIC"))
+                .andExpect(jsonPath("$.organisationUnits[1].id").value("WARD"));
+    }
+
+    @Test
+    void organisationUnitsLevelOneRewritesToBoundLevel() throws Exception {
+        when(mirror.findAllOrganisationUnits()).thenReturn(List.of(
+                new MirroredOrganisationUnit("ROOT", "Country", "/ROOT", 1, null, node("ROOT", "Country")),
+                new MirroredOrganisationUnit("CLINIC", "Clinic", "/ROOT/REG/CLINIC", 3, "REG", node("CLINIC", "Clinic")),
+                new MirroredOrganisationUnit("WARD", "Ward A", "/ROOT/REG/CLINIC/WARD", 4, "CLINIC", node("WARD", "Ward A"))));
+        when(binding.current()).thenReturn(EdgeOrgUnitBinding.bound(
+                "CLINIC", "Clinic", "/ROOT/REG/CLINIC", UUID.randomUUID()));
+        mockMvc.perform(get("/api/organisationUnits?level=1").with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pager.total").value(1))
+                .andExpect(jsonPath("$.organisationUnits[0].id").value("CLINIC"));
+    }
+
+    @Test
+    void organisationUnitsLevelTwoRewritesToChildrenOfBoundOU() throws Exception {
+        when(mirror.findAllOrganisationUnits()).thenReturn(List.of(
+                new MirroredOrganisationUnit("CLINIC", "Clinic", "/ROOT/REG/CLINIC", 3, "REG", node("CLINIC", "Clinic")),
+                new MirroredOrganisationUnit("WARD", "Ward A", "/ROOT/REG/CLINIC/WARD", 4, "CLINIC", node("WARD", "Ward A"))));
+        when(binding.current()).thenReturn(EdgeOrgUnitBinding.bound(
+                "CLINIC", "Clinic", "/ROOT/REG/CLINIC", UUID.randomUUID()));
+        mockMvc.perform(get("/api/organisationUnits?level=2").with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pager.total").value(1))
+                .andExpect(jsonPath("$.organisationUnits[0].id").value("WARD"));
+    }
+
+    @Test
+    void organisationUnitsExplicitFilterBypassesSubtreeNarrowing() throws Exception {
+        when(mirror.findAllOrganisationUnits()).thenReturn(List.of(
+                new MirroredOrganisationUnit("CLINIC", "Clinic", "/ROOT/REG/CLINIC", 3, "REG", node("CLINIC", "Clinic")),
+                new MirroredOrganisationUnit("OTHER", "Other", "/ROOT/OTHER", 2, "ROOT", node("OTHER", "Other"))));
+        when(binding.current()).thenReturn(EdgeOrgUnitBinding.bound(
+                "CLINIC", "Clinic", "/ROOT/REG/CLINIC", UUID.randomUUID()));
+        mockMvc.perform(get("/api/organisationUnits?filter=level:eq:2").with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pager.total").value(1))
+                .andExpect(jsonPath("$.organisationUnits[0].id").value("OTHER"));
+    }
+
+    @Test
+    void organisationUnitsUnboundApplianceSkipsSubtreeFilter() throws Exception {
+        when(mirror.findAllOrganisationUnits()).thenReturn(List.of(
+                new MirroredOrganisationUnit("A", "A", "/A", 1, null, node("A", "A")),
+                new MirroredOrganisationUnit("B", "B", "/B", 1, null, node("B", "B"))));
+        when(binding.current()).thenReturn(EdgeOrgUnitBinding.empty());
+        mockMvc.perform(get("/api/organisationUnits").with(as()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pager.total").value(2));
     }
 }

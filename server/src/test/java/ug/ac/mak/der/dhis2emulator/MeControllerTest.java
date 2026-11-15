@@ -10,13 +10,17 @@ import java.util.EnumSet;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
+import ug.ac.mak.der.orgunit.EdgeOrgUnitBinding;
+import ug.ac.mak.der.orgunit.OrgUnitBindingService;
 import ug.ac.mak.der.security.EdgeRole;
 import ug.ac.mak.der.security.EdgeSession;
 import ug.ac.mak.der.security.EdgeUser;
@@ -29,6 +33,7 @@ import ug.ac.mak.der.web.TestSecurityConfig;
 class MeControllerTest {
 
     @Autowired MockMvc mockMvc;
+    @MockBean OrgUnitBindingService binding;
 
     private RequestPostProcessor as(final EdgeRole... roles) {
         final Instant now = Instant.now();
@@ -66,5 +71,33 @@ class MeControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authorities").isArray())
                 .andExpect(jsonPath("$.userRoles").isArray());
+    }
+
+    @Test
+    void populatesBoundOrgUnitAcrossAllThreeLists() throws Exception {
+        Mockito.when(binding.current()).thenReturn(EdgeOrgUnitBinding.bound(
+                "OU-CLINIC-A", "A&A Medcare",
+                "/HL2zXaIULBe/IK0Mg4vXyTl/OU-CLINIC-A",
+                UUID.randomUUID()));
+        mockMvc.perform(get("/api/me").with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.organisationUnits[0].id").value("OU-CLINIC-A"))
+                .andExpect(jsonPath("$.organisationUnits[0].displayName").value("A&A Medcare"))
+                .andExpect(jsonPath("$.organisationUnits[0].path")
+                        .value("/HL2zXaIULBe/IK0Mg4vXyTl/OU-CLINIC-A"))
+                .andExpect(jsonPath("$.dataViewOrganisationUnits[0].id").value("OU-CLINIC-A"))
+                .andExpect(jsonPath("$.teiSearchOrganisationUnits[0].id").value("OU-CLINIC-A"))
+                .andExpect(jsonPath("$.warnings").doesNotExist());
+    }
+
+    @Test
+    void unboundApplianceSurfacesNoOuBoundWarning() throws Exception {
+        Mockito.when(binding.current()).thenReturn(EdgeOrgUnitBinding.empty());
+        mockMvc.perform(get("/api/me").with(as(EdgeRole.OPERATOR)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.organisationUnits").isEmpty())
+                .andExpect(jsonPath("$.dataViewOrganisationUnits").isEmpty())
+                .andExpect(jsonPath("$.teiSearchOrganisationUnits").isEmpty())
+                .andExpect(jsonPath("$.warnings[0]").value("NO_OU_BOUND"));
     }
 }
