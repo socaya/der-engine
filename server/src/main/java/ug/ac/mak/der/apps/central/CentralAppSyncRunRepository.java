@@ -82,6 +82,21 @@ public class CentralAppSyncRunRepository {
         return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
     }
 
+    /**
+     * DER-APPS-DHIS2-001 Phase 5e retention — drop
+     * {@code app_central_sync_run} rows older than {@code days} days.
+     * Preserves active (status='RUNNING') rows so a stuck run stays
+     * visible until an operator notices and clears it.
+     */
+    public int pruneOlderThan(final int days) {
+        final int clamped = Math.max(1, days);
+        return jdbc.update(
+                "DELETE FROM der.app_central_sync_run "
+                        + "WHERE outcome <> 'RUNNING' "
+                        + "  AND started_at < now() - (? || ' days')::interval",
+                String.valueOf(clamped));
+    }
+
     public List<Row> recent(final int limit) {
         final int cap = Math.max(1, Math.min(limit, 100));
         return jdbc.query(

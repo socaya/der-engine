@@ -59,6 +59,22 @@ public class TrackerJobRepository {
                 error == null ? "" : error, jobId);
     }
 
+    /**
+     * DER-APPS-DHIS2-001 Phase 5e retention — drop terminal
+     * (COMPLETED / FAILED) {@code tracker_job} rows older than
+     * {@code days} days. RUNNING rows are preserved so an admin who
+     * reboots DER mid-import can still trace what happened. Caller
+     * guards the retention window ≥ 1 day.
+     */
+    public int pruneOlderThan(final int days) {
+        final int clamped = Math.max(1, days);
+        return jdbc.update(
+                "DELETE FROM der.tracker_job "
+                        + "WHERE status IN ('COMPLETED', 'FAILED') "
+                        + "  AND created_at < now() - (? || ' days')::interval",
+                String.valueOf(clamped));
+    }
+
     public Optional<Row> findById(final UUID jobId) {
         if (jobId == null) {
             return Optional.empty();
