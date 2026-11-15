@@ -3021,6 +3021,53 @@ export function listEmulatorMisses(
     'GET', `/edge-api/v1/admin/apps/emulator-misses?limit=${limit}`);
 }
 
+/** DER-APPS-DHIS2-001 FR-SYNC-001..007 — central auto-sync status.
+ *  Backs the /system/apps "Central sync" panel. */
+export interface CentralSyncRun {
+  readonly runId: string;
+  readonly startedAt: string | null;
+  readonly completedAt: string | null;
+  readonly outcome: 'RUNNING' | 'OK' | 'PARTIAL' | 'FAILED' | 'SKIPPED';
+  readonly message: string | null;
+  readonly dryRun: boolean;
+  readonly triggeredBy: string | null;
+  readonly discovered: number;
+  readonly installed: number;
+  readonly updated: number;
+  readonly skipped: number;
+  readonly failed: number;
+}
+export interface CentralSyncCandidate {
+  readonly key: string;
+  readonly centralVersion: string | null;
+  readonly localVersion: string | null;
+  readonly action: 'INSTALL' | 'UPDATE' | 'SKIP';
+  readonly reason: string | null;
+  readonly sha256: string | null;
+}
+export interface CentralSyncReport {
+  readonly runId: string | null;
+  readonly outcome: CentralSyncRun['outcome'];
+  readonly message: string | null;
+  readonly counters: {
+    discovered: number; installed: number; updated: number;
+    skipped: number; failed: number;
+  };
+  readonly details: CentralSyncCandidate[];
+}
+export function centralSyncStatus(): Promise<{
+  latest: CentralSyncRun | null;
+  recent: CentralSyncRun[];
+}> {
+  return request('GET', '/edge-api/v1/admin/apps/central-sync');
+}
+export function centralSyncPreview(): Promise<CentralSyncReport> {
+  return request('GET', '/edge-api/v1/admin/apps/central-sync/preview');
+}
+export function centralSyncRun(): Promise<CentralSyncReport> {
+  return request('POST', '/edge-api/v1/admin/apps/central-sync/run');
+}
+
 export function approveDevice(id: string): Promise<{ outcome: string }> {
   return request('POST', `/edge-api/v1/devices/${id}/approve`);
 }

@@ -17,6 +17,19 @@ export function SystemApps(): JSX.Element {
   const [misses, setMisses] = useState<edgeApi.EmulatorMissRow[] | null>(null);
   const [missErr, setMissErr] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus]
+    = useState<{ latest: edgeApi.CentralSyncRun | null } | null>(null);
+  const [syncReport, setSyncReport]
+    = useState<edgeApi.CentralSyncReport | null>(null);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncErr, setSyncErr] = useState<string | null>(null);
+
+  const loadSyncStatus = (): void => {
+    edgeApi.centralSyncStatus()
+      .then((r) => setSyncStatus(r))
+      .catch((e: unknown) =>
+        setSyncErr(e instanceof Error ? e.message : String(e)));
+  };
 
   useEffect(() => {
     edgeApi.listAdminApps()
@@ -27,7 +40,29 @@ export function SystemApps(): JSX.Element {
       .then((r) => setMisses(r.misses))
       .catch((e: unknown) =>
         setMissErr(e instanceof Error ? e.message : String(e)));
+    loadSyncStatus();
   }, []);
+
+  const onPreview = async (): Promise<void> => {
+    setSyncBusy(true); setSyncErr(null);
+    try {
+      setSyncReport(await edgeApi.centralSyncPreview());
+      loadSyncStatus();
+    } catch (e) {
+      setSyncErr(e instanceof Error ? e.message : String(e));
+    } finally { setSyncBusy(false); }
+  };
+  const onRunNow = async (): Promise<void> => {
+    setSyncBusy(true); setSyncErr(null);
+    try {
+      setSyncReport(await edgeApi.centralSyncRun());
+      loadSyncStatus();
+      const r = await edgeApi.listAdminApps();
+      setRows(r.apps);
+    } catch (e) {
+      setSyncErr(e instanceof Error ? e.message : String(e));
+    } finally { setSyncBusy(false); }
+  };
 
   if (err) {
     return (
@@ -141,6 +176,71 @@ export function SystemApps(): JSX.Element {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Central sync"
+             action={
+               <span className="ea-text-muted ea-text-xs"
+                     data-test="system-apps-sync-status">
+                 {syncStatus?.latest === null || syncStatus?.latest === undefined
+                   ? 'Never run'
+                   : `${syncStatus.latest.outcome} · ${fmtAgo(syncStatus.latest.startedAt ?? '')}`}
+               </span>
+             }>
+        <div className="ea-flex ea-gap-md ea-mb-md">
+          <button className="ea-btn ea-btn--secondary"
+                  type="button"
+                  disabled={syncBusy}
+                  onClick={() => { void onPreview(); }}
+                  data-test="system-apps-sync-preview-btn">
+            Preview (dry-run)
+          </button>
+          <button className="ea-btn"
+                  type="button"
+                  disabled={syncBusy}
+                  onClick={() => { void onRunNow(); }}
+                  data-test="system-apps-sync-run-btn">
+            Run sync now
+          </button>
+        </div>
+        {syncErr !== null && (
+          <p className="ea-text-muted"
+             data-test="system-apps-sync-error">{syncErr}</p>
+        )}
+        {syncReport !== null && (
+          <div className="ea-table-wrap" data-test="system-apps-sync-report">
+            <p className="ea-text-xs ea-text-muted">
+              <strong>{syncReport.outcome}</strong>
+              {' · '}{syncReport.message ?? ''}
+            </p>
+            {syncReport.details.length > 0 && (
+              <table className="ea-table ea-table--dense">
+                <thead>
+                  <tr>
+                    <th>App</th>
+                    <th className="ea-col-w-90">Action</th>
+                    <th className="ea-col-w-110">Central</th>
+                    <th className="ea-col-w-110">Local</th>
+                    <th>Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {syncReport.details.map((d) => (
+                    <tr key={`${d.key}|${d.action}`}>
+                      <td><code className="ea-text-xs">{d.key}</code></td>
+                      <td className="ea-text-xs">{d.action}</td>
+                      <td className="ea-text-xs">{d.centralVersion ?? '—'}</td>
+                      <td className="ea-text-xs">{d.localVersion ?? '—'}</td>
+                      <td className="ea-text-xs ea-text-muted">
+                        {d.reason ?? ''}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
       </Panel>

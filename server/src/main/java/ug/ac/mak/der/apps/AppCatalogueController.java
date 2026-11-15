@@ -243,7 +243,8 @@ public class AppCatalogueController {
             } catch (ValidationFailure ex) {
                 return ex.toResponse();
             }
-            return ResponseEntity.ok(installZip(parsed, userId));
+            return ResponseEntity.ok(installZip(parsed,
+                    InstalledApp.Source.MANUAL_UPLOAD, null, userId));
         }
         if (appKey == null || displayName == null || version == null
                 || requiresDerApi == null) {
@@ -389,7 +390,10 @@ public class AppCatalogueController {
      * Fresh-install from a zip — mint the identity row if missing, then
      * persist the version with manifest + icon.
      */
-    private Map<String, Object> installZip(final ParsedBundle parsed, final UUID userId) {
+    private Map<String, Object> installZip(final ParsedBundle parsed,
+                                             final InstalledApp.Source source,
+                                             final String centralAppId,
+                                             final UUID userId) {
         final Optional<InstalledApp> existing = installedApps.findByKey(parsed.manifest.name);
         final UUID appId;
         if (existing.isPresent()) {
@@ -413,11 +417,30 @@ public class AppCatalogueController {
                     "db://" + parsed.manifest.name,
                     userId, java.time.Instant.now(), true,
                     InstalledApp.HostKind.DER_ESM,
-                    InstalledApp.Source.MANUAL_UPLOAD,
+                    source,
                     InstalledApp.TrustLevel.SIGNED,
-                    null, null));
+                    null, centralAppId));
         }
         return storeZipVersion(appId, parsed.manifest.name, parsed, userId);
+    }
+
+    /**
+     * DER-APPS-DHIS2-001 FR-SYNC-003 — install a zip bundle fetched
+     * from central. Shares the manual-upload code path so there's one
+     * place that owns the manifest/signature/version persistence
+     * semantics. Package-private; the central sync service is the only
+     * caller.
+     *
+     * @throws ValidationFailure when the zip is malformed or missing
+     *     a required entry (same validation as manual upload)
+     */
+    public Map<String, Object> installZipBytesForSync(final byte[] bytes,
+                                                 final String centralAppId,
+                                                 final UUID actorUserId)
+            throws IOException, ValidationFailure {
+        final ParsedBundle parsed = parseZipBytes(bytes);
+        return installZip(parsed, InstalledApp.Source.CENTRAL_SYNC,
+                centralAppId, actorUserId);
     }
 
     /** Insert the new {@code installed_app_version} row from a parsed zip. */
@@ -515,8 +538,17 @@ public class AppCatalogueController {
      * the caller will return directly.
      */
     private ParsedBundle parseZip(final MultipartFile file) throws IOException {
+        return parseZipBytes(file.getBytes());
+    }
+
+    /**
+     * Byte-array variant of {@link #parseZip(MultipartFile)} for
+     * callers that already hold the bundle in memory (e.g.
+     * {@link #installZipBytesForSync}). Same validation contract.
+     */
+    private ParsedBundle parseZipBytes(final byte[] bytes) throws IOException {
         final AppBundleArchive archive;
-        try (var in = new ByteArrayInputStream(file.getBytes())) {
+        try (var in = new ByteArrayInputStream(bytes)) {
             archive = AppBundleArchive.parse(in);
         } catch (AppBundleArchive.ArchiveException ex) {
             throw new ValidationFailure(400, ex.getMessage());
@@ -802,13 +834,17 @@ public class AppCatalogueController {
      * controller entry point. Throwing lets validators compose without
      * each sub-step having to return {@code Optional<ResponseEntity>}.
      */
-    private static final class ValidationFailure extends RuntimeException {
+    public static final class ValidationFailure extends RuntimeException {
         private static final long serialVersionUID = 1L;
         private final int status;
 
-        ValidationFailure(final int status, final String message) {
+        public ValidationFailure(final int status, final String message) {
             super(message);
             this.status = status;
+        }
+
+        public int status() {
+            return status;
         }
 
         ResponseEntity<Map<String, Object>> toResponse() {
