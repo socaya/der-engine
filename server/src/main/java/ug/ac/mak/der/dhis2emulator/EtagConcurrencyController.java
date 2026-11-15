@@ -19,6 +19,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -167,6 +169,158 @@ public class EtagConcurrencyController {
         }
         return withEtag(toTeiJson(found.get()),
                 etag(found.get().teiVersion()));
+    }
+
+    /**
+     * DER-APPS-DHIS2-001 FR-EMU-005 — PUT with optional If-Match on
+     * the DHIS2 TEI single-row surface. {@code orgUnit} + {@code
+     * trackedEntityType} + {@code attributes} are the mutable body
+     * fields; identity ({@code teiUid}, {@code createdBy},
+     * {@code createdAt}) is immutable and sourced from the stored
+     * row.
+     *
+     * <p>Request body shape (DHIS2-ish):
+     * <pre>
+     *   {
+     *     "orgUnit": "...",
+     *     "trackedEntityType": "...",
+     *     "attributes": [
+     *       { "attribute": "...", "value": "..." },
+     *       ...
+     *     ]
+     *   }
+     * </pre>
+     * The {@code attributes} field may also be sent as the flat
+     * {@code { attr-id: value }} map; both forms map to the
+     * {@code tracked_entity.attributes} JSONB column.</p>
+     *
+     * <p>412 on stale If-Match, 409 when body re-asserts an
+     * immutable field with a conflicting value, 404 on unknown TEI.
+     * The repository upsert bumps {@code tei_version} on conflict
+     * so the response ETag reflects the post-write state.</p>
+     */
+    @PutMapping(path = "/api/trackedEntityInstances/{teiUid}",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> putTei(
+            @PathVariable("teiUid") final String teiUid,
+            @RequestHeader(value = "If-Match", required = false) final String ifMatch,
+            @RequestBody(required = false) final Map<String, Object> body,
+            final Authentication authentication) {
+        if (!(authentication instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (body == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", "BODY_REQUIRED",
+                    "message", "request body is required"));
+        }
+        final Optional<TrackedEntity> existing = trackedEntities.findById(teiUid);
+        if (existing.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        final String currentEtag = etag(existing.get().teiVersion());
+        if (ifMatch != null && !matches(ifMatch, currentEtag)) {
+            return preconditionFailed(
+                    "/api/trackedEntityInstances/" + teiUid, currentEtag);
+        }
+        // Immutable fields: a client that submits them must match the
+        // stored row. Mismatch → 409. This keeps the handler from
+        // silently reassigning identity.
+        final String bodyType = asString(body.get("trackedEntityType"));
+        final String bodyOu = asString(body.get("orgUnit"));
+        if (bodyType != null
+                && !bodyType.equals(existing.get().trackedEntityType())) {
+            return conflict("trackedEntityType is immutable");
+        }
+        final String nextOu = bodyOu != null ? bodyOu : existing.get().orgUnitUid();
+        final Map<String, String> nextAttrs = parseAttributes(body.get("attributes"),
+                existing.get().attributes());
+        final TrackedEntity next = new TrackedEntity(
+                existing.get().teiUid(),
+                existing.get().trackedEntityType(),
+                nextOu,
+                nextAttrs,
+                existing.get().createdBy(),
+                existing.get().createdAt(),
+                java.time.Instant.now(clock),
+                existing.get().teiVersion(),
+                existing.get().workflowRunId());
+        trackedEntities.upsert(next);
+        final TrackedEntity after = trackedEntities.findById(teiUid)
+                .orElseThrow(() -> new IllegalStateException(
+                        "tei vanished between upsert and refetch: " + teiUid));
+        // Journal — update, not delete; keeps DER's write pipeline
+        // honest about who edited what, same pattern as the DELETE
+        // paths further up.
+        enqueueTeiUpdateTombstone(after, principal.userId());
+        return withEtag(toTeiJson(after), etag(after.teiVersion()));
+    }
+
+    private void enqueueTeiUpdateTombstone(final TrackedEntity t, final UUID actor) {
+        final ObjectNode payload = jsonMapper.createObjectNode();
+        payload.put("teiUid", t.teiUid());
+        payload.put("trackedEntityType", t.trackedEntityType());
+        payload.put("orgUnit", t.orgUnitUid());
+        payload.put("operation", "UPDATE");
+        payload.put("teiVersion", t.teiVersion());
+        final Instant now = Instant.now(clock);
+        journal.insert(new OperationJournalEntry(
+                UUID.randomUUID(),
+                OperationJournalEntry.EntityType.TRACKED_ENTITY,
+                t.teiUid(),
+                payload,
+                OperationJournalEntry.State.PENDING,
+                0, null, actor, now, now, null, t.workflowRunId()));
+    }
+
+    /** Accepts either the DHIS2 array-of-objects form (every element
+     *  {@code { attribute, value }}) or the flat JSON object form
+     *  ({@code { attr-id: value }}). Missing attributes retain their
+     *  stored value — DHIS2 PUT semantics are strictly replace, but
+     *  DER treats absent attributes as "leave alone" so a partial
+     *  edit from a workflow screen doesn't wipe the rest. */
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> parseAttributes(final Object raw,
+                                                         final Map<String, String> current) {
+        final Map<String, String> out = new java.util.LinkedHashMap<>(current);
+        if (raw instanceof List<?> list) {
+            for (final Object item : list) {
+                if (!(item instanceof Map)) {
+                    continue;
+                }
+                final Map<String, Object> row = (Map<String, Object>) item;
+                final String id = asString(row.get("attribute"));
+                if (id == null || id.isBlank()) {
+                    continue;
+                }
+                final String val = asString(row.get("value"));
+                out.put(id, val == null ? "" : val);
+            }
+        } else if (raw instanceof Map<?, ?> map) {
+            for (final var entry : map.entrySet()) {
+                final String id = String.valueOf(entry.getKey());
+                if (id == null || id.isBlank()) {
+                    continue;
+                }
+                final Object val = entry.getValue();
+                out.put(id, val == null ? "" : val.toString());
+            }
+        }
+        return out;
+    }
+
+    private static String asString(final Object o) {
+        return o == null ? null : String.valueOf(o);
+    }
+
+    private static ResponseEntity<Map<String, Object>> conflict(final String message) {
+        return ResponseEntity.status(409).body(Map.of(
+                "httpStatus", "Conflict",
+                "httpStatusCode", 409,
+                "status", "ERROR",
+                "code", "IMMUTABLE_FIELD",
+                "message", message));
     }
 
     @DeleteMapping(path = "/api/trackedEntityInstances/{teiUid}",

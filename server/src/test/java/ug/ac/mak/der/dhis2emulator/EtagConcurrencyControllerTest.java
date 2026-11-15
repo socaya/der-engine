@@ -12,6 +12,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -222,5 +223,105 @@ class EtagConcurrencyControllerTest {
         final ResponseEntity<Map<String, Object>> res =
                 ctl.deleteTei("tei-1", "*", principal());
         assertThat(res.getStatusCode().value()).isEqualTo(404);
+    }
+
+    // ---- TEI PUT -----------------------------------------------------
+
+    @Test
+    void putTeiRequiresAuth() {
+        final ResponseEntity<Map<String, Object>> res =
+                ctl.putTei("tei-1", null, Map.of("orgUnit", "OU"), null);
+        assertThat(res.getStatusCode().value()).isEqualTo(401);
+    }
+
+    @Test
+    void putTeiWithoutBodyIs400() {
+        final ResponseEntity<Map<String, Object>> res =
+                ctl.putTei("tei-1", null, null, principal());
+        assertThat(res.getStatusCode().value()).isEqualTo(400);
+        assertThat(res.getBody()).containsEntry("code", "BODY_REQUIRED");
+    }
+
+    @Test
+    void putTeiOnMissingReturns404() {
+        when(teis.findById("tei-1")).thenReturn(Optional.empty());
+        final ResponseEntity<Map<String, Object>> res =
+                ctl.putTei("tei-1", null, Map.of("orgUnit", "OU"), principal());
+        assertThat(res.getStatusCode().value()).isEqualTo(404);
+    }
+
+    @Test
+    void putTeiStaleIfMatchReturns412() {
+        when(teis.findById("tei-1")).thenReturn(Optional.of(tei("tei-1", 5)));
+        final ResponseEntity<Map<String, Object>> res =
+                ctl.putTei("tei-1", "\"3\"", Map.of("orgUnit", "OU"), principal());
+        assertThat(res.getStatusCode().value()).isEqualTo(412);
+        assertThat(res.getBody()).containsEntry("code", "STALE_ETAG");
+        verify(teis, never()).upsert(any());
+    }
+
+    @Test
+    void putTeiImmutableTypeMismatchReturns409() {
+        when(teis.findById("tei-1")).thenReturn(Optional.of(tei("tei-1", 5)));
+        final ResponseEntity<Map<String, Object>> res = ctl.putTei("tei-1", "*",
+                Map.of("trackedEntityType", "OTHER", "orgUnit", "OU"),
+                principal());
+        assertThat(res.getStatusCode().value()).isEqualTo(409);
+        assertThat(res.getBody()).containsEntry("code", "IMMUTABLE_FIELD");
+        verify(teis, never()).upsert(any());
+    }
+
+    @Test
+    void putTeiReplacesAttributesViaArrayFormAndReturnsNewEtag() {
+        when(teis.findById("tei-1"))
+                .thenReturn(Optional.of(tei("tei-1", 3)))
+                // after upsert → version bumped to 4
+                .thenReturn(Optional.of(tei("tei-1", 4)));
+        final ResponseEntity<Map<String, Object>> res = ctl.putTei("tei-1",
+                "\"3\"",
+                Map.of("orgUnit", "OU",
+                        "attributes", List.of(
+                                Map.of("attribute", "attr-1", "value", "new-name"),
+                                Map.of("attribute", "attr-2", "value", "second"))),
+                principal());
+        assertThat(res.getStatusCode().value()).isEqualTo(200);
+        assertThat(res.getHeaders().getFirst(org.springframework.http.HttpHeaders.ETAG))
+                .isEqualTo("\"4\"");
+        // Captured upsert carries merged attributes — the stored
+        // attr-1 gets overwritten, a new attr-2 is appended.
+        final org.mockito.ArgumentCaptor<TrackedEntity> cap =
+                org.mockito.ArgumentCaptor.forClass(TrackedEntity.class);
+        verify(teis).upsert(cap.capture());
+        assertThat(cap.getValue().attributes())
+                .containsEntry("attr-1", "new-name")
+                .containsEntry("attr-2", "second");
+        verify(journal).insert(any());
+    }
+
+    @Test
+    void putTeiFlatAttributeMapAlsoAccepted() {
+        when(teis.findById("tei-1"))
+                .thenReturn(Optional.of(tei("tei-1", 3)))
+                .thenReturn(Optional.of(tei("tei-1", 4)));
+        ctl.putTei("tei-1", null,
+                Map.of("orgUnit", "OU",
+                        "attributes", Map.of("attr-1", "flat-form")),
+                principal());
+        final org.mockito.ArgumentCaptor<TrackedEntity> cap =
+                org.mockito.ArgumentCaptor.forClass(TrackedEntity.class);
+        verify(teis).upsert(cap.capture());
+        assertThat(cap.getValue().attributes()).containsEntry("attr-1", "flat-form");
+    }
+
+    @Test
+    void putTeiWithoutIfMatchStillWorks() {
+        // Back-compat with DHIS2 clients that don't issue If-Match.
+        when(teis.findById("tei-1"))
+                .thenReturn(Optional.of(tei("tei-1", 3)))
+                .thenReturn(Optional.of(tei("tei-1", 4)));
+        final ResponseEntity<Map<String, Object>> res = ctl.putTei("tei-1",
+                null, Map.of("orgUnit", "OU"), principal());
+        assertThat(res.getStatusCode().value()).isEqualTo(200);
+        verify(teis).upsert(any());
     }
 }
