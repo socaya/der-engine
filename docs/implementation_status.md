@@ -599,7 +599,7 @@ All **🟡 PARTIAL** — ADR-0017 Phase 10 hardening (TLS enforce, PII mask, bac
 | NFR-11 | Zero unintended duplicate business objects | P0 | 🧱 SCAFFOLD | — |
 | NFR-12 | Every journal op has traceable state | P0 | 🧱 SCAFFOLD | — |
 | NFR-13 | App/sync restart yields no missing commits | P0 | 🧱 SCAFFOLD | — |
-| NFR-14 | Offline privilege + credential freshness | P0 | 🟡 PARTIAL | `SessionValidationService` |
+| ~~NFR-14~~ | ~~Offline privilege + credential freshness~~ | P0 | ✅ DONE | FR-02-06 policy + `Nfr14OfflineCredentialFreshnessScenarioTest` time-travel evidence under `server/src/test/java/ug/ac/mak/der/nfr/` — pins the deny/expiry contract across 4 timeline points (T0 online, T+29d offline allowed, T+31d offline denied with audit, T+31d online auto-refreshes). Scenario spec at `tests/security/nfr-14-offline-credential-freshness.md`. |
 | NFR-15 | Measure p50/p95 latency at 5/10/20 users | P1 | ✅ DONE | New `scripts/evaluation/budgets/bench_budgets.json` pins per-concurrency latency maxes (c=1: p50≤20/p95≤100, c=5: p50≤40/p95≤300, c=10: p50≤50/p95≤500, c=20: p50≤100/p95≤1000) with a global ceiling fallback. `check_bench_budget.py` asserts per-level. Wired into `nfr_sweep.sh` as a hard assertion. |
 | NFR-16 | Sustained writes/s + reads/s under load | P1 | ✅ DONE | Same budget file carries throughputRps minimums per level (c=1: 5, c=5: 20, c=10: 40, c=20: 50) plus error-rate ceiling (≤1%). `check_bench_budget.py` asserts throughputRps >= pin AND errorRatePct <= pin. 12 unit tests cover tightened/loosened overrides, zero-total protection, error-rate math, missing-field tolerance. Wired as `bench-budget-comparator` gate step. |
 | NFR-17 | Time to stable central outcomes after restore | P0 | 🧱 SCAFFOLD | `scripts/evaluation/backlog_recovery.py` |

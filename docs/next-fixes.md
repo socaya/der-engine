@@ -208,7 +208,7 @@ built.
 input/output pairs covering aggregate + event + tracker flows,
 plus a comparison runner that reports agreement %.
 
-### NFR-14 — Offline privilege + credential freshness
+### ~~NFR-14~~ — Offline privilege + credential freshness ✅ DONE
 
 `SessionValidationService` enforces the policy at runtime
 (expiry, revocation, `last_central_sync_at` window after
