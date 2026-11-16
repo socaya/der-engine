@@ -33,6 +33,12 @@ export default defineConfig({
     proxy: {
       '/edge-api': { target: DER_SERVER, changeOrigin: true },
       '/api': { target: DER_SERVER, changeOrigin: true },
+      // ADR-0005 — DHIS2 custom apps installed on DER serve at
+      // /dhis-web-<appKey>/**. Operators opening a DHIS2 app via
+      // the admin catalogue (same-origin link from /admin/apps)
+      // must proxy to the DER backend in dev so the Vite server
+      // doesn't render the SPA shell for every /dhis-web-* path.
+      '/dhis-web-': { target: DER_SERVER, changeOrigin: true },
     },
   },
   test: {

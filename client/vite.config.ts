@@ -34,6 +34,13 @@ export default defineConfig({
       // `/legacy-custom-forms/…`; forward to DER so the mirrored
       // DHIS2 2.44 legacy bundle resolves.
       '/legacy-custom-forms': { target: DER_SERVER, changeOrigin: true },
+      // ADR-0005 — DHIS2 custom apps installed on DER are served
+      // at /dhis-web-<appKey>/**. In dev the device client hits
+      // the Vite dev server on 5174; without this proxy a direct
+      // navigation to /dhis-web-eregisters/ renders the Vite
+      // fallback (blank). Forward to the DER backend so stock
+      // DHIS2 apps resolve against the same host in dev + prod.
+      '/dhis-web-': { target: DER_SERVER, changeOrigin: true },
     },
     // Allow Vitest to load *.test.ts files in apps/** which live one
     // directory above the client/ project root (G2 — framework-free
@@ -49,6 +56,7 @@ export default defineConfig({
       '/edge-api': { target: DER_SERVER, changeOrigin: true },
       '/api': { target: DER_SERVER, changeOrigin: true },
       '/legacy-custom-forms': { target: DER_SERVER, changeOrigin: true },
+      '/dhis-web-': { target: DER_SERVER, changeOrigin: true },
     },
   },
   test: {
