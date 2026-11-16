@@ -42,13 +42,35 @@ public class UserSettingsController {
         this.repo = Objects.requireNonNull(repo, "repo");
     }
 
+    /**
+     * DHIS2 central merges the system-level defaults into the bulk
+     * response so a user who has set zero per-user settings still
+     * gets {@code keyUiLocale} / {@code keyDbLocale} / etc. The d2
+     * app-runtime library reads these directly off the bulk
+     * response (not the per-key path) during bootstrap — without
+     * the defaults, {@code keyUiLocale} resolves to undefined and
+     * the app errors with "Failed to fetch user locale". Mirror
+     * the central contract.
+     */
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, String>> readAll(final Authentication auth) {
         if (!(auth instanceof EdgeUserPrincipal principal)) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(repo.readAll(principal.user().userId()));
+        final Map<String, String> merged = new java.util.LinkedHashMap<>();
+        for (final String k : KNOWN_DEFAULTED_KEYS) {
+            merged.put(k, defaultFor(k));
+        }
+        merged.putAll(repo.readAll(principal.user().userId()));
+        return ResponseEntity.ok(merged);
     }
+
+    private static final java.util.List<String> KNOWN_DEFAULTED_KEYS =
+            java.util.List.of("keyUiLocale", "keyDbLocale",
+                    "keyAnalysisDisplayProperty",
+                    "keyMessageEmailNotification",
+                    "keyMessageSmsNotification",
+                    "keyStyle");
 
     /**
      * DHIS2 central serves {@code /api/userSettings/<key>} with

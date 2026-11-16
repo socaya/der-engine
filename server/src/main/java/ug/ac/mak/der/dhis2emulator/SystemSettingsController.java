@@ -34,10 +34,27 @@ public class SystemSettingsController {
         this.repo = Objects.requireNonNull(repo, "repo");
     }
 
+    /**
+     * DHIS2 central merges the system-level defaults into the bulk
+     * {@code /api/systemSettings} response. The d2 app-runtime
+     * library reads these directly on bootstrap — see
+     * {@code UserSettingsController#readAll} for the matching
+     * per-user path and the full rationale.
+     */
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, String>> readAll() {
-        return ResponseEntity.ok(repo.readAll());
+        final Map<String, String> merged = new java.util.LinkedHashMap<>();
+        for (final String k : KNOWN_DEFAULTED_KEYS) {
+            merged.put(k, defaultFor(k));
+        }
+        merged.putAll(repo.readAll());
+        return ResponseEntity.ok(merged);
     }
+
+    private static final java.util.List<String> KNOWN_DEFAULTED_KEYS =
+            java.util.List.of("keyUiLocale", "keyDbLocale",
+                    "keyAnalysisDisplayProperty",
+                    "keyStyle", "applicationTitle", "keyFlag");
 
     /**
      * DHIS2 central content-negotiates
