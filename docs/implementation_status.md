@@ -452,7 +452,7 @@ DHIS2_IFRAME unsigned + verify skipped. Central-side signing
 | NFR-08 / NFR-09 | Reference-comparison + validation parity — oracle fixture corpus needed |
 | NFR-10 / NFR-11 | Conflict precision + duplicate avoidance — same measurement harness as FR-10-10 |
 | NFR-12 / NFR-13 | Operation accounting + recoverability — covered in code, need restart-under-load test evidence |
-| NFR-33 | Capability-snapshot drift detection shipped; reinterpretation evidence under test TODO |
+| ~~NFR-33~~ | ~~Capability-snapshot drift detection shipped; reinterpretation evidence under test TODO~~ — ✅ **DONE**: `JournalWorkerTest#nfr33MetadataDriftQuarantinesWithoutReinterpretation` pins the four invariants together — drifted PENDING op lands in CONFLICT_REVIEW, publisher never consulted, `flipToInFlight` state-advance SQL never fires, `METADATA_DRIFT_QUARANTINED` audit carries operationId + entityType + entityRef + drift summary. 14 tests across JournalWorkerTest. |
 
 **None of the 53 is scoped to a new feature.** They are either (a)
 evidence runs on pilot hardware that only operators can produce, or
@@ -618,7 +618,7 @@ All **🟡 PARTIAL** — ADR-0017 Phase 10 hardening (TLS enforce, PII mask, bac
 | NFR-30 | Fail-safe acceptance when storage prevents durability | P0 | 🟡 PARTIAL | — |
 | NFR-31 | Synthetic data for experiments | P0 | 🟡 PARTIAL | `scripts/evaluation/fixtures/` |
 | NFR-32 | Successful local op is non-blocking | P0 | 🟡 PARTIAL | — |
-| NFR-33 | Incompatible metadata doesn't silently reinterpret | P0 | 🟡 PARTIAL | — |
+| ~~NFR-33~~ | ~~Incompatible metadata doesn't silently reinterpret~~ | P0 | ✅ DONE | `JournalWorker` drift-guard + `JournalWorkerTest#nfr33MetadataDriftQuarantinesWithoutReinterpretation` evidence pin. |
 | NFR-34 | Sync-worker failures don't crash local workflows | P0 | 🧱 SCAFFOLD | `JournalWorker` isolation |
 | NFR-35 | Report DHIS2 version + fixture + build hash | P0 | ✅ DONE | `/edge-api/v1/system/health` + `/compat` |
 

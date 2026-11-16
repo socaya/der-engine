@@ -239,6 +239,94 @@ class JournalWorkerTest {
         verify(pub).publish(any());
     }
 
+    /**
+     * NFR-33 — "Incompatible metadata doesn't silently reinterpret
+     * unacknowledged local operations."
+     *
+     * <p>Pins four invariants in one evidence-under-test slice so
+     * a future refactor can't silently break any of them:
+     *   1. The PENDING op targeting drifted metadata lands in
+     *      CONFLICT_REVIEW (via {@code quarantine}), never any
+     *      terminal success state.
+     *   2. The publisher is never called — zero network IO against
+     *      central, zero chance of a false "accepted" that central
+     *      would reinterpret under new metadata.
+     *   3. The state is NEVER advanced to IN_FLIGHT before
+     *      quarantine. {@code flipToInFlight} fires a raw SQL
+     *      UPDATE on the state column; if it ran between detect
+     *      and quarantine the drain would see the row twice (once
+     *      as PENDING, once as IN_FLIGHT) on the next tick. We
+     *      assert no UPDATE on the state column was issued except
+     *      via the quarantine path itself.
+     *   4. The emitted audit event carries the operation id +
+     *      entity type + drift summary so an operator can trace
+     *      WHAT drifted without tailing the server log.
+     *
+     * <p>Together these four ensure the ADR-0008 guarantee
+     * "quarantine, don't reinterpret." See docs/implementation_status.md
+     * NFR-33 row.
+     */
+    @Test
+    void nfr33MetadataDriftQuarantinesWithoutReinterpretation() {
+        final OperationJournalRepository journal = mock(OperationJournalRepository.class);
+        final JournalPublisher pub = mock(JournalPublisher.class);
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final var audit = mock(ug.ac.mak.der.security.SecurityAuditRepository.class);
+        final OperationJournalEntry drifted = new OperationJournalEntry(
+                UUID.randomUUID(),
+                OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE,
+                "DS_A/PERIOD_2026W41/OU_X",
+                mapper.createObjectNode(),
+                OperationJournalEntry.State.PENDING,
+                0, null, UUID.randomUUID(),
+                Instant.now(), Instant.now());
+        when(journal.findPendingReadyToDrain(anyInt())).thenReturn(List.of(drifted));
+        final JournalWorker worker = new JournalWorker(journal, pub, jdbc,
+                settings(true), reachable(),
+                mock(ug.ac.mak.der.observability.DerMetrics.class));
+        worker.setDriftDetector(detectorYielding(true));
+        worker.setAuditRepository(audit);
+        worker.setDriftGuardEnabled(true);
+
+        final var out = worker.drainBatch();
+
+        // (1) Lands in the conflict bucket; terminal count untouched.
+        assertThat(out.conflicts()).isEqualTo(1);
+        assertThat(out.accepted()).isZero();
+        assertThat(out.rejected()).isZero();
+        assertThat(out.retryable()).isZero();
+        verify(journal).quarantine(drifted.operationId(),
+                "METADATA_DRIFT: missing dataElement=DE_X");
+
+        // (2) Publisher is never consulted — zero central IO.
+        org.mockito.Mockito.verifyNoInteractions(pub);
+
+        // (3) The state-advance SQL (flipToInFlight) must NOT fire.
+        // flipToInFlight is the ONLY jdbc.update call from the drain
+        // loop that touches the state column with 'IN_FLIGHT'; make
+        // sure it didn't run for this drifted entry.
+        verify(jdbc, org.mockito.Mockito.never()).update(
+                org.mockito.ArgumentMatchers.contains("'IN_FLIGHT'"),
+                any(UUID.class));
+
+        // (4) The audit event carries entity type + drift summary
+        // so operators can see WHAT drifted without log-diving.
+        verify(audit).append(org.mockito.ArgumentMatchers.argThat(
+                (ug.ac.mak.der.security.AuditEvent e) ->
+                        "METADATA_DRIFT_QUARANTINED".equals(e.eventType())
+                                && e.outcome() == ug.ac.mak.der.security
+                                        .AuditEvent.Outcome.DENIED
+                                && drifted.operationId().toString().equals(
+                                        e.detail().get("operationId"))
+                                && "AGGREGATE_DATA_VALUE".equals(
+                                        e.detail().get("entityType"))
+                                && "DS_A/PERIOD_2026W41/OU_X".equals(
+                                        e.detail().get("entityRef"))
+                                && String.valueOf(e.detail().get("summary"))
+                                        .contains("dataElement=DE_X")),
+                any());
+    }
+
     @Test
     void driftGuardCleanEntryFlowsToPublishAsBefore() {
         final OperationJournalRepository journal = mock(OperationJournalRepository.class);

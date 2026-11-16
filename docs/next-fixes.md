@@ -252,7 +252,7 @@ paths with a span tag; extend `der_bench.py` to assert no span
 calls out to the configured central baseUrl during the write
 transaction. Fail the run if any span crosses the boundary.
 
-### NFR-33 — Metadata safety (no silent reinterpretation)
+### ~~NFR-33~~ — Metadata safety (no silent reinterpretation) ✅ DONE
 
 Shipped the mechanism in FR-05-10..12 (`JournalWorker` auto-
 quarantines drifted entries before publish). Gap: evidence under
