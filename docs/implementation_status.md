@@ -38,8 +38,8 @@ gate decision (G5). CSV refreshed in alpha.1 to reflect reality.
 
 | Status | Count | % | CSV status |
 |---|---:|---:|---|
-| ✅ DONE (verified) | 193 | 91% | `done` |
-| 🟡 PARTIAL (specific gap documented) | 18 | 9% | `in-progress` |
+| ✅ DONE (verified) | 198 | 94% | `done` |
+| 🟡 PARTIAL (specific gap documented) | 13 | 6% | `in-progress` |
 | ❌ PENDING | 0 | 0% | `pending` |
 
 ### Combined scorecard
@@ -550,11 +550,11 @@ All **🧱 SCAFFOLD** per audit. Backup/restore workflow shipped (ADR-0012, V010
 
 | ID | Title | Priority | Status | Evidence |
 |---|---|:---:|:---:|---|
-| FR-15-01 | Edge identity + version panel | P0 | 🧱 SCAFFOLD | `EASetupWelcome` |
-| FR-15-02 | Central reachability + outstanding submissions | P0 | 🧱 SCAFFOLD | `SystemHealthResponse` |
-| FR-15-03 | Queue totals + sync outcomes + processing rates | P0 | 🧱 SCAFFOLD | `EAJobsList` + `EAWorkerHealth` |
-| FR-15-04 | Review unresolved conflicts | P0 | 🧱 SCAFFOLD | `EAConflictList` |
-| FR-15-05 | Current metadata version + compatibility warnings | P0 | 🧱 SCAFFOLD | `EACompatInspector` |
+| FR-15-01 | Edge identity + version panel | P0 | ✅ DONE | `EASetupWelcome` renders edge identity (device id + role matrix), location scope (bound OU + path), software version (DER release + commit), and health (last-successful-sync + central-reachable banner). Unit-tested across loading / empty / populated / degraded / reachable paths in `EACoreScreens.test.tsx` (96 tests). Contract pin in `Fr15ContractPin.test.tsx`. |
+| FR-15-02 | Central reachability + outstanding submissions | P0 | ✅ DONE | Health card inside `EASetupWelcome` surfaces `/edge-api/v1/system/health` output: `centralReachable`, `lastSuccessfulSyncAt`, `offlineDurationSeconds`, and the outstanding-submissions counter from `operation_journal` PENDING + RETRYABLE + UNKNOWN_OUTCOME. Contract pin in `Fr15ContractPin.test.tsx`. |
+| FR-15-03 | Queue totals + sync outcomes + processing rates | P0 | ✅ DONE | Split across two components: `EAJobsList` reads `/edge-api/v1/admin/ops/journal/recent` for per-job outcomes with state-faceted breakdown; `EAWorkerHealth` reads `/edge-api/v1/admin/ops/worker-health` for drain/pull throughput + backlog age. Unit-tested across empty / populated / drain-stuck / pull-stuck paths. Contract pin in `Fr15ContractPin.test.tsx`. |
+| FR-15-04 | Review unresolved conflicts | P0 | ✅ DONE | `EAConflictList` reads `/edge-api/v1/admin/ops/conflicts/pending`, lists CONFLICT_REVIEW rows with the entity type / ref / drift summary. Resolve actions (CENTRAL_WINS / EDGE_WINS / MERGED) gated on the APPROVER role via `hasAuthority("der.conflict.resolve")`; the resolve path emits a new journal op via `supersedes` (FR-10-04/FR-10-05 pinned by test). Contract pin in `Fr15ContractPin.test.tsx`. |
+| FR-15-05 | Current metadata version + compatibility warnings | P0 | ✅ DONE | `EACompatInspector` reads `/edge-api/v1/dhis2/compat` for the current compatibility profile (pinned version + observed central version + delta) + `/edge-api/v1/admin/metadata/snapshot` for the mirrored metadata snapshot (`snapshotId`, `metadataVersion`, per-resource counts). Capability-drift warnings surface via the NFR-33 guard shipped in `JournalWorker`. Contract pin in `Fr15ContractPin.test.tsx`. |
 | FR-15-06 | User scope viewer | P1 | ✅ DONE | `MockupUserScope` on `/users/scope` drives `GET /edge-api/v1/admin/ops/users/scope`. Role matrix across the three canonical roles (ADMIN / OPERATOR / VIEWER), origin chip (LOCAL vs DHIS2), stale-permission chip (`permissionAgeHours > 7 days`), search + role filter. Deep-link from Users dashboard. |
 | FR-15-07 | Backup tools — schedule + verify | P1 | ✅ DONE | `MockupBackupList` wires `backupVerifyStatus` + `backupVerifyHistory` + `backupVerifyRun` + `backupPitrWal` + schedule display from `readSettings().cron['backup.rotate']` |
 | FR-15-08 | Configuration editor + audit | P1 | ✅ DONE | `MockupConfigEditor` on `/configuration` drives `GET/POST /edge-api/v1/admin/ops/settings` (whitelist of 5 runtime keys). Each save writes `SETTINGS_CHANGED` audit event; the screen surfaces recent entries inline via `/security/audit/events?eventType=SETTINGS_CHANGED`. Linked from EASettings. |
