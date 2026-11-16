@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import ug.ac.mak.der.locale.TemporalContext;
 import ug.ac.mak.der.scheduler.ScheduledJobRepository;
 import ug.ac.mak.der.scheduler.ScheduledJobRun;
 import ug.ac.mak.der.security.AuditEvent;
@@ -49,6 +50,7 @@ public class OperatorMetricsController {
     private final SecurityAuditRepository audit;
     private final ObjectProvider<EdgeSessionRepository> sessionsProvider;
     private final ObjectProvider<SecurityProperties> propsProvider;
+    private final ObjectProvider<TemporalContext> temporalProvider;
     private final Clock clock;
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -57,12 +59,14 @@ public class OperatorMetricsController {
                                       final SecurityAuditRepository audit,
                                       final ObjectProvider<EdgeSessionRepository> sessionsProvider,
                                       final ObjectProvider<SecurityProperties> propsProvider,
+                                      final ObjectProvider<TemporalContext> temporalProvider,
                                       final Clock clock) {
         this.journal = Objects.requireNonNull(journal, "journal");
         this.scheduledJobs = Objects.requireNonNull(scheduledJobs, "scheduledJobs");
         this.audit = Objects.requireNonNull(audit, "audit");
         this.sessionsProvider = sessionsProvider;
         this.propsProvider = propsProvider;
+        this.temporalProvider = temporalProvider;
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -71,7 +75,17 @@ public class OperatorMetricsController {
                                       final ObjectProvider<ScheduledJobRepository> scheduledJobs,
                                       final SecurityAuditRepository audit,
                                       final Clock clock) {
-        this(journal, scheduledJobs, audit, null, null, clock);
+        this(journal, scheduledJobs, audit, null, null, null, clock);
+    }
+
+    /** Pre-FR-04-09 ctor — FR-02-10 landed first. */
+    public OperatorMetricsController(final ObjectProvider<OperationJournalRepository> journal,
+                                      final ObjectProvider<ScheduledJobRepository> scheduledJobs,
+                                      final SecurityAuditRepository audit,
+                                      final ObjectProvider<EdgeSessionRepository> sessionsProvider,
+                                      final ObjectProvider<SecurityProperties> propsProvider,
+                                      final Clock clock) {
+        this(journal, scheduledJobs, audit, sessionsProvider, propsProvider, null, clock);
     }
 
     private long unsafeThreshold() {
@@ -104,11 +118,22 @@ public class OperatorMetricsController {
     public ResponseEntity<Map<String, Object>> clockProbe() {
         final Instant now = Instant.now(clock);
         final long threshold = unsafeThreshold();
+        final TemporalContext temporal = temporalProvider == null
+                ? null : temporalProvider.getIfAvailable();
         final Map<String, Object> body = new LinkedHashMap<>();
         body.put("serverTime", now.toString());
         body.put("serverEpochMillis", now.toEpochMilli());
         body.put("serverTimeZone", clock.getZone().getId());
         body.put("systemTimeZone", ZoneId.systemDefault().getId());
+        // FR-04-09 — surface the explicit configured zone/locale so
+        // operators can see the fallback policy. These are what the
+        // server USES when it has to make a choice (e.g. anchoring a
+        // zone-less timestamp or picking an i18n family); the two
+        // fields above are what the JVM happened to boot with.
+        body.put("configuredTimeZone",
+                temporal == null ? "UTC" : temporal.serverZone().getId());
+        body.put("defaultLocale",
+                temporal == null ? "en" : temporal.defaultLocaleTag());
         body.put("unsafeDriftMillis", threshold);
         body.put("unsafeAction", unsafeAction().name());
         body.put("note", "Caller computes drift = abs(serverEpochMillis - callerEpochMillis). "
