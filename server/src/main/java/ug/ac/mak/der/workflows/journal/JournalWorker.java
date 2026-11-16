@@ -14,8 +14,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import ug.ac.mak.der.metadata.MetadataDriftDetector;
+import ug.ac.mak.der.metadata.MetadataDriftDetector.DriftReport;
 import ug.ac.mak.der.network.CentralReachabilityGate;
 import ug.ac.mak.der.observability.DerMetrics;
+import ug.ac.mak.der.security.AuditEvent;
+import ug.ac.mak.der.security.SecurityAuditRepository;
 import ug.ac.mak.der.sync.policy.SyncPolicyService;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
@@ -63,6 +67,33 @@ public class JournalWorker {
         this.syncPolicy = syncPolicy;
     }
 
+    /** FR-05-10/11 — metadata drift guard. Optional; when unwired
+     *  the worker behaves as pre-FR-05-11 (no guard). */
+    private MetadataDriftDetector driftDetector;
+    private SecurityAuditRepository audit;
+    private boolean driftGuardEnabled = true;
+    private volatile int driftQuarantinedTotal;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setDriftDetector(final MetadataDriftDetector driftDetector) {
+        this.driftDetector = driftDetector;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setAuditRepository(final SecurityAuditRepository audit) {
+        this.audit = audit;
+    }
+
+    @org.springframework.beans.factory.annotation.Value(
+            "${der.journal.drift-guard.enabled:true}")
+    public void setDriftGuardEnabled(final boolean driftGuardEnabled) {
+        this.driftGuardEnabled = driftGuardEnabled;
+    }
+
+    public int driftQuarantinedTotal() {
+        return driftQuarantinedTotal;
+    }
+
     public DrainOutcome drainBatch() {
         lastTick = Instant.now();
         if (!settings.enabled().get()) {
@@ -106,6 +137,35 @@ public class JournalWorker {
                         .isPaused()) {
                 skippedPausedTotal++;
                 continue;
+            }
+            // FR-05-11 — refuse to publish against metadata that's
+            // drifted locally. Quarantining here (CONFLICT_REVIEW)
+            // keeps the row visible to the admin API + stops the
+            // drain from retrying a submission central would reject
+            // for a stale DE/program/OU reference.
+            if (driftGuardEnabled && driftDetector != null) {
+                final DriftReport report = driftDetector.evaluate(entry);
+                if (report.hasDrift()) {
+                    final String reason = "METADATA_DRIFT: " + report.summary();
+                    journal.quarantine(entry.operationId(), reason);
+                    driftQuarantinedTotal++;
+                    conflicts++;
+                    metrics.drainOutcome("drift-quarantined");
+                    if (audit != null) {
+                        audit.append(new AuditEvent(
+                                "METADATA_DRIFT_QUARANTINED",
+                                AuditEvent.Outcome.DENIED,
+                                null, null, null, null,
+                                Map.of(
+                                        "operationId", entry.operationId().toString(),
+                                        "entityType", entry.entityType().name(),
+                                        "entityRef", entry.entityRef() == null
+                                                ? "" : entry.entityRef(),
+                                        "summary", report.summary())),
+                                Instant.now());
+                    }
+                    continue;
+                }
             }
             flipToInFlight(entry.operationId());
             final JournalPublisher.PublishResult result = publisher.publish(entry);

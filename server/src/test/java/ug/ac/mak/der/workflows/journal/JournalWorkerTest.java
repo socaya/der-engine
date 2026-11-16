@@ -175,4 +175,88 @@ class JournalWorkerTest {
         org.mockito.Mockito.verify(journal, org.mockito.Mockito.never())
                 .findPendingReadyToDrain(anyInt());
     }
+
+    // ---- FR-05-10/11/12 drift guard --------------------------------
+
+    private static ug.ac.mak.der.metadata.MetadataDriftDetector
+            detectorYielding(final boolean drift) {
+        final var detector = mock(ug.ac.mak.der.metadata.MetadataDriftDetector.class);
+        final var report = mock(
+                ug.ac.mak.der.metadata.MetadataDriftDetector.DriftReport.class);
+        when(report.hasDrift()).thenReturn(drift);
+        when(report.summary()).thenReturn(
+                drift ? "missing dataElement=DE_X" : "ok");
+        when(detector.evaluate(any())).thenReturn(report);
+        return detector;
+    }
+
+    @Test
+    void driftGuardQuarantinesPendingEntryBeforePublish() {
+        final OperationJournalRepository journal = mock(OperationJournalRepository.class);
+        final JournalPublisher pub = mock(JournalPublisher.class);
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final var audit = mock(ug.ac.mak.der.security.SecurityAuditRepository.class);
+        final var drifted = entry(OperationJournalEntry.State.PENDING);
+        when(journal.findPendingReadyToDrain(anyInt())).thenReturn(List.of(drifted));
+        final JournalWorker worker = new JournalWorker(journal, pub, jdbc,
+                settings(true), reachable(),
+                mock(ug.ac.mak.der.observability.DerMetrics.class));
+        worker.setDriftDetector(detectorYielding(true));
+        worker.setAuditRepository(audit);
+        worker.setDriftGuardEnabled(true);
+        final var out = worker.drainBatch();
+        assertThat(out.conflicts()).isEqualTo(1);
+        assertThat(worker.driftQuarantinedTotal()).isEqualTo(1);
+        verify(journal).quarantine(drifted.operationId(),
+                "METADATA_DRIFT: missing dataElement=DE_X");
+        // Publisher is NOT called for a drifted entry.
+        org.mockito.Mockito.verifyNoInteractions(pub);
+        verify(audit).append(org.mockito.ArgumentMatchers.argThat(
+                (ug.ac.mak.der.security.AuditEvent e) ->
+                        "METADATA_DRIFT_QUARANTINED".equals(e.eventType())),
+                any());
+    }
+
+    @Test
+    void driftGuardDisabledLetsEntryPublish() {
+        final OperationJournalRepository journal = mock(OperationJournalRepository.class);
+        final JournalPublisher pub = mock(JournalPublisher.class);
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final var e = entry(OperationJournalEntry.State.PENDING);
+        when(journal.findPendingReadyToDrain(anyInt())).thenReturn(List.of(e));
+        when(pub.publish(any())).thenReturn(
+                new JournalPublisher.PublishResult(202, "{}",
+                        JournalPublisher.TerminalState.ACCEPTED));
+        final JournalWorker worker = new JournalWorker(journal, pub, jdbc,
+                settings(true), reachable(),
+                mock(ug.ac.mak.der.observability.DerMetrics.class));
+        // Detector would yell drift, but the guard is OFF.
+        worker.setDriftDetector(detectorYielding(true));
+        worker.setDriftGuardEnabled(false);
+        worker.drainBatch();
+        // No quarantine; publisher invoked.
+        verify(journal, org.mockito.Mockito.never()).quarantine(any(), any());
+        verify(pub).publish(any());
+    }
+
+    @Test
+    void driftGuardCleanEntryFlowsToPublishAsBefore() {
+        final OperationJournalRepository journal = mock(OperationJournalRepository.class);
+        final JournalPublisher pub = mock(JournalPublisher.class);
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        final var e = entry(OperationJournalEntry.State.PENDING);
+        when(journal.findPendingReadyToDrain(anyInt())).thenReturn(List.of(e));
+        when(pub.publish(any())).thenReturn(
+                new JournalPublisher.PublishResult(202, "{}",
+                        JournalPublisher.TerminalState.ACCEPTED));
+        final JournalWorker worker = new JournalWorker(journal, pub, jdbc,
+                settings(true), reachable(),
+                mock(ug.ac.mak.der.observability.DerMetrics.class));
+        worker.setDriftDetector(detectorYielding(false));
+        final var out = worker.drainBatch();
+        assertThat(out.accepted()).isEqualTo(1);
+        assertThat(worker.driftQuarantinedTotal()).isZero();
+        verify(journal, org.mockito.Mockito.never()).quarantine(any(), any());
+        verify(pub).publish(any());
+    }
 }
