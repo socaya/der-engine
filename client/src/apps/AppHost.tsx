@@ -133,6 +133,40 @@ export function AppHost(): JSX.Element {
     );
   }
   if (status.kind === 'iframe') {
+    // DHIS2 apps render their own @dhis2/ui HeaderBar on mount
+    // (apps-menu icon, logout, profile, etc.). When embedded inside
+    // DER's shell that gives the operator two stacked chromes —
+    // DER's header on top, DHIS2's below. Inject a stylesheet into
+    // the iframe on first load that hides the DHIS2 header (and
+    // its drawer backdrop), so only DER's navigation is visible.
+    // Same-origin iframe → contentDocument is reachable without
+    // CORS gymnastics. Idempotent: re-injection is a no-op because
+    // the <style> id is checked first.
+    const onIframeLoad = (ev: React.SyntheticEvent<HTMLIFrameElement>): void => {
+      const doc = ev.currentTarget.contentDocument;
+      if (!doc) return;
+      if (doc.getElementById('der-hide-dhis2-header')) return;
+      const style = doc.createElement('style');
+      style.id = 'der-hide-dhis2-header';
+      // Targets every known DHIS2-shell header mount. The leading
+      // comment is intentional — makes the rule trivially
+      // discoverable in DevTools when an operator asks why.
+      style.textContent = `/* DER: hide DHIS2 HeaderBar inside embedded apps */
+        header.headerbar, .headerbar,
+        [data-test="headerbar"],
+        [data-test^="headerbar-"],
+        div[class*="HeaderBar_"],
+        div[class*="headerBar"] {
+          display: none !important;
+        }
+        /* Reclaim the vertical space DHIS2 reserved for its header. */
+        body { padding-top: 0 !important; margin-top: 0 !important; }
+        #app-shell-content, #app, #root {
+          padding-top: 0 !important; margin-top: 0 !important; top: 0 !important;
+        }`;
+      doc.head.appendChild(style);
+    };
+
     return (
       <div className="der-apphost der-apphost--iframe"
            data-test="der-apphost-iframe"
@@ -141,6 +175,7 @@ export function AppHost(): JSX.Element {
         <iframe src={status.src}
                 title={`DHIS2 app: ${appKey}`}
                 data-test={`der-apphost-iframe-${appKey}`}
+                onLoad={onIframeLoad}
                 style={{ flex: 1, width: '100%',
                          height: '100%', border: 0,
                          minHeight: 'calc(100vh - 60px)' }}

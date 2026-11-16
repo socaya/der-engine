@@ -316,6 +316,36 @@ scope. Drop silently (no audit, no 401) after N consecutive
 failures from the same IP in a window. Needs a design call on
 window + N.
 
+### DHIS2 app API-surface gaps
+
+Observed while live-testing eregisters 1.1.12. These endpoints
+eregisters' bootstrap hits still return 404 on DER and need
+either an emulator stub or a proxy-fallback route:
+
+| Path | Status | Impact | Fix |
+|---|---|---|---|
+| `GET /api/loginConfig` | 404 EMULATOR_NOT_IMPLEMENTED | app log-noise; swallowed | Stub returning `{applicationTitle,...}` |
+| `GET /api/staticContent/logo_banner` | 404 | banner missing | Stub returning 204 or a transparent 1px PNG |
+| `GET /api/fileResources` | 404 | file upload disabled in apps | Needs a mirror table + upsert path — bigger |
+| `GET /api/ping` | 404 | keepalive probes noise | 1-line controller returning `pong` |
+| `GET /api/dataStore/<ns>` | 404 (except when central has the ns) | app config can't load | Local dataStore mirror — DER has `userDataStore` but not `dataStore` |
+| `GET /api/dataStore/<ns>/<key>` | 404 | per-app config | same as above |
+| `GET /api/dataEntry/dataSetCompletion` | 404 | legacy dataEntry probe; swallowed | Stub returning empty array |
+| `GET /api/dataEntry/dataValues` | 404 | legacy dataEntry probe; swallowed | Stub returning empty array |
+| `GET /api/tracker/trackedEntities` | 404 | tracker-list queries fail | Partial today via `MetadataListController`; DHIS2 apps need more search operators |
+
+**Priority order for a follow-up slice:**
+
+1. `/api/ping` + `/api/loginConfig` + `/api/staticContent/*` +
+   `/api/dataEntry/*` — all tiny constant-response stubs. One
+   commit removes most DHIS2-app console-error noise.
+2. `/api/dataStore/<ns>/<key>` CRUD — app config persistence.
+   DER already has `UserSettingsRepository` pattern; a parallel
+   `AppDataStoreRepository` + V128 migration is the shape.
+3. `/api/fileResources` — bigger; needs blob storage decisions.
+4. `/api/tracker/trackedEntities` with `fields=` + filters —
+   partial today; DHIS2 apps need more search operators.
+
 ### Admin UI doesn't expose the DHIS2 app installer (ADR-0005)
 
 **Symptom:** Operator opens `https://<host>/admin/apps`, chooses a
