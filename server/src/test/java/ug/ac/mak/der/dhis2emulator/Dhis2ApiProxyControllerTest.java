@@ -160,4 +160,81 @@ class Dhis2ApiProxyControllerTest {
         assertThat(res.getStatusCode().value()).isEqualTo(201);
         verify(miss, never()).record(any(), any());
     }
+
+    // ---- FR-04-06 error taxonomy ------------------------------------
+
+    @Test
+    void upstreamIoFailureEmitsUpstreamUnavailableEnvelope() throws Exception {
+        final HttpClient http = mock(HttpClient.class);
+        when(http.<byte[]>send(any(), any())).thenThrow(
+                new java.io.IOException("connection reset by peer"));
+        final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
+        final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
+                http, props(), true, false, "", missProvider(miss));
+        final MockHttpServletRequest req = new MockHttpServletRequest("GET",
+                "/api/analytics");
+        final ResponseEntity<byte[]> res = p.proxy(req, null);
+        assertThat(res.getStatusCode().value()).isEqualTo(502);
+        final String body = new String(res.getBody());
+        assertThat(body).contains("\"code\":\"UPSTREAM_UNAVAILABLE\"");
+        assertThat(body).contains("\"httpStatus\":\"BadGateway\"");
+        assertThat(body).contains("\"endpoint\":\"/api/analytics\"");
+        // UPSTREAM_UNAVAILABLE is a temporary failure, NOT an emulator
+        // miss. Don't record it in the miss log — a central outage
+        // would otherwise spam the admin screen.
+        verify(miss, never()).record(any(), any());
+    }
+
+    @Test
+    void upstreamInterruptEmitsUpstreamInterruptedEnvelope() throws Exception {
+        final HttpClient http = mock(HttpClient.class);
+        when(http.<byte[]>send(any(), any())).thenThrow(
+                new InterruptedException("test interrupt"));
+        final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
+        final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
+                http, props(), true, false, "", missProvider(miss));
+        final MockHttpServletRequest req = new MockHttpServletRequest("GET",
+                "/api/analytics");
+        final ResponseEntity<byte[]> res = p.proxy(req, null);
+        assertThat(res.getStatusCode().value()).isEqualTo(504);
+        final String body = new String(res.getBody());
+        assertThat(body).contains("\"code\":\"UPSTREAM_INTERRUPTED\"");
+        assertThat(body).contains("\"httpStatus\":\"GatewayTimeout\"");
+    }
+
+    @Test
+    void invalidTargetUriEmitsInvalidRequestEnvelope() {
+        // Build a props with a base URL that fails URI parsing when
+        // combined with the request path.
+        final Dhis2Properties bad = new Dhis2Properties(
+                new Dhis2Properties.Central("ht tp://broken/dhis", "u", "p", 1000),
+                new Dhis2Properties.Compatibility(
+                        "2.40", "2.44", "warn", true, 24, false,
+                        "2.44-SNAPSHOT", false));
+        final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
+        final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
+                mock(HttpClient.class), bad, true, false, "", missProvider(miss));
+        final MockHttpServletRequest req = new MockHttpServletRequest("GET",
+                "/api/analytics");
+        final ResponseEntity<byte[]> res = p.proxy(req, null);
+        assertThat(res.getStatusCode().value()).isEqualTo(400);
+        final String body = new String(res.getBody());
+        assertThat(body).contains("\"code\":\"INVALID_REQUEST\"");
+        assertThat(body).contains("\"httpStatus\":\"BadRequest\"");
+    }
+
+    @Test
+    void allTaxonomyBodiesCarryCodeField() {
+        // Unified envelope invariant: every non-passthrough response
+        // must carry a `code` field. Covers the EMULATOR_NOT_IMPL path
+        // + the three temporary/invalid branches.
+        final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
+        final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
+                mock(HttpClient.class), props(), false, false, "",
+                missProvider(miss));
+        final ResponseEntity<byte[]> res = p.proxy(
+                new MockHttpServletRequest("GET", "/api/analytics"), null);
+        final String body = new String(res.getBody());
+        assertThat(body).contains("\"code\":");
+    }
 }

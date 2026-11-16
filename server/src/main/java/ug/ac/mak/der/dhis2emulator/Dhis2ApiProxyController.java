@@ -163,24 +163,78 @@ public class Dhis2ApiProxyController {
             });
             return ResponseEntity.status(resp.statusCode()).headers(out).body(resp.body());
         } catch (URISyntaxException ex) {
-            return ResponseEntity.status(400).body(
-                    ("{\"status\":\"ERROR\",\"message\":\"invalid target: "
-                            + ex.getMessage() + "\"}").getBytes(StandardCharsets.UTF_8));
+            // FR-04-06 category #2: INVALID_REQUEST. Distinct from
+            // the unsupported-endpoint 404 (different code field so
+            // clients can route behaviour).
+            return ResponseEntity.status(400).body(invalidRequestBody(
+                    path, "invalid upstream target: " + ex.getMessage()));
         } catch (IOException ex) {
+            // FR-04-06 category #3: TEMPORARY_FAILURE. The caller
+            // should retry; the request itself is valid, central
+            // just isn't reachable right now.
             LOG.warn("proxy I/O failure: {}", ex.getMessage());
-            return ResponseEntity.status(502).body(
-                    ("{\"status\":\"ERROR\",\"message\":\"upstream I/O: "
-                            + ex.getMessage() + "\"}").getBytes(StandardCharsets.UTF_8));
+            return ResponseEntity.status(502).body(upstreamUnavailableBody(
+                    path, "upstream I/O: " + ex.getMessage()));
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            return ResponseEntity.status(504).body(
-                    "{\"status\":\"ERROR\",\"message\":\"upstream interrupted\"}"
-                            .getBytes(StandardCharsets.UTF_8));
+            return ResponseEntity.status(504).body(upstreamInterruptedBody(path));
         }
     }
 
     private static boolean isReadMethod(final String method) {
         return "GET".equalsIgnoreCase(method) || "HEAD".equalsIgnoreCase(method);
+    }
+
+    /**
+     * FR-04-06 — invariant error-envelope shape. Every non-pass-through
+     * response from this controller emits {@code { httpStatus,
+     * httpStatusCode, status: "ERROR", code, endpoint, message }}.
+     * The {@code code} field is the FR-04-06 category discriminator:
+     *
+     * <ul>
+     *   <li>{@code EMULATOR_NOT_IMPLEMENTED} — unsupported operation
+     *     (DER doesn't mirror / proxy this endpoint). 404.</li>
+     *   <li>{@code INVALID_REQUEST} — the request itself is malformed
+     *     before it ever leaves DER. 400.</li>
+     *   <li>{@code UPSTREAM_UNAVAILABLE} — valid request, central
+     *     didn't answer. Caller should retry. 502.</li>
+     *   <li>{@code UPSTREAM_INTERRUPTED} — thread interrupted mid-
+     *     upstream. Caller should retry. 504.</li>
+     * </ul>
+     */
+    private static byte[] envelope(final int status,
+                                     final String httpStatusLabel,
+                                     final String code,
+                                     final String endpoint,
+                                     final String message) {
+        final String escapedPath = endpoint == null ? ""
+                : endpoint.replace("\"", "\\\"");
+        final String escapedMessage = message == null ? ""
+                : message.replace("\"", "\\\"");
+        return ("{\"httpStatus\":\"" + httpStatusLabel + "\","
+                + "\"httpStatusCode\":" + status + ","
+                + "\"status\":\"ERROR\","
+                + "\"code\":\"" + code + "\","
+                + "\"endpoint\":\"" + escapedPath + "\","
+                + "\"message\":\"" + escapedMessage + "\"}")
+                .getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static byte[] invalidRequestBody(final String endpoint,
+                                               final String message) {
+        return envelope(400, "BadRequest", "INVALID_REQUEST",
+                endpoint, message);
+    }
+
+    private static byte[] upstreamUnavailableBody(final String endpoint,
+                                                    final String message) {
+        return envelope(502, "BadGateway", "UPSTREAM_UNAVAILABLE",
+                endpoint, message);
+    }
+
+    private static byte[] upstreamInterruptedBody(final String endpoint) {
+        return envelope(504, "GatewayTimeout", "UPSTREAM_INTERRUPTED",
+                endpoint, "upstream call interrupted before a response landed");
     }
 
     /**
@@ -192,14 +246,8 @@ public class Dhis2ApiProxyController {
      */
     private static byte[] notImplementedBody(final String path,
                                                 final String message) {
-        final String escapedPath = path == null ? "" : path.replace("\"", "\\\"");
-        final String escapedMessage = message == null ? ""
-                : message.replace("\"", "\\\"");
-        return ("{\"httpStatus\":\"NotFound\",\"httpStatusCode\":404,"
-                + "\"status\":\"ERROR\",\"code\":\"EMULATOR_NOT_IMPLEMENTED\","
-                + "\"endpoint\":\"" + escapedPath + "\","
-                + "\"message\":\"" + escapedMessage + "\"}")
-                .getBytes(StandardCharsets.UTF_8);
+        return envelope(404, "NotFound", "EMULATOR_NOT_IMPLEMENTED",
+                path, message);
     }
 
     private void logMiss(final String path, final String origin) {
