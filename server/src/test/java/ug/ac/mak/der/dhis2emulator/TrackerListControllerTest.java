@@ -55,16 +55,21 @@ class TrackerListControllerTest {
         assertThat(r.getStatusCode().value()).isEqualTo(200);
         final var body = r.getBody();
         assertThat(body).isNotNull();
-        final var instances = (List<?>) body.get("instances");
-        assertThat(instances).hasSize(2);
-        final Map<?, ?> first = (Map<?, ?>) instances.get(0);
+        // DHIS2 2.4x's Tracker response uses `trackedEntities` as
+        // the array key (post-2.40 rename); the pre-2.40 `instances`
+        // alias stays for app bundles that never got re-released.
+        final var trackedEntities = (List<?>) body.get("trackedEntities");
+        assertThat(trackedEntities).hasSize(2);
+        assertThat(body.get("instances")).isEqualTo(trackedEntities);
+        final Map<?, ?> first = (Map<?, ?>) trackedEntities.get(0);
         assertThat(first.get("trackedEntity")).isEqualTo("TEI_ALICE");
         assertThat(first.get("orgUnit")).isEqualTo("OU_1");
         assertThat(first.get("trackedEntityType")).isEqualTo("nEenWmSyUEp");
         final List<?> attrs = (List<?>) first.get("attributes");
         assertThat(attrs).hasSize(2);
-        assertThat(body.get("page")).isEqualTo(1);
-        assertThat(body.get("total")).isEqualTo(2);
+        final Map<?, ?> pager = (Map<?, ?>) body.get("pager");
+        assertThat(pager.get("page")).isEqualTo(1);
+        assertThat(pager.get("total")).isEqualTo(2);
     }
 
     @Test
@@ -74,9 +79,10 @@ class TrackerListControllerTest {
                 .thenReturn(List.of());
         final var r = new TrackerListController(repo, new ObjectMapper())
                 .list(principal(), null, null, null, 1, 10000, null);
-        // Underlying search receives the capped fetch; body honors
+        // Underlying search receives the capped fetch; pager honors
         // the requested-but-capped pageSize.
-        assertThat(r.getBody().get("pageSize")).isEqualTo(200);
+        final Map<?, ?> pager = (Map<?, ?>) r.getBody().get("pager");
+        assertThat(pager.get("pageSize")).isEqualTo(200);
     }
 
     @Test
@@ -95,7 +101,8 @@ class TrackerListControllerTest {
         final var r = new TrackerListController(repo, new ObjectMapper())
                 .list(principal(), "prog", "ou", null, 1, 50, null);
         assertThat(r.getStatusCode().value()).isEqualTo(200);
-        assertThat((List<?>) r.getBody().get("instances")).isEmpty();
-        assertThat(r.getBody().get("total")).isEqualTo(0);
+        assertThat((List<?>) r.getBody().get("trackedEntities")).isEmpty();
+        final Map<?, ?> pager = (Map<?, ?>) r.getBody().get("pager");
+        assertThat(pager.get("total")).isEqualTo(0);
     }
 }

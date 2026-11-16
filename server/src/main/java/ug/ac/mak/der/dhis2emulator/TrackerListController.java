@@ -31,8 +31,12 @@ import ug.ac.mak.der.workflows.tracker.TrackedEntityRepository.TrackedEntity;
  * not a stub.</p>
  *
  * <p>Response shape matches DHIS2 central 2.44's:
- * {@code {instances:[], page, pageSize, total?}} wrapper. Each
- * instance carries {@code trackedEntity}, {@code
+ * {@code {trackedEntities:[], pager:{page,pageSize,pageCount,total}}}
+ * wrapper. The 2.40 Tracker API rename flipped the array key from
+ * {@code instances} to {@code trackedEntities}; eregisters' data
+ * pull destructures the 2.44 shape and crashes on {@code
+ * instances.length} being undefined when the old name is served.
+ * Each instance carries {@code trackedEntity}, {@code
  * trackedEntityType}, {@code orgUnit}, {@code createdAt},
  * {@code updatedAt}, and the attributes array in the shape the
  * d2 app-runtime expects.</p>
@@ -80,12 +84,17 @@ public class TrackerListController {
         for (int i = from; i < to; i++) {
             instances.add(toDhis2Shape(rows.get(i), updatedAfter));
         }
+        final Map<String, Object> pager = new LinkedHashMap<>();
+        pager.put("page", safePage);
+        pager.put("pageSize", safeSize);
+        pager.put("pageCount", (int) Math.ceil(rows.size() / (double) safeSize));
+        pager.put("total", rows.size());
         final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("pager", pager);
+        body.put("trackedEntities", instances);
+        // `instances` kept alongside so pre-2.40 app bundles that
+        // never got re-released still receive a populated array.
         body.put("instances", instances);
-        body.put("page", safePage);
-        body.put("pageSize", safeSize);
-        body.put("pageCount", (int) Math.ceil(rows.size() / (double) safeSize));
-        body.put("total", rows.size());
         return ResponseEntity.ok(body);
     }
 
