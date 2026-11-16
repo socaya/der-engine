@@ -146,8 +146,85 @@ public class EventPuller {
                     null, null, null, null,
                     Map.of("entityType", "EVENT", "eventId", eventUid)),
                     Instant.now(clock));
+            // FR-07-08 — classify the overwrite explicitly so the
+            // admin diagnostic can distinguish "central edited this
+            // after us" from the quiet overwrite stream.
+            final var classification =
+                    ug.ac.mak.der.workflows.events.EventDivergenceClassifier
+                            .classify(existing.get(), centralView);
+            if (classification.klass()
+                    != ug.ac.mak.der.workflows.events.EventDivergenceClass.IN_SYNC) {
+                emitDivergence(classification, eventUid, program, ou);
+            }
         }
         return new MergeOutcome(wasOverwrite ? Action.OVERWRITTEN : Action.INSERTED, watermark);
+    }
+
+    /**
+     * FR-07-08 — write an {@code EVENT_DIVERGENCE_<CLASS>} audit row
+     * with the per-field diff. Uses the DENIED outcome tag on
+     * CENTRAL_DELETED (operator has an open question to resolve);
+     * every other class is informational SUCCESS so compliance
+     * reports don't flag them as rejections.
+     */
+    private void emitDivergence(
+            final ug.ac.mak.der.workflows.events.EventDivergenceClassifier.Classification c,
+            final String eventUid, final String program, final String orgUnit) {
+        final Map<String, Object> detail = new java.util.LinkedHashMap<>();
+        detail.put("eventId", eventUid);
+        if (program != null) {
+            detail.put("program", program);
+        }
+        if (orgUnit != null) {
+            detail.put("orgUnit", orgUnit);
+        }
+        detail.put("diff", c.detail());
+        final AuditEvent.Outcome outcome =
+                c.klass() == ug.ac.mak.der.workflows.events.EventDivergenceClass.CENTRAL_DELETED
+                        ? AuditEvent.Outcome.DENIED : AuditEvent.Outcome.SUCCESS;
+        audit.append(new AuditEvent(
+                "EVENT_DIVERGENCE_" + c.klass().name(),
+                outcome, null, null, null, null, detail),
+                Instant.now(clock));
+    }
+
+    /**
+     * FR-07-08 — deletion sweep. After a batch pull for an
+     * (orgUnit, programUid) window completes, enumerate the local
+     * events we have NOT re-seen in the central response, and emit
+     * {@code EVENT_DIVERGENCE_CENTRAL_DELETED} for each row that
+     * had previously reached {@code CENTRAL_ACCEPTED}. Called from
+     * {@link DataPullService} after the batch pull. Public so an
+     * admin diagnostic can trigger a sweep ad-hoc.
+     *
+     * @return the number of CENTRAL_DELETED audits emitted.
+     */
+    public int sweepDeletions(final String orgUnit, final String program,
+                                final java.util.Set<String> seenCentralUids) {
+        if (orgUnit == null || program == null) {
+            return 0;
+        }
+        final java.util.List<Event> local = events.findByProgramAndOrgUnit(
+                program, orgUnit, 500);
+        int emitted = 0;
+        for (final Event e : local) {
+            final String uid = e.eventId().toString();
+            if (seenCentralUids.contains(uid)) {
+                continue;
+            }
+            final Optional<OperationJournalEntry> row = journal.findLatestByEntityRef(
+                    OperationJournalEntry.EntityType.EVENT, uid);
+            if (row.isEmpty()
+                    || row.get().state() != OperationJournalEntry.State.CENTRAL_ACCEPTED) {
+                continue;
+            }
+            final var classification =
+                    ug.ac.mak.der.workflows.events.EventDivergenceClassifier
+                            .classify(e, null);
+            emitDivergence(classification, uid, program, orgUnit);
+            emitted++;
+        }
+        return emitted;
     }
 
     private Event toLocal(final UUID eventId, final JsonNode node, final Event existing,

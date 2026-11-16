@@ -98,7 +98,17 @@ class EventPullerTest {
         assertThat(r.rowsPulled()).isEqualTo(1);
         assertThat(r.conflicts()).isZero();
         verify(evts).upsert(any(Event.class));
-        verify(ar).append(any(AuditEvent.class), any(Instant.class));
+        // Two audits: the long-standing DATA_PULL_OVERWRITE + the
+        // new FR-07-08 EVENT_DIVERGENCE_CENTRAL_DIVERGED (sampleLocal
+        // = ACTIVE, central = COMPLETED → status diff).
+        verify(ar, org.mockito.Mockito.times(2))
+                .append(any(AuditEvent.class), any(Instant.class));
+        verify(ar).append(org.mockito.ArgumentMatchers.argThat(
+                (AuditEvent e) -> "DATA_PULL_OVERWRITE".equals(e.eventType())),
+                any(Instant.class));
+        verify(ar).append(org.mockito.ArgumentMatchers.argThat(
+                (AuditEvent e) -> "EVENT_DIVERGENCE_CENTRAL_DIVERGED".equals(e.eventType())),
+                any(Instant.class));
     }
 
     @Test
