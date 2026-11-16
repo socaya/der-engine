@@ -253,8 +253,9 @@ public class MetadataListController {
     }
 
     @GetMapping("/organisationUnits/{uid}")
-    public ResponseEntity<JsonNode> organisationUnit(final Authentication auth, @PathVariable final String uid) {
-        return single(auth, mirror.findOrganisationUnit(uid).map(MirroredEntity::payload));
+    public ResponseEntity<?> organisationUnit(final Authentication auth, @PathVariable final String uid) {
+        return single(auth, "organisationUnit", uid,
+                mirror.findOrganisationUnit(uid).map(MirroredEntity::payload));
     }
 
     @GetMapping("/dataElements")
@@ -269,8 +270,9 @@ public class MetadataListController {
     }
 
     @GetMapping("/dataElements/{uid}")
-    public ResponseEntity<JsonNode> dataElement(final Authentication auth, @PathVariable final String uid) {
-        return single(auth, mirror.findDataElement(uid).map(MirroredEntity::payload));
+    public ResponseEntity<?> dataElement(final Authentication auth, @PathVariable final String uid) {
+        return single(auth, "dataElement", uid,
+                mirror.findDataElement(uid).map(MirroredEntity::payload));
     }
 
     @GetMapping("/dataSets")
@@ -320,8 +322,9 @@ public class MetadataListController {
     }
 
     @GetMapping("/dataSets/{uid}")
-    public ResponseEntity<JsonNode> dataSet(final Authentication auth, @PathVariable final String uid) {
-        return single(auth, mirror.findDataSet(uid).map(MirroredEntity::payload));
+    public ResponseEntity<?> dataSet(final Authentication auth, @PathVariable final String uid) {
+        return single(auth, "dataSet", uid,
+                mirror.findDataSet(uid).map(MirroredEntity::payload));
     }
 
     @GetMapping("/programs")
@@ -336,8 +339,9 @@ public class MetadataListController {
     }
 
     @GetMapping("/programs/{uid}")
-    public ResponseEntity<JsonNode> program(final Authentication auth, @PathVariable final String uid) {
-        return single(auth, mirror.findProgram(uid).map(MirroredEntity::payload));
+    public ResponseEntity<?> program(final Authentication auth, @PathVariable final String uid) {
+        return single(auth, "program", uid,
+                mirror.findProgram(uid).map(MirroredEntity::payload));
     }
 
     @GetMapping("/trackedEntityTypes")
@@ -352,16 +356,48 @@ public class MetadataListController {
     }
 
     @GetMapping("/trackedEntityTypes/{uid}")
-    public ResponseEntity<JsonNode> trackedEntityType(final Authentication auth, @PathVariable final String uid) {
-        return single(auth, mirror.findTrackedEntityType(uid).map(MirroredEntity::payload));
+    public ResponseEntity<?> trackedEntityType(final Authentication auth, @PathVariable final String uid) {
+        return single(auth, "trackedEntityType", uid,
+                mirror.findTrackedEntityType(uid).map(MirroredEntity::payload));
     }
 
-    private static ResponseEntity<JsonNode> single(final Authentication auth,
-                                                    final java.util.Optional<JsonNode> payload) {
+    /**
+     * DHIS2-shaped {@code /api/<resource>/{uid}} responder.
+     *
+     * <p>When the mirror doesn't carry the row, return the exact
+     * error envelope DHIS2 central emits:
+     * {@code {httpStatus, httpStatusCode, status, message}} with
+     * a human-readable message that names the resource + uid.
+     * Stock DHIS2 apps (eregisters, Capture) surface the
+     * {@code message} field to the operator; a bare 404 with no
+     * body degrades to "An unknown error occurred (404)" which
+     * sends operators on a wild goose chase. Pointing the message
+     * at "{resource} with id {uid} does not exist on this edge
+     * — run metadata sync to pull it from central" tells the
+     * operator exactly what to do.</p>
+     */
+    private static ResponseEntity<?> single(final Authentication auth,
+                                                final String resource,
+                                                final String uid,
+                                                final java.util.Optional<JsonNode> payload) {
         if (!(auth instanceof EdgeUserPrincipal)) {
             return ResponseEntity.status(401).build();
         }
-        return payload.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+        if (payload.isPresent()) {
+            return ResponseEntity.ok(payload.get());
+        }
+        return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of(
+                        "httpStatus", "NotFound",
+                        "httpStatusCode", 404,
+                        "status", "ERROR",
+                        "message", resource + " with id " + uid
+                                + " does not exist on this edge."
+                                + " Run metadata sync to pull it from central"
+                                + " (Admin → Sync → Metadata).",
+                        "resource", resource,
+                        "uid", uid));
     }
 
     private static Map<String, Object> buildList(final String key,
