@@ -296,7 +296,7 @@ function TeiUidMigrationPanel(
     <Panel title="Legacy UID migration">
       <p className="ea-text-muted" style={{ margin: '0 0 10px',
                                              fontSize: 12 }}>
-        This TEI's UID is a 36-char UUID left over from a pre-fix
+        This TEI&apos;s UID is a 36-char UUID left over from a pre-fix
         install. Central rejects it on every drain. Mint a valid
         DHIS2 UID to unblock sync for this TEI and everything that
         references it.

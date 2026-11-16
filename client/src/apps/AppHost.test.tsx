@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AppHost, findAppByKey } from './AppHost';
+import { AppHost, findAppByKey, friendlyInstallError } from './AppHost';
 import type { CatalogueApp } from './catalogue';
 import * as installer from './installer';
 import { render } from '@testing-library/react';
@@ -43,6 +43,39 @@ describe('findAppByKey', () => {
   });
   it('returns null when no match', () => {
     expect(findAppByKey(APPS, 'absent')).toBeNull();
+  });
+});
+
+describe('friendlyInstallError', () => {
+  // Operators read these strings when an app fails to launch.
+  // A rename of a code without updating the copy map would
+  // regress to the generic FETCH_FAILED fallback — pin each
+  // branch so that regression is caught.
+  it('surfaces DEVICE_NOT_APPROVED copy', () => {
+    const c = friendlyInstallError('DEVICE_NOT_APPROVED');
+    expect(c.title).toBe('This device is not approved');
+    expect(c.body).toMatch(/approved/i);
+  });
+  it('surfaces SIGNATURE_INVALID / SHA256_MISMATCH copy', () => {
+    const a = friendlyInstallError('SIGNATURE_INVALID');
+    const b = friendlyInstallError('SHA256_MISMATCH');
+    expect(a.title).toBe('App could not be verified');
+    expect(b.title).toBe('App could not be verified');
+  });
+  it('surfaces SIGNING_KEY_UNAVAILABLE copy', () => {
+    const c = friendlyInstallError('SIGNING_KEY_UNAVAILABLE');
+    expect(c.title).toBe('App signing key unavailable');
+    expect(c.body).toMatch(/connectivity/i);
+  });
+  it('surfaces IDB_FAILED copy', () => {
+    const c = friendlyInstallError('IDB_FAILED');
+    expect(c.title).toBe('Could not open local app cache');
+    expect(c.body).toMatch(/clearing site storage/i);
+  });
+  it('falls through to FETCH_FAILED default on unknown code', () => {
+    const unknown = friendlyInstallError('ZZZ_NEW_CODE');
+    const fetchFailed = friendlyInstallError('FETCH_FAILED');
+    expect(unknown).toEqual(fetchFailed);
   });
 });
 
@@ -186,6 +219,81 @@ describe('AppHost', () => {
     expect(screen.getByTestId('der-apphost-iframe-crashed-reload'))
         .toBeInTheDocument();
     expect(screen.getByTestId('der-apphost-iframe-crashed-back'))
+        .toBeInTheDocument();
+  });
+
+  it('crash card Copy-details button writes the error payload to clipboard', async () => {
+    const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      value: { writeText: writeTextSpy }, configurable: true,
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(catalogueResponse([{
+      appId: 'id-er', appKey: 'eregisters', displayName: 'eRegisters',
+      module: null, version: '1.1.12',
+      bundleUrl: '/dhis-web-eregisters/', bundleSha256: '',
+      signatureB64: '', requiresDerApi: '',
+      iconUrl: null,
+      hostKind: 'DHIS2_IFRAME', source: 'MANUAL_UPLOAD',
+      trustLevel: 'UNSIGNED',
+      launchUrl: '/dhis-web-eregisters/',
+      launchMode: 'DEEPLINK',
+    }]));
+    renderAt('eregisters');
+    const iframe = await screen.findByTestId('der-apphost-iframe-eregisters');
+    const fakeWindow = new EventTarget() as unknown as Window;
+    Object.defineProperty(iframe, 'contentWindow',
+        { value: fakeWindow, configurable: true });
+    Object.defineProperty(iframe, 'contentDocument',
+        { value: { getElementById: () => null, createElement: () => ({}),
+                   head: { appendChild: () => undefined } },
+          configurable: true });
+    iframe.dispatchEvent(new Event('load', { bubbles: false }));
+    const rejectionEvent = Object.assign(new Event('unhandledrejection'),
+        { reason: new Error('boom') });
+    (fakeWindow as unknown as EventTarget).dispatchEvent(rejectionEvent);
+    const copyBtn = await screen.findByTestId('der-apphost-iframe-crashed-copy');
+    const { fireEvent } = await import('@testing-library/react');
+    fireEvent.click(copyBtn);
+    await waitFor(() => expect(writeTextSpy).toHaveBeenCalled());
+    const payload = writeTextSpy.mock.calls[0][0] as string;
+    const parsed = JSON.parse(payload);
+    expect(parsed).toMatchObject({ app: 'eregisters',
+        appName: 'eRegisters', message: 'boom' });
+  });
+
+  it('crash card Reload-app button swaps back to the iframe', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(catalogueResponse([{
+      appId: 'id-er', appKey: 'eregisters', displayName: 'eRegisters',
+      module: null, version: '1.1.12',
+      bundleUrl: '/dhis-web-eregisters/', bundleSha256: '',
+      signatureB64: '', requiresDerApi: '',
+      iconUrl: null,
+      hostKind: 'DHIS2_IFRAME', source: 'MANUAL_UPLOAD',
+      trustLevel: 'UNSIGNED',
+      launchUrl: '/dhis-web-eregisters/',
+      launchMode: 'DEEPLINK',
+    }]));
+    renderAt('eregisters');
+    const iframe = await screen.findByTestId('der-apphost-iframe-eregisters');
+    const fakeWindow = new EventTarget() as unknown as Window;
+    Object.defineProperty(iframe, 'contentWindow',
+        { value: fakeWindow, configurable: true });
+    Object.defineProperty(iframe, 'contentDocument',
+        { value: { getElementById: () => null, createElement: () => ({}),
+                   head: { appendChild: () => undefined } },
+          configurable: true });
+    iframe.dispatchEvent(new Event('load', { bubbles: false }));
+    (fakeWindow as unknown as EventTarget).dispatchEvent(
+        Object.assign(new Event('unhandledrejection'),
+            { reason: new Error('x') }));
+    const reloadBtn = await screen.findByTestId(
+        'der-apphost-iframe-crashed-reload');
+    const { fireEvent } = await import('@testing-library/react');
+    fireEvent.click(reloadBtn);
+    // Back to the iframe wrapper, crash card gone.
+    await waitFor(() => expect(screen.queryByTestId(
+        'der-apphost-iframe-crashed')).toBeNull());
+    expect(screen.getByTestId('der-apphost-iframe-eregisters'))
         .toBeInTheDocument();
   });
 });

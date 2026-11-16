@@ -71,7 +71,6 @@ export function CronFieldPicker(
   useEffect(() => {
     const parsed = parseCron(value);
     setFields(parsed);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   const composed = useMemo(() => composeCron(fields), [fields]);
