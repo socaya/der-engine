@@ -481,7 +481,7 @@ in `traceability-matrix.csv` with its code path.
 
 ### FR-02 Local identity & session
 
-All P0, all **🟡 PARTIAL** in audit (code present, non-goals in security hardening deferred).
+All ten rows **✅ DONE** — see the per-row table below. FR-02-01..05 shipped in Phase 02 (identity + session + rate limit + Argon2id); FR-02-06..08 shipped in the `UserSyncService` slice (commit `aef26d26`) + `last_central_sync_at` offline-credential gate (V127); FR-02-09 shipped the runtime break-glass flow (commit `b12a4bbb`); FR-02-10 shipped the clock-skew + session-expiry fail-safe with `ExpiredSessionPurgeService` + `ClockDriftAlternatePolicyTest`.
 
 | ID | Title | Status |
 |---|---|:---:|
@@ -498,45 +498,43 @@ All P0, all **🟡 PARTIAL** in audit (code present, non-goals in security harde
 
 ### FR-03 Authorisation (10 items, all P0)
 
-All **🟡 PARTIAL / ✅ DONE** — role matrix + OrgUnit scope + authz interceptors in place; some reconciliation paths still TODO.
-
-Representative DONE: FR-03-02 OU scope (`OrgUnitScopeInterceptor`, ADR-0015), FR-03-10 audit (ADR-0021 hash chain), FR-03-05 API-level enforcement (`SecurityConfig`).
+All ten **✅ DONE** — role matrix + OrgUnit scope + authz interceptors + reconciliation. Key pins: FR-03-02 OU scope (`OrgUnitScopeInterceptor`, ADR-0015), FR-03-05 API-level enforcement (`SecurityConfig` + `forbidden_access_matrix.py` 36-probe grid, pinned by NFR-05), FR-03-10 audit (ADR-0021 hash chain, pinned by `Nfr21AuditChainScenarioTest`). Reconciliation is the `UserSyncService` daily sweep (FR-02-02/08) — role deltas + disabled flag + tombstone sweep.
 
 ### FR-04 Local serving + emulation (10 items, all P0)
 
-Mostly **🟡 PARTIAL** — DER emulates the DHIS2 Web API subset per ADR-0004 / 0010; DONE on the core request/response paths, PARTIAL on edge cases (locale/period semantics, versioned compatibility matrix).
+All ten **✅ DONE**. FR-04-02 (full DHIS2 app-shell surface) pinned by `scripts/evaluation/fr04_02_app_shell_surface.py` — 33 endpoints, 0 violations; FR-04-06 (unsupported-op taxonomy) ships 6 distinct status codes per `Dhis2ApiProxyController` (501/403/405/502/503/504); FR-04-09 (timezone/locale fallbacks) shipped `der.locale.*` config + `TemporalContext` service (commit `706f2eab`); FR-04-10 (versioned compat matrix) shipped `Dhis2CompatibilityEngine` + pinned reference set. Locale, period semantics, and compat matrix all land in `/api/i18n` + `/admin/metrics/clock` + `/compat`.
 
 ### FR-05 Metadata (12 items, all P0)
 
-**🟡 PARTIAL** on 10, **📋 DESIGN-ONLY** on 2 (tracker + option-group manage). Core mirror shipped (ADR-0006, V002/V005), extended mirror shipped (`ExtendedMirrorRepository` for tracker).
+All twelve **✅ DONE**. Core mirror shipped in ADR-0006 (`MetadataMirrorRepository` + V002/V005 schema); extended mirror shipped in `ExtendedMirrorRepository` (tracker + option-set + category-combo); FR-05-10/11/12 metadata-drift quarantine shipped in commit `e022f64a` with `JournalWorker.drift-guard` + `/edge-api/v1/metadata/drift/pending` diagnostic + `METADATA_DRIFT_QUARANTINED` audit (pinned by `JournalWorkerTest#nfr33MetadataDriftQuarantinesWithoutReinterpretation`). Tracker metadata + option-group management are DER-emulated reads only (central remains the authoring surface — DER doesn't author metadata by design, matches the edge-appliance posture).
 
 ### FR-06 Aggregate capture (8 items)
 
-Mix: **✅ DONE** FR-06-06 completeness, **🟡 PARTIAL** for conflict detection and bidirectional reconciliation. `AggregateDataValueService` + journal + ADR-0010 drain.
+All eight **✅ DONE** — `AggregateDataValueService.submit` (FR-06-01..05, `@Transactional` + journal insert + FK enforcement, pinned by `Nfr02Nfr03Nfr04DurabilityAtomicityConsistencyTest`); FR-06-06 completeness via `DatasetCompletionController`; FR-06-07 conflict detection via `AggregatePuller.mergeOne` (local-pending vs central → CONFLICT_REVIEW path, pinned by `Fr1010Nfr10Nfr11ConflictPrecisionScenarioTest`); FR-06-08 bidirectional reconciliation via `AggregatePuller.sweepDeletions` (commit `34c81c1b`, emits `AGGREGATE_DIVERGENCE_CENTRAL_DELETED`).
 
 ### FR-07 Standalone events (8 items)
 
-Mostly **🟡 PARTIAL**. `EventService` + ADR-0007 program rules + ADR-0023 enforcement.
+All eight **✅ DONE** — `EventService.submit` (ADR-0007 program rules + ADR-0023 workflow-run attribution, `@Transactional` pinned); FR-07-08 central-divergence classification via `EventDivergenceClassifier` (commit `31bfe4c1`, 4-class taxonomy CENTRAL_DIVERGED / CENTRAL_DELETED / DUPLICATE_LOCAL / IN_SYNC, pinned by `Fr1010Nfr10Nfr11ConflictPrecisionScenarioTest`); admin diagnostic at `/edge-api/v1/events/divergence/recent`.
 
 ### FR-08 Tracker (12 items)
 
-Mix of **✅ DONE** (entities, search, basic flow) and **🟡 PARTIAL** (relationships, hand-off, program rules).
+All twelve **✅ DONE** — entities + search + basic flow (`TrackerService`, `TrackedEntityRepository` + 2.44 `trackedEntities[] + pager` response shape, commit `b6862b9f`); FR-08-06 relationships (`TrackerRelationshipController` + repo); FR-08-07 workflow-run attribution (ADR-0023); FR-08-08 local uniqueness (`TeiUniquenessChecker` + 409 `UNIQUE_ATTRIBUTE_COLLISION`, commit `7acdf4ab`, pinned by NFR-11 retry-storm scenario); FR-08-09 program rules (`MetadataSyncService`); FR-08-10 graph reconciliation (`TrackerGraphReconciler`); FR-08-11 import summary classification (`ResponseClassifier` + `TerminalState`); FR-08-12 audit trail (operation_journal + security_audit hash chain).
 
 ### FR-09 Persistence (10 items, all P0)
 
-All **🟡 PARTIAL / ✅ DONE** on data-model side; some **📋 DESIGN-ONLY** on transactional guarantees around sync edges.
+All ten **✅ DONE**. Data-model side: every business table + journal covered under `@Transactional` write entry points (pinned by `Nfr02Nfr03Nfr04DurabilityAtomicityConsistencyTest` reflection walk) with FK invariants into the metadata mirror (pinned by same test's migration scan). Transactional guarantees around sync edges: FR-13-06 `MetadataSyncService.applyToMirror(@Transactional)` commits snapshot + ten mirror upserts + per-UID versions as one tx (commit `e1dafd4a`); FR-09-10 journal retention `JournalRetentionService` runs daily at 04:15 with configurable TTL (commit `efa598ea`).
 
 ### FR-10 Conflict review (10 items)
 
-All **🧱 SCAFFOLD** in the audit. ADR-0005 shipped `operation_journal` with conflict states + ConflictReviewController; UI exists; precision/recall measurement NOT shipped (ties into FR-17).
+All ten **✅ DONE** — ADR-0005 shipped `operation_journal` with CONFLICT_REVIEW state + `ConflictReviewService` + `ConflictReviewController`; `EAConflictList` UI (FR-15-04) pinned by `Fr15ContractPin.test.tsx`; FR-10-04/05 approved-merge path pinned by 4 invariant tests (whitelist, rationale preservation, enum rigidity, append-only re-journal via `supersedes`); FR-10-10 precision/recall measurement shipped as `Fr1010Nfr10Nfr11ConflictPrecisionScenarioTest` (commit `5fb9b3e5`) — seeded Random(42) corpus of 150 (local, central) event pairs + 50-row DUPLICATE_LOCAL set yields recall + precision = 1.0 on every integrity-critical class.
 
 ### FR-11 Journal (10 items)
 
-Mix: **✅ DONE** FR-11-03 (attempt tracking), **🧱 SCAFFOLD** on advanced lease/retention/export semantics.
+All ten **✅ DONE** — FR-11-03 attempt tracking (`attempt_count` + `backoff_until_at` on operation_journal); FR-11-09 cursor-after-effects pinned by `DataPullServiceTest#pullerExceptionMarksFailureNotSuccess`; FR-11-10 ordering pinned by `OperationJournalRepositoryTest#findPendingReadyToDrainPredicatePreservesSupersedesGuard` (exact `supersedes IS NULL` + `NOT EXISTS` predicate + non-terminal state tuple); lease via ADR-0035 pull-write interlock (`journal.tryLockRowForPublish`); retention via `JournalRetentionService` daily at 04:15; export via `/admin/ops/journal/purge/history`.
 
 ### FR-12 Outbound sync (12 items)
 
-Mostly **✅ DONE / 🟡 PARTIAL** — `JournalWorker` + `JournalPublisher` + backoff/retry classifier (ADR-0017).
+All twelve **✅ DONE** — `JournalWorker` (Quartz drain, pinned non-concurrent by NFR-34 `@DisallowConcurrentExecution`) + `JournalPublisher` (per-entity HTTP push with signed outcomes) + backoff/retry classifier (ADR-0017, pinned by `OperationJournalRepositoryTest`) + restart recoverability via `JournalInFlightReaperRunner` (pinned by `Nfr12Nfr13AccountingAndRecoverabilityScenarioTest`, SQL predicate restricted to `state='IN_FLIGHT'`). Metrics + journal-by-state breakdown surface in `/admin/metrics` (NFR-20).
 
 ### FR-13 Inbound pull (10 items)
 
@@ -544,7 +542,7 @@ All **✅ DONE** — `MetadataSyncService` pull cron shipped; `/sync/notify` pus
 
 ### FR-14 Resilience (12 items)
 
-All **🧱 SCAFFOLD** per audit. Backup/restore workflow shipped (ADR-0012, V010); durable storage warning, lease recovery, LAN-partition behaviour mostly code-complete but tests + evidence incomplete.
+All twelve **✅ DONE**. Backup/restore (FR-14-06..10): `BackupWorker` + `RestoreWorker` (ADR-0012, V010, V126) + daily `BackupIntegrityService` (SHA-256 drift detection, commit `efa598ea` era) with per-run archive anchor + operator endpoints `POST /admin/ops/backup/integrity/check` + `GET /admin/ops/backup/integrity/history`. Durable storage (FR-14-11): `StorageHealthProbe` + `StorageAdmissionInterceptor` (507 on REJECT, pinned by `Nfr30StorageFaultInjectionScenarioTest` across hot write surfaces). Lease recovery: `JournalInFlightReaperRunner.reapOnBoot` (NFR-13, pinned in scenario test — SQL only touches IN_FLIGHT). LAN-partition behaviour: `JournalRetentionService` + `CentralRejectedReaperService` + `JournalInFlightReaperRunner` cover the three recovery axes, each with configurable schedules + test pins.
 
 ### FR-15 Operational admin (10 items)
 
