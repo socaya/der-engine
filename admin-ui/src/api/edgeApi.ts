@@ -3809,6 +3809,30 @@ export async function installApp(form: {
   return r.json() as Promise<AppCatalogueEntry>;
 }
 
+/**
+ * Install a standard DHIS2 custom app bundle (ADR-0005). The server
+ * reads `manifest.webapp` from the zip root itself — no form fields
+ * required. Served at `/dhis-web-<appKey>/**` after install.
+ *
+ * Distinct from `installApp` which hits the ADR-0037 signed-bundle
+ * endpoint — see `AppCatalogue.tsx` for the UI branching.
+ */
+export async function installDhis2App(file: File): Promise<unknown> {
+  const body = new FormData();
+  body.append('file', file);
+  const r = await fetch('/edge-api/v1/apps/install', {
+    method: 'POST', credentials: 'include', body,
+  });
+  if (!r.ok) {
+    let detail = '';
+    try { detail = (await r.json() as { error?: string }).error ?? ''; }
+    catch { /* non-json body */ }
+    throw new EdgeApiError(r.status, 'UNKNOWN',
+      detail || `DHIS2 app install failed with status ${r.status}`);
+  }
+  return r.json();
+}
+
 /** Multipart upgrade — not covered by the JSON `request` helper. */
 export async function upgradeApp(appId: string, form: {
   file: File;

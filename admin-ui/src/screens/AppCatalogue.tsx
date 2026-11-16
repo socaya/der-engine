@@ -1,72 +1,8 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
-import JSZip from 'jszip';
 import * as edgeApi from '../api/edgeApi';
+import * as manifestParser from './parseAppManifest';
+import type { ParsedKind, ParsedManifest } from './parseAppManifest';
 import { Panel } from './shared';
-
-type ParsedManifest = Partial<{
-  appKey: string; displayName: string; module: string;
-  version: string; requiresDerApi: string;
-}>;
-
-/** Match the DHIS2 `manifest.webapp` shape → our form-field names. */
-function webappToFields(raw: unknown): ParsedManifest {
-  if (!raw || typeof raw !== 'object') return {};
-  const w = raw as Record<string, unknown>;
-  const pick = (k: string): string | undefined =>
-    typeof w[k] === 'string' ? (w[k] as string) : undefined;
-  return {
-    appKey: pick('name'),
-    displayName: pick('displayName'),
-    module: pick('module'),
-    version: pick('version'),
-    requiresDerApi: pick('requires_der_api')
-      ?? pick('requiresDerApi'),
-  };
-}
-
-/**
- * Reads the install-form fields from a selected file.
- *
- *   - `.zip` → parse `manifest.webapp` (DHIS2 schema) from the archive.
- *   - `.js` / `.mjs` → parse the `/* @der-app {…} *` + `/`` banner comment
- *     emitted by `client/scripts/build-apps.mjs` for backward compat.
- *
- * Returns `null` when the file carries no manifest (hand-authored
- * sample). Never throws — any parsing hiccup falls back to "no
- * auto-fill" so the admin can still type the fields manually.
- */
-async function parseAppManifest(file: File): Promise<ParsedManifest | null> {
-  const isZip = file.name.toLowerCase().endsWith('.zip')
-             || file.type === 'application/zip';
-  if (isZip) {
-    try {
-      const zip = await JSZip.loadAsync(await file.arrayBuffer());
-      const entry = zip.file('manifest.webapp');
-      if (!entry) return null;
-      const json = JSON.parse(await entry.async('string')) as unknown;
-      return webappToFields(json);
-    } catch {
-      return null;
-    }
-  }
-  // Raw .js / .mjs — read the first 4 KB and look for the banner.
-  let head: string;
-  try {
-    const slice = file.slice(0, 4096);
-    head = typeof slice.text === 'function'
-      ? await slice.text()
-      : await file.text();
-  } catch {
-    return null;
-  }
-  const m = /@der-app\s+(\{[\s\S]*?\})\s*\*\//.exec(head);
-  if (!m || !m[1]) return null;
-  try {
-    return JSON.parse(m[1]) as ParsedManifest;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * EA App catalogue — admin installs, upgrades, enables/disables and
@@ -93,6 +29,13 @@ export function AppCatalogue(): JSX.Element {
   const [installRequires, setInstallRequires] = useState('');
   const [installBusy, setInstallBusy] = useState(false);
   const installFileRef = useRef<HTMLInputElement>(null);
+  // Classification of the currently-selected install file. Drives
+  // which endpoint the submit posts to and which form fields to
+  // show. `unknown` = no file yet (or an unrecognised layout) — the
+  // form falls back to the signed-bundle contract so the admin can
+  // hand-fill if they insist.
+  const [installKind, setInstallKind] = useState<ParsedKind>('unknown');
+  const [installPreview, setInstallPreview] = useState<ParsedManifest>({});
 
   // Upgrade dialog — scoped to one row at a time
   const [upgradeFor, setUpgradeFor] = useState<string | null>(null);
@@ -119,17 +62,30 @@ export function AppCatalogue(): JSX.Element {
     setInstallModule('');
     setInstallVersion('');
     setInstallRequires('');
+    setInstallKind('unknown');
+    setInstallPreview({});
     if (installFileRef.current) installFileRef.current.value = '';
   }
 
-  /** On file-select, parse the bundle's `@der-app` banner and
-   *  auto-fill any form field the admin hasn't already typed. Never
-   *  overwrites an admin-typed value — operator intent wins. */
+  /** On file-select, inspect the archive to decide which install
+   *  flow this bundle maps to, then auto-fill the signed-bundle
+   *  form fields when relevant. Never overwrites an admin-typed
+   *  value — operator intent wins. */
   async function onInstallFileChange(e: ChangeEvent<HTMLInputElement>): Promise<void> {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const mf = await parseAppManifest(file);
-    if (!mf) return;
+    if (!file) {
+      setInstallKind('unknown');
+      setInstallPreview({});
+      return;
+    }
+    const parsed = await manifestParser.parseAppManifest(file);
+    setInstallKind(parsed.kind);
+    setInstallPreview(parsed.fields);
+    // DHIS2 flow: fields are informational only (the server reads
+    // manifest.webapp itself); skip auto-fill of the signed-bundle
+    // inputs since they won't be submitted.
+    if (parsed.kind !== 'signed') return;
+    const mf = parsed.fields;
     if (mf.appKey && installAppKey === '') setInstallAppKey(mf.appKey);
     if (mf.displayName && installDisplayName === '') setInstallDisplayName(mf.displayName);
     if (mf.module && installModule === '') setInstallModule(mf.module);
@@ -154,15 +110,30 @@ export function AppCatalogue(): JSX.Element {
     setInstallBusy(true);
     setMsg(null);
     try {
-      await edgeApi.installApp({
-        file,
-        appKey: installAppKey.trim(),
-        displayName: installDisplayName.trim(),
-        module: installModule.trim() === '' ? null : installModule.trim(),
-        version: installVersion.trim(),
-        requiresDerApi: installRequires.trim(),
-      });
-      setMsg({ kind: 'ok', text: `Installed ${installDisplayName || installAppKey}.` });
+      if (installKind === 'dhis2') {
+        // ADR-0005 path — server parses manifest.webapp itself;
+        // we post the raw file and let it serve at
+        // `/dhis-web-<appKey>/**`.
+        await edgeApi.installDhis2App(file);
+        const name = installPreview.displayName
+                  || installPreview.appKey
+                  || file.name;
+        setMsg({ kind: 'ok',
+                 text: `Installed DHIS2 app "${name}". Served at /dhis-web-${
+                         installPreview.appKey ?? '<key>'}/.` });
+      } else {
+        // ADR-0037 signed-bundle path.
+        await edgeApi.installApp({
+          file,
+          appKey: installAppKey.trim(),
+          displayName: installDisplayName.trim(),
+          module: installModule.trim() === '' ? null : installModule.trim(),
+          version: installVersion.trim(),
+          requiresDerApi: installRequires.trim(),
+        });
+        setMsg({ kind: 'ok',
+                 text: `Installed ${installDisplayName || installAppKey}.` });
+      }
       resetInstallForm();
       setInstallOpen(false);
       await reload();
@@ -284,86 +255,134 @@ export function AppCatalogue(): JSX.Element {
             style={{ border: '1px solid #d7dde5', borderRadius: 6,
                      padding: 12, marginBottom: 16 }}
           >
-            <div style={{ display: 'grid',
-                          gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                <label className="ea-label" htmlFor="install-app-key">App key</label>
-                <input
-                  id="install-app-key"
-                  className="ea-input"
-                  value={installAppKey}
-                  onChange={(e) => setInstallAppKey(e.target.value)}
-                  required
-                  data-test="install-app-key"
-                  style={{ width: '100%' }}
-                />
-              </div>
-              <div>
-                <label className="ea-label" htmlFor="install-display-name">Display name</label>
-                <input
-                  id="install-display-name"
-                  className="ea-input"
-                  value={installDisplayName}
-                  onChange={(e) => setInstallDisplayName(e.target.value)}
-                  required
-                  data-test="install-display-name"
-                  style={{ width: '100%' }}
-                />
-              </div>
-              <div>
-                <label className="ea-label" htmlFor="install-module">Module (optional)</label>
-                <input
-                  id="install-module"
-                  className="ea-input"
-                  value={installModule}
-                  onChange={(e) => setInstallModule(e.target.value)}
-                  data-test="install-module"
-                  style={{ width: '100%' }}
-                />
-              </div>
-              <div>
-                <label className="ea-label" htmlFor="install-version">Version</label>
-                <input
-                  id="install-version"
-                  className="ea-input"
-                  value={installVersion}
-                  onChange={(e) => setInstallVersion(e.target.value)}
-                  required
-                  data-test="install-version"
-                  style={{ width: '100%' }}
-                />
-              </div>
-              <div>
-                <label className="ea-label" htmlFor="install-requires">Requires DER API</label>
-                <input
-                  id="install-requires"
-                  className="ea-input"
-                  value={installRequires}
-                  onChange={(e) => setInstallRequires(e.target.value)}
-                  required
-                  data-test="install-requires"
-                  style={{ width: '100%' }}
-                />
-              </div>
-              <div>
-                <label className="ea-label" htmlFor="install-file">Bundle file</label>
-                <input
-                  id="install-file"
-                  ref={installFileRef}
-                  type="file"
-                  accept=".zip,application/zip,.js,.mjs,application/javascript,text/javascript"
-                  data-test="install-file"
-                  onChange={(e) => void onInstallFileChange(e)}
-                  style={{ width: '100%' }}
-                />
-                <p className="ea-text-muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
-                  Upload a DHIS2-style <code>.zip</code>
-                  (<code>manifest.webapp</code> + <code>bundle.js</code> + optional
-                  icon) or a raw <code>.js</code> bundle. Fields auto-fill from
-                  the manifest; you can still override any value.
-                </p>
-              </div>
+            <div>
+              <label className="ea-label" htmlFor="install-file">Bundle file</label>
+              <input
+                id="install-file"
+                ref={installFileRef}
+                type="file"
+                accept=".zip,application/zip,.js,.mjs,application/javascript,text/javascript"
+                data-test="install-file"
+                onChange={(e) => void onInstallFileChange(e)}
+                style={{ width: '100%' }}
+              />
+              <p className="ea-text-muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
+                Accepts DHIS2 custom apps (<code>.zip</code> with
+                <code> manifest.webapp</code> at root, ADR-0005) and
+                DER-native signed bundles (<code>.js</code>/<code>.mjs</code>
+                or <code>.zip</code> with <code>bundle.js</code>, ADR-0037).
+                The flow is picked from the archive contents.
+              </p>
             </div>
+
+            {installKind === 'dhis2' && (
+              <div
+                className="ea-notice ea-notice--ok"
+                role="status"
+                data-test="install-kind-dhis2"
+                style={{ padding: '10px 12px', marginTop: 12,
+                         border: '1px solid #1a8754',
+                         background: '#ecf7ef', color: '#0f4e2d' }}
+              >
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  ✓ DHIS2 custom app detected
+                </div>
+                <div style={{ fontSize: 13 }}>
+                  <code>manifest.webapp</code> at root. Posts to{' '}
+                  <code>/edge-api/v1/apps/install</code>; will serve at{' '}
+                  <code>
+                    /dhis-web-{installPreview.appKey ?? '&lt;key&gt;'}/
+                  </code>.
+                </div>
+                {(installPreview.appKey || installPreview.displayName
+                    || installPreview.version) && (
+                  <ul style={{ margin: '6px 0 0 18px', fontSize: 13 }}>
+                    {installPreview.appKey && (
+                      <li data-test="install-preview-appkey">
+                        name: <code>{installPreview.appKey}</code>
+                      </li>
+                    )}
+                    {installPreview.displayName && (
+                      <li data-test="install-preview-displayname">
+                        displayName: {installPreview.displayName}
+                      </li>
+                    )}
+                    {installPreview.version && (
+                      <li data-test="install-preview-version">
+                        version: <code>{installPreview.version}</code>
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {installKind !== 'dhis2' && (
+              <div style={{ display: 'grid',
+                            gridTemplateColumns: '1fr 1fr', gap: 12,
+                            marginTop: 12 }}
+                   data-test="install-signed-fields">
+                <div>
+                  <label className="ea-label" htmlFor="install-app-key">App key</label>
+                  <input
+                    id="install-app-key"
+                    className="ea-input"
+                    value={installAppKey}
+                    onChange={(e) => setInstallAppKey(e.target.value)}
+                    required
+                    data-test="install-app-key"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label className="ea-label" htmlFor="install-display-name">Display name</label>
+                  <input
+                    id="install-display-name"
+                    className="ea-input"
+                    value={installDisplayName}
+                    onChange={(e) => setInstallDisplayName(e.target.value)}
+                    required
+                    data-test="install-display-name"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label className="ea-label" htmlFor="install-module">Module (optional)</label>
+                  <input
+                    id="install-module"
+                    className="ea-input"
+                    value={installModule}
+                    onChange={(e) => setInstallModule(e.target.value)}
+                    data-test="install-module"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label className="ea-label" htmlFor="install-version">Version</label>
+                  <input
+                    id="install-version"
+                    className="ea-input"
+                    value={installVersion}
+                    onChange={(e) => setInstallVersion(e.target.value)}
+                    required
+                    data-test="install-version"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <label className="ea-label" htmlFor="install-requires">Requires DER API</label>
+                  <input
+                    id="install-requires"
+                    className="ea-input"
+                    value={installRequires}
+                    onChange={(e) => setInstallRequires(e.target.value)}
+                    required
+                    data-test="install-requires"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              </div>
+            )}
             <div style={{ marginTop: 12 }}>
               <button
                 type="submit"

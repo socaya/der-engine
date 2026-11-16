@@ -27,6 +27,20 @@ spring:
     schemas: der
     default-schema: der
 
+  # Multipart upload limits — DHIS2 custom apps (ADR-0005) and
+  # DER-native signed bundles (ADR-0037) are both installed via
+  # multipart POST. Real DHIS2 apps (Capture, Tracker Capture,
+  # eRegisters, …) routinely land around 5–20 MB after bundling
+  # React + translations, so the Spring default of 1 MB immediately
+  # 413s them. 50 MB is roomy enough for every real-world DHIS2 app
+  # we've seen while still bounding memory pressure on the pilot
+  # appliance. Overridable via DER_UPLOAD_MAX_MB.
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: ${DER_UPLOAD_MAX_MB:50}MB
+      max-request-size: ${DER_UPLOAD_MAX_MB:50}MB
+
   # Spring Security starter is active. Phase 02 configures a custom
   # SecurityFilterChain in ug.ac.mak.der.security.SecurityConfig.
 

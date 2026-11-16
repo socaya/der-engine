@@ -3,7 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppCatalogue } from './AppCatalogue';
 import * as edgeApi from '../api/edgeApi';
+import * as manifestParser from './parseAppManifest';
 import { renderWithProviders } from '../test/renderWithProviders';
+
+function makeDhis2AppFile(): File {
+  // Content doesn't need to be a real zip — the parseAppManifest
+  // module is spied on in the tests that care about detection, so
+  // the file acts as an opaque handle that still gets forwarded to
+  // the server-install stub.
+  return new File(['fake-zip-bytes'], 'eregisters-1.1.12.zip',
+    { type: 'application/zip' });
+}
 
 const APP_A: edgeApi.AppCatalogueEntry = {
   appId: 'app-a-id',
@@ -33,6 +43,10 @@ describe('AppCatalogue', () => {
   beforeEach(() => {
     vi.spyOn(edgeApi, 'listApps').mockResolvedValue({ apps: [APP_A, APP_B] });
     vi.spyOn(edgeApi, 'installApp').mockResolvedValue(APP_A);
+    vi.spyOn(edgeApi, 'installDhis2App').mockResolvedValue({
+      appId: 'dhis2-id', appKey: 'eregisters', version: '1.1.12',
+      displayName: 'eRegisters',
+    });
     vi.spyOn(edgeApi, 'upgradeApp').mockResolvedValue(APP_A);
     vi.spyOn(edgeApi, 'enableApp').mockResolvedValue(undefined);
     vi.spyOn(edgeApi, 'disableApp').mockResolvedValue(undefined);
@@ -109,6 +123,54 @@ describe('AppCatalogue', () => {
     await waitFor(() =>
       expect(screen.getByTestId('app-catalogue-msg').className).toMatch(/error/));
     expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('install: detects DHIS2 custom app by manifest.webapp and routes to installDhis2App', async () => {
+    vi.spyOn(manifestParser, 'parseAppManifest').mockResolvedValue({
+      kind: 'dhis2',
+      fields: { appKey: 'eregisters', displayName: 'eRegisters',
+                version: '1.1.12' },
+    });
+    const dhis2Spy = vi.spyOn(edgeApi, 'installDhis2App').mockResolvedValue({
+      appId: 'dhis2-id', appKey: 'eregisters', version: '1.1.12',
+      displayName: 'eRegisters',
+    });
+    const signedSpy = vi.spyOn(edgeApi, 'installApp');
+    renderWithProviders(<AppCatalogue />);
+    await waitFor(() => expect(screen.getByTestId('install-open-btn')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('install-open-btn'));
+    const file = makeDhis2AppFile();
+    await userEvent.upload(screen.getByTestId('install-file') as HTMLInputElement, file);
+    await waitFor(() =>
+      expect(screen.getByTestId('install-kind-dhis2')).toBeInTheDocument());
+    expect(screen.queryByTestId('install-signed-fields')).not.toBeInTheDocument();
+    expect(screen.getByTestId('install-preview-appkey').textContent).toMatch(/eregisters/);
+    expect(screen.getByTestId('install-preview-version').textContent).toMatch(/1\.1\.12/);
+    // Submit — DHIS2 endpoint only, no signed-bundle call.
+    await userEvent.click(screen.getByTestId('install-submit-btn'));
+    await waitFor(() => expect(dhis2Spy).toHaveBeenCalledWith(file));
+    expect(signedSpy).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.getByTestId('app-catalogue-msg').className).toMatch(/ok/));
+  });
+
+  it('install: DHIS2 rejection surfaces the server error verbatim', async () => {
+    vi.spyOn(manifestParser, 'parseAppManifest').mockResolvedValue({
+      kind: 'dhis2', fields: {},
+    });
+    vi.spyOn(edgeApi, 'installDhis2App').mockRejectedValue(
+      new Error('bundle missing manifest.webapp at root'));
+    renderWithProviders(<AppCatalogue />);
+    await waitFor(() => expect(screen.getByTestId('install-open-btn')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('install-open-btn'));
+    await userEvent.upload(screen.getByTestId('install-file') as HTMLInputElement,
+      makeDhis2AppFile());
+    await waitFor(() =>
+      expect(screen.getByTestId('install-kind-dhis2')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('install-submit-btn'));
+    await waitFor(() =>
+      expect(screen.getByTestId('app-catalogue-msg').textContent)
+        .toMatch(/manifest\.webapp/i));
   });
 
   it('install: shows error notice when installApp rejects', async () => {
