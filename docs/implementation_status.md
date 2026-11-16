@@ -38,8 +38,8 @@ gate decision (G5). CSV refreshed in alpha.1 to reflect reality.
 
 | Status | Count | % | CSV status |
 |---|---:|---:|---|
-| ✅ DONE (verified) | 178 | 84% | `done` |
-| 🟡 PARTIAL (specific gap documented) | 33 | 16% | `in-progress` |
+| ✅ DONE (verified) | 180 | 85% | `done` |
+| 🟡 PARTIAL (specific gap documented) | 31 | 15% | `in-progress` |
 | ❌ PENDING | 0 | 0% | `pending` |
 
 ### Combined scorecard
@@ -451,7 +451,7 @@ DHIS2_IFRAME unsigned + verify skipped. Central-side signing
 | NFR-02 / NFR-03 / NFR-04 | Durability guarantees are supported by `@Transactional` + journal design, but formal fault-injection evidence not captured |
 | NFR-08 / NFR-09 | Reference-comparison + validation parity — oracle fixture corpus needed |
 | ~~NFR-10 / NFR-11~~ | ~~Conflict precision + duplicate avoidance — same measurement harness as FR-10-10~~ — ✅ **DONE** as of 2026-11-16; same `Fr1010Nfr10Nfr11ConflictPrecisionScenarioTest` covers both: NFR-10 pinned by 100%-recall + 100%-precision assertions across `CENTRAL_DIVERGED` / `CENTRAL_DELETED` / `IN_SYNC` / `DUPLICATE_LOCAL`; NFR-11 pinned by the retry-storm scenario (100 writes against the same unique attribute via `TeiUniquenessChecker` → exactly 1 accept + 99 collisions, each collision carrying the existing-TEI uid for diagnostic surface). |
-| NFR-12 / NFR-13 | Operation accounting + recoverability — covered in code, need restart-under-load test evidence |
+| ~~NFR-12 / NFR-13~~ | ~~Operation accounting + recoverability — covered in code, need restart-under-load test evidence~~ — ✅ **DONE** as of 2026-11-16; new `Nfr12Nfr13AccountingAndRecoverabilityScenarioTest` pins two invariants. NFR-12: every value of `OperationJournalEntry.State` must map to exactly one of the five NFR-12 public-outcome buckets (PENDING / ACCEPTED / REJECTED / UNCERTAIN / REVIEW_REQUIRED); exhaustive switch over `State` with no default arm means a new state can't land without a bucket; every bucket must be reached by at least one state so no labelled outcome is dead code. NFR-13: the restart-recoverability reaper (`JournalInFlightReaperRunner.reapOnBoot` → `OperationJournalRepository.requeueOrphanedInFlight`) pinned to a single `UPDATE ... WHERE state = 'IN_FLIGHT' SET state = 'PENDING'` SQL (any broadening to touch `CENTRAL_ACCEPTED` / `CENTRAL_REJECTED` / `CONFLICT_REVIEW` / `UNKNOWN_OUTCOME` / `RETRYABLE` would break "no missing committed operations" and fails the regex assertion in-process); audit + metrics emitted iff rows were reaped; idempotent — zero-op restart writes zero audit noise. Companion test `OperationJournalRepositoryTest#findPendingReadyToDrainPredicatePreservesSupersedesGuard` already pinned the FR-11-10 drain predicate; together they cover "nothing left hanging across a restart." |
 | ~~NFR-33~~ | ~~Capability-snapshot drift detection shipped; reinterpretation evidence under test TODO~~ — ✅ **DONE**: `JournalWorkerTest#nfr33MetadataDriftQuarantinesWithoutReinterpretation` pins the four invariants together — drifted PENDING op lands in CONFLICT_REVIEW, publisher never consulted, `flipToInFlight` state-advance SQL never fires, `METADATA_DRIFT_QUARANTINED` audit carries operationId + entityType + entityRef + drift summary. 14 tests across JournalWorkerTest. |
 
 **None of the 53 is scoped to a new feature.** They are either (a)
