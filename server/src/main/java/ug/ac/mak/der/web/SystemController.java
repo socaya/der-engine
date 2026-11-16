@@ -13,6 +13,7 @@ import ug.ac.mak.der.build.BuildInfo;
 import ug.ac.mak.der.build.BuildInfoProvider;
 import ug.ac.mak.der.dhis2.Dhis2ConnectionConfig;
 import ug.ac.mak.der.dhis2.Dhis2ConnectionConfigRepository;
+import ug.ac.mak.der.ops.PreflightService;
 import ug.ac.mak.der.security.DeviceApprovalPolicy;
 
 /**
@@ -34,6 +35,13 @@ public class SystemController {
     private final Clock clock;
     private final Dhis2ConnectionConfigRepository dhis2;
     private final DeviceApprovalPolicy deviceApprovalPolicy;
+
+    private PreflightService preflight;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setPreflight(final PreflightService svc) {
+        this.preflight = svc;
+    }
 
     public SystemController(final BuildInfoProvider buildInfo, final Clock clock,
                               final Dhis2ConnectionConfigRepository dhis2,
@@ -75,6 +83,17 @@ public class SystemController {
         final boolean required = deviceApprovalPolicy == null
                 ? true : deviceApprovalPolicy.required();
         return Map.of("required", required);
+    }
+
+    /** FR-01-04 — pre-flight bundle. Aggregates time/dns/certs/
+     *  storage/database/network/dependencies into one operator-visible
+     *  readiness report. Returns 503 when the service isn't wired. */
+    @GetMapping("/preflight")
+    public org.springframework.http.ResponseEntity<PreflightService.PreflightReport> preflight() {
+        if (preflight == null) {
+            return org.springframework.http.ResponseEntity.status(503).build();
+        }
+        return org.springframework.http.ResponseEntity.ok(preflight.run());
     }
 
     /** True when the runtime config carries a central base URL and at

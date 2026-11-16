@@ -75,6 +75,10 @@ public class SecurityConfig {
                 .exceptionHandling(eh -> eh.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/edge-api/v1/system/health").permitAll()
+                        // FR-01-04 — pre-flight runs before an operator
+                        // has a session (that's the whole point of the
+                        // readiness check). Exposes zero secrets.
+                        .requestMatchers("/edge-api/v1/system/preflight").permitAll()
                         .requestMatchers("/edge-api/v1/auth/sign-in").permitAll()
                         // FR-02-09 — break-glass recovery is unauth
                         // by design (the caller is locked out). The
