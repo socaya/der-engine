@@ -229,7 +229,11 @@ class AuthenticationServiceTest {
                 new SecurityProperties.SignIn(100, 100),
                 new SecurityProperties.Bootstrap("", ""),
                 new SecurityProperties.DeviceApproval(false),
-                new SecurityProperties.FirstTimeOffline(policy));
+                new SecurityProperties.FirstTimeOffline(policy),
+                null, null,
+                // FR-02-06 disabled for FR-02-07 policy tests — those
+                // predate FR-02-06 and shouldn't cross-interfere.
+                new SecurityProperties.OfflineCredential(0));
     }
 
     private AuthenticationService svcWithUser(final EdgeUser u,
@@ -363,5 +367,182 @@ class AuthenticationServiceTest {
                                 && "FIRST_TIME_OFFLINE_DENIED"
                                     .equals(e.detail().get("reason"))),
                 any());
+    }
+
+    // ---- FR-02-06 offline credential-age ------------------------
+
+    private static SecurityProperties propsWithOfflineMaxAge(final int days) {
+        return new SecurityProperties(
+                new SecurityProperties.Session(Duration.ofHours(1),
+                        "DER_SESSION", false, "Strict", "s"),
+                new SecurityProperties.SignIn(100, 100),
+                new SecurityProperties.Bootstrap("", ""),
+                new SecurityProperties.DeviceApproval(false),
+                new SecurityProperties.FirstTimeOffline(
+                        SecurityProperties.FirstTimeOffline.Policy.DISABLED),
+                null, null,
+                new SecurityProperties.OfflineCredential(days));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static org.springframework.beans.factory.ObjectProvider<
+            ug.ac.mak.der.network.CentralReachabilityGate> gateProvider(
+            final ug.ac.mak.der.network.CentralReachabilityGate g) {
+        final var p = (org.springframework.beans.factory.ObjectProvider<
+                ug.ac.mak.der.network.CentralReachabilityGate>)
+                mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(p.getIfAvailable()).thenReturn(g);
+        return p;
+    }
+
+    @Test
+    void offlineExpiredDhis2UserIsDenied() {
+        final EdgeUser u = userWithOrigin(EdgeUser.Origin.DHIS2);
+        final EdgeUserRepository users = mock(EdgeUserRepository.class);
+        final EdgeSessionRepository sessions = mock(EdgeSessionRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        final PasswordHasher hasher = mock(PasswordHasher.class);
+        final SessionIssuer issuer = mock(SessionIssuer.class);
+        final RateLimiter limiter = mock(RateLimiter.class);
+        when(limiter.tryAcquire(any(), any(), anyInt())).thenReturn(true);
+        when(users.findByUsername(u.username())).thenReturn(Optional.of(u));
+        when(users.findVerifier(u.userId())).thenReturn(Optional.of("v"));
+        when(hasher.verify(anyString(), anyString())).thenReturn(true);
+        when(audit.hasEverSignedInSuccessfully(u.userId())).thenReturn(true);
+        // Last witness 60 days ago — well over the 30-day window.
+        when(users.findLastCentralSyncAt(u.userId()))
+                .thenReturn(Optional.of(NOW.minus(60, java.time.temporal.ChronoUnit.DAYS)));
+
+        final AuthenticationService svc = new AuthenticationService(users, sessions,
+                audit, hasher, issuer, limiter,
+                propsWithOfflineMaxAge(30), Clock.fixed(NOW, ZoneOffset.UTC));
+        // Central is OFFLINE — the gate otherwise auto-refreshes.
+        svc.setGate(gateProvider(offlineGate()));
+
+        final var outcome = svc.signIn(u.username(), "pw", "1.1.1.1", "UA");
+        assertThat(outcome).isInstanceOf(
+                AuthenticationService.SignInOutcome.OfflineCredentialExpired.class);
+        verify(sessions, never()).insert(any());
+        verify(audit).append(
+                org.mockito.ArgumentMatchers.argThat((AuditEvent e) ->
+                        "SIGN_IN_FAILURE".equals(e.eventType())
+                                && "OFFLINE_CREDENTIAL_EXPIRED"
+                                    .equals(e.detail().get("reason"))),
+                any());
+    }
+
+    @Test
+    void offlineFreshDhis2UserSignsIn() {
+        final EdgeUser u = userWithOrigin(EdgeUser.Origin.DHIS2);
+        final AuthenticationService svc = svcWithUser(u, true,
+                propsWithOfflineMaxAge(30));
+        svc.setGate(gateProvider(offlineGate()));
+        // Witness 5 days ago — inside the 30-day window.
+        final var repo = mock(EdgeUserRepository.class);
+        when(repo.findLastCentralSyncAt(u.userId()))
+                .thenReturn(Optional.of(NOW.minus(5, java.time.temporal.ChronoUnit.DAYS)));
+        // Stub-swap isn't trivial on the private repo — build a full
+        // fresh service for this case instead.
+        final var outcome = fullyWiredSvc(u, 30,
+                Optional.of(NOW.minus(5, java.time.temporal.ChronoUnit.DAYS)),
+                /* reachable */ false)
+                .signIn(u.username(), "pw", "1.1.1.1", "UA");
+        assertThat(outcome).isInstanceOf(
+                AuthenticationService.SignInOutcome.Success.class);
+    }
+
+    @Test
+    void bootstrapUserBypassesOfflineAgeGate() {
+        final EdgeUser u = userWithOrigin(EdgeUser.Origin.BOOTSTRAP);
+        // 10 years ago — doesn't matter, bootstrap is always exempt.
+        final var outcome = fullyWiredSvc(u, 30,
+                Optional.of(NOW.minus(3650, java.time.temporal.ChronoUnit.DAYS)),
+                false).signIn(u.username(), "pw", "1.1.1.1", "UA");
+        assertThat(outcome).isInstanceOf(
+                AuthenticationService.SignInOutcome.Success.class);
+    }
+
+    @Test
+    void reachableCentralRefreshesWitnessAndAllowsSignIn() {
+        final EdgeUser u = userWithOrigin(EdgeUser.Origin.DHIS2);
+        final EdgeUserRepository users = mock(EdgeUserRepository.class);
+        final EdgeSessionRepository sessions = mock(EdgeSessionRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        final PasswordHasher hasher = mock(PasswordHasher.class);
+        final SessionIssuer issuer = mock(SessionIssuer.class);
+        final RateLimiter limiter = mock(RateLimiter.class);
+        when(limiter.tryAcquire(any(), any(), anyInt())).thenReturn(true);
+        when(users.findByUsername(u.username())).thenReturn(Optional.of(u));
+        when(users.findVerifier(u.userId())).thenReturn(Optional.of("v"));
+        when(hasher.verify(anyString(), anyString())).thenReturn(true);
+        when(issuer.issueToken()).thenReturn("tok");
+        when(issuer.hash(anyString())).thenReturn("h");
+        when(sessions.insert(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(audit.hasEverSignedInSuccessfully(u.userId())).thenReturn(true);
+        // Witness 100 days ago — would be denied if central were offline.
+        when(users.findLastCentralSyncAt(u.userId()))
+                .thenReturn(Optional.of(NOW.minus(100, java.time.temporal.ChronoUnit.DAYS)));
+
+        final AuthenticationService svc = new AuthenticationService(users, sessions,
+                audit, hasher, issuer, limiter,
+                propsWithOfflineMaxAge(30), Clock.fixed(NOW, ZoneOffset.UTC));
+        svc.setGate(gateProvider(reachableGate()));
+
+        final var outcome = svc.signIn(u.username(), "pw", "1.1.1.1", "UA");
+        assertThat(outcome).isInstanceOf(
+                AuthenticationService.SignInOutcome.Success.class);
+        // The gate refresh MUST fire. Without it, next offline sign-in
+        // would also expire — the whole point is that an online
+        // sign-in resets the window.
+        verify(users).markCentralSyncAt(eq(u.userId()), eq(NOW));
+    }
+
+    @Test
+    void disabledOfflineAgeGateLetsAncientUserIn() {
+        final EdgeUser u = userWithOrigin(EdgeUser.Origin.DHIS2);
+        // 10 years ago, gate disabled — allowed.
+        final var outcome = fullyWiredSvc(u, 0,
+                Optional.of(NOW.minus(3650, java.time.temporal.ChronoUnit.DAYS)),
+                false).signIn(u.username(), "pw", "1.1.1.1", "UA");
+        assertThat(outcome).isInstanceOf(
+                AuthenticationService.SignInOutcome.Success.class);
+    }
+
+    private static ug.ac.mak.der.network.CentralReachabilityGate reachableGate() {
+        return new ug.ac.mak.der.network.CentralReachabilityGate(
+                Clock.fixed(NOW, ZoneOffset.UTC));
+    }
+
+    private static ug.ac.mak.der.network.CentralReachabilityGate offlineGate() {
+        final var g = new ug.ac.mak.der.network.CentralReachabilityGate(
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        g.observe(false);
+        g.observe(false);
+        return g;
+    }
+
+    private AuthenticationService fullyWiredSvc(final EdgeUser u, final int maxAgeDays,
+                                                  final Optional<Instant> witness,
+                                                  final boolean reachable) {
+        final EdgeUserRepository users = mock(EdgeUserRepository.class);
+        final EdgeSessionRepository sessions = mock(EdgeSessionRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        final PasswordHasher hasher = mock(PasswordHasher.class);
+        final SessionIssuer issuer = mock(SessionIssuer.class);
+        final RateLimiter limiter = mock(RateLimiter.class);
+        when(limiter.tryAcquire(any(), any(), anyInt())).thenReturn(true);
+        when(users.findByUsername(u.username())).thenReturn(Optional.of(u));
+        when(users.findVerifier(u.userId())).thenReturn(Optional.of("v"));
+        when(hasher.verify(anyString(), anyString())).thenReturn(true);
+        when(issuer.issueToken()).thenReturn("tok");
+        when(issuer.hash(anyString())).thenReturn("h");
+        when(sessions.insert(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(audit.hasEverSignedInSuccessfully(u.userId())).thenReturn(true);
+        when(users.findLastCentralSyncAt(u.userId())).thenReturn(witness);
+        final AuthenticationService svc = new AuthenticationService(users, sessions,
+                audit, hasher, issuer, limiter,
+                propsWithOfflineMaxAge(maxAgeDays), Clock.fixed(NOW, ZoneOffset.UTC));
+        svc.setGate(gateProvider(reachable ? reachableGate() : offlineGate()));
+        return svc;
     }
 }

@@ -490,7 +490,7 @@ All P0, all **🟡 PARTIAL** in audit (code present, non-goals in security harde
 | FR-02-03 | Issue/refresh/expire local sessions | ✅ DONE (`SessionIssuer`, `SessionValidationService`) |
 | FR-02-04 | Rate limits + failed-attempt control | ✅ DONE (`RateLimiter`, ADR-0017) |
 | FR-02-05 | Store only password verifiers | ✅ DONE (Argon2id in `EdgeUserRepository`) |
-| FR-02-06 | Enforce local offline login age / revocation | 🟡 PARTIAL |
+| ~~FR-02-06~~ | ~~Enforce local offline login age / revocation~~ | ✅ DONE | V127 adds `last_central_sync_at` on `edge_user`; new `der.security.offline-credential.max-age-days` (default 30) and sign-in gate in `AuthenticationService`. BOOTSTRAP-origin users are exempt (no central anchor); DHIS2-origin users whose witness is older than the window are denied with new `OfflineCredentialExpired` outcome + 403 + `WWW-Authenticate: DER-Offline-Credential-Expired` so UI can show "come back online" copy. When central is REACHABLE at sign-in, the service refreshes the witness FIRST — online sign-ins always succeed and reset the window. 5 new unit tests pin the matrix: expired denial, fresh allow, bootstrap bypass, reachable auto-refresh, disabled gate. Smoke-tested live: 90-day-old witness on a DHIS2 user was refreshed to NOW on an online sign-in and sign-in succeeded (confirming the online path); bootstrap admin still signs in unaffected. Full suite (2717 tests) green. |
 | FR-02-07 | Deny first-time offline auth | ✅ DONE |
 | FR-02-08 | Update/disable users on central reconciliation | 🟡 PARTIAL |
 | FR-02-09 | Emergency-access procedure | 🟡 PARTIAL (bootstrap admin provisioner) |

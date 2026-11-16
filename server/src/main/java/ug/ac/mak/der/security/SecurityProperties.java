@@ -18,10 +18,14 @@ public record SecurityProperties(Session session, SignIn signIn, Bootstrap boots
                                     DeviceApproval deviceApproval,
                                     FirstTimeOffline firstTimeOffline,
                                     BreakGlass breakGlass,
-                                    ClockDrift clockDrift) {
+                                    ClockDrift clockDrift,
+                                    OfflineCredential offlineCredential) {
 
     @ConstructorBinding
     public SecurityProperties {
+        if (offlineCredential == null) {
+            offlineCredential = new OfflineCredential(30);
+        }
         if (session == null) {
             session = new Session(Duration.ofHours(4), "DER_SESSION", false, "Strict", "");
         }
@@ -60,7 +64,7 @@ public record SecurityProperties(Session session, SignIn signIn, Bootstrap boots
                                 final DeviceApproval deviceApproval,
                                 final FirstTimeOffline firstTimeOffline) {
         this(session, signIn, bootstrap, deviceApproval, firstTimeOffline,
-                null, null);
+                null, null, null);
     }
 
     /** Pre-FR-02-10 convenience ctor — FR-02-09 landed next. */
@@ -70,7 +74,18 @@ public record SecurityProperties(Session session, SignIn signIn, Bootstrap boots
                                 final FirstTimeOffline firstTimeOffline,
                                 final BreakGlass breakGlass) {
         this(session, signIn, bootstrap, deviceApproval, firstTimeOffline,
-                breakGlass, null);
+                breakGlass, null, null);
+    }
+
+    /** Pre-FR-02-06 convenience ctor — FR-02-10 landed next. */
+    public SecurityProperties(final Session session, final SignIn signIn,
+                                final Bootstrap bootstrap,
+                                final DeviceApproval deviceApproval,
+                                final FirstTimeOffline firstTimeOffline,
+                                final BreakGlass breakGlass,
+                                final ClockDrift clockDrift) {
+        this(session, signIn, bootstrap, deviceApproval, firstTimeOffline,
+                breakGlass, clockDrift, null);
     }
 
     /**
@@ -230,6 +245,31 @@ public record SecurityProperties(Session session, SignIn signIn, Bootstrap boots
              *  posture when operators share devices and bad time
              *  on one shift shouldn't propagate. */
             REVOKE_ALL_FOR_USER
+        }
+    }
+
+    /**
+     * FR-02-06 — offline credential-age policy. A DHIS2-origin user
+     * who has not had central revalidation for longer than
+     * {@link #maxAgeDays} days is refused offline sign-in and must
+     * come back online. BOOTSTRAP users are exempt (no central
+     * anchor to validate against). A non-positive value disables
+     * the gate (opt-out for demo / test).
+     *
+     * @param maxAgeDays maximum days between central witnesses
+     *                   before an offline sign-in is denied. Default
+     *                   30 days.
+     */
+    public record OfflineCredential(int maxAgeDays) {
+
+        public OfflineCredential {
+            if (maxAgeDays < 0) {
+                maxAgeDays = 0;
+            }
+        }
+
+        public boolean enabled() {
+            return maxAgeDays > 0;
         }
     }
 }

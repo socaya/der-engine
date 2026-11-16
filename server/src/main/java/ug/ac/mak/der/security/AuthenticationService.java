@@ -3,6 +3,7 @@ package ug.ac.mak.der.security;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -10,8 +11,11 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import ug.ac.mak.der.network.CentralReachabilityGate;
 
 /**
  * Phase 02 authentication service.
@@ -50,6 +54,13 @@ public class AuthenticationService {
     private final RateLimiter rateLimiter;
     private final SecurityProperties props;
     private final Clock clock;
+
+    private ObjectProvider<CentralReachabilityGate> gate;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setGate(final ObjectProvider<CentralReachabilityGate> g) {
+        this.gate = g;
+    }
 
     public AuthenticationService(final EdgeUserRepository users,
                                  final EdgeSessionRepository sessions,
@@ -136,6 +147,35 @@ public class AuthenticationService {
             return SignInOutcome.firstTimeOfflineDenied(user);
         }
 
+        // FR-02-06 — offline credential-age gate. A DHIS2-origin
+        // user whose last central witness is older than the
+        // configured window must come back online. BOOTSTRAP
+        // admins and disabled gates bypass. If central is
+        // currently REACHABLE we stamp a fresh witness *before*
+        // the check so the online path is always allowed to
+        // refresh itself.
+        final boolean reachable = isCentralReachable();
+        if (reachable && user.origin() == EdgeUser.Origin.DHIS2) {
+            users.markCentralSyncAt(user.userId(), now);
+        }
+        if (!offlineCredentialFresh(user, now, reachable)) {
+            audit.append(new AuditEvent(
+                    "SIGN_IN_FAILURE",
+                    AuditEvent.Outcome.DENIED,
+                    null, user.userId(),
+                    clientIp, userAgent,
+                    Map.of(
+                            "username", normalisedUsername,
+                            "reason", "OFFLINE_CREDENTIAL_EXPIRED",
+                            "maxAgeDays",
+                                String.valueOf(props.offlineCredential().maxAgeDays()))
+            ), now);
+            AUTH_LOG.warn("AUTH_FAIL username={} ip={} reason=OFFLINE_CREDENTIAL_EXPIRED",
+                    normalisedUsername,
+                    clientIp == null ? "unknown" : clientIp);
+            return SignInOutcome.offlineCredentialExpired(user);
+        }
+
         final String rawToken = sessionIssuer.issueToken();
         final EdgeSession session = sessions.insert(new EdgeSession(
                 UUID.randomUUID(),
@@ -205,10 +245,52 @@ public class AuthenticationService {
         };
     }
 
-    /** Returned by {@link #signIn}. One of four disjoint cases. */
+    /**
+     * FR-02-06 — is this user allowed to sign in given the offline
+     * credential-age policy? Bootstrap users are exempt; DHIS2
+     * users whose last central witness exceeds
+     * {@code offline-max-age-days} are denied. If central is
+     * REACHABLE right now the caller has already stamped a fresh
+     * witness upstream so this method sees a current timestamp and
+     * answers true — the online path is never blocked.
+     */
+    private boolean offlineCredentialFresh(final EdgeUser user,
+                                              final Instant now,
+                                              final boolean centralReachable) {
+        if (!props.offlineCredential().enabled()) {
+            return true;
+        }
+        if (user.origin() == EdgeUser.Origin.BOOTSTRAP) {
+            return true;
+        }
+        if (centralReachable) {
+            return true;
+        }
+        final Optional<Instant> witness = users.findLastCentralSyncAt(user.userId());
+        if (witness.isEmpty()) {
+            // A DHIS2-origin user with no witness at all means they've
+            // never signed in online. First-time-offline covers the
+            // never-signed-in case; this branch handles the "witnessed
+            // once, then the column was wiped" edge — treat as expired.
+            return false;
+        }
+        final long days = ChronoUnit.DAYS.between(witness.get(), now);
+        return days < props.offlineCredential().maxAgeDays();
+    }
+
+    private boolean isCentralReachable() {
+        final CentralReachabilityGate g = gate == null ? null : gate.getIfAvailable();
+        if (g == null) {
+            return false;
+        }
+        return g.state() == CentralReachabilityGate.State.REACHABLE;
+    }
+
+    /** Returned by {@link #signIn}. One of five disjoint cases. */
     public sealed interface SignInOutcome permits
             SignInOutcome.Success, SignInOutcome.InvalidCredentials,
-            SignInOutcome.RateLimited, SignInOutcome.FirstTimeOfflineDenied {
+            SignInOutcome.RateLimited, SignInOutcome.FirstTimeOfflineDenied,
+            SignInOutcome.OfflineCredentialExpired {
 
         static SignInOutcome success(final EdgeUser user, final EdgeSession session, final String rawToken) {
             return new Success(user, session, rawToken);
@@ -226,6 +308,10 @@ public class AuthenticationService {
             return new FirstTimeOfflineDenied(user);
         }
 
+        static SignInOutcome offlineCredentialExpired(final EdgeUser user) {
+            return new OfflineCredentialExpired(user);
+        }
+
         record Success(EdgeUser user, EdgeSession session, String rawToken) implements SignInOutcome { }
 
         /** The username did not exist or the password did not match. */
@@ -240,6 +326,13 @@ public class AuthenticationService {
          * approved provisioning method the user doesn't carry.
          */
         record FirstTimeOfflineDenied(EdgeUser user) implements SignInOutcome { }
+
+        /**
+         * FR-02-06 — password matched and user is eligible to sign
+         * in, but the local credential age window has elapsed. User
+         * must come back online for central re-validation.
+         */
+        record OfflineCredentialExpired(EdgeUser user) implements SignInOutcome { }
     }
 
     private static final class InvalidCredentialsHolder {

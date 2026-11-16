@@ -58,6 +58,16 @@ public class AuthController {
             // message rather than the generic bad-password UX.
             return ResponseEntity.status(403).build();
         }
+        if (outcome instanceof AuthenticationService.SignInOutcome.OfflineCredentialExpired) {
+            // FR-02-06 — same 403 as first-time-offline but with a
+            // distinct `WWW-Authenticate` hint so the UI can show
+            // "come back online to re-validate" copy instead of the
+            // first-time flow.
+            return ResponseEntity.status(403)
+                    .header(HttpHeaders.WWW_AUTHENTICATE,
+                            "DER-Offline-Credential-Expired")
+                    .build();
+        }
         final AuthenticationService.SignInOutcome.Success ok = (AuthenticationService.SignInOutcome.Success) outcome;
         final ResponseCookie cookie = buildCookie(ok.rawToken(), props.session().ttl());
         return ResponseEntity.ok()

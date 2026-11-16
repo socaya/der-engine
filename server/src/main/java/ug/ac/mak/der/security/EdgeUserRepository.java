@@ -131,6 +131,30 @@ public class EdgeUserRepository {
         }
     }
 
+    /**
+     * FR-02-06 — timestamp of the last positive central witness for
+     * this user (sign-in while REACHABLE, or an explicit user-sync
+     * pull). Returned as empty when NULL — bootstrap users and DHIS2
+     * users that have never signed in online fall into this bucket.
+     */
+    public Optional<java.time.Instant> findLastCentralSyncAt(final UUID userId) {
+        try {
+            final Timestamp ts = jdbc.queryForObject(
+                    "SELECT last_central_sync_at FROM der.edge_user WHERE user_id = ?",
+                    Timestamp.class, userId);
+            return Optional.ofNullable(ts).map(Timestamp::toInstant);
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
+    /** FR-02-06 — stamp a fresh witness. Returns rows updated. */
+    public int markCentralSyncAt(final UUID userId, final java.time.Instant at) {
+        return jdbc.update(
+                "UPDATE der.edge_user SET last_central_sync_at = ? WHERE user_id = ?",
+                Timestamp.from(at), userId);
+    }
+
     public int setTotpSecret(final UUID userId, final String secret, final java.time.Instant enrolledAt) {
         return jdbc.update(
                 "UPDATE der.edge_user SET totp_secret = ?, totp_enrolled_at = ?, updated_at = now() "
