@@ -35,3 +35,11 @@ __pycache__/
 *.pyc
 # §10 packaging artefacts
 /dist/
+
+# ADR-0005 built app bundles. Each apps/<name>/dist/ is rebuilt
+# from apps/<name>/src/ at install time (and by the admin UI
+# upload flow); keeping the zip in git made every local build
+# dirty the worktree. The top-level `dist/` rule catches the
+# directory itself — this explicit entry is here so a future
+# refactor that drops the broad `dist/` rule still ignores them.
+apps/*/dist/

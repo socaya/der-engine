@@ -340,15 +340,17 @@ Data Entry) are the most common thing an operator will try to
 install on an edge box. The gap makes DER look like it rejects
 DHIS2 apps when the capability is actually shipped — just unwired.
 
-### Bundled app zip files are committed
+### ~~Bundled app zip files are committed~~ — ✅ DONE
 
-`apps/data-entry/dist/data-entry.zip` and
+~~`apps/data-entry/dist/data-entry.zip` and
 `apps/workflow-capture/dist/workflow-capture.zip` are always
-unstaged in `git status` — the build step rewrites them. They
-should be `.gitignore`d and built fresh on CI.
+unstaged in `git status` — the build step rewrites them.~~
 
-**Next fix:** `.gitignore` update + verify the installer script
-rebuilds them from `apps/<name>/src/`.
+Shipped: `.gitignore` now carries an explicit `apps/*/dist/`
+entry and the two tracked zips were `git rm --cached`'d so the
+worktree stays clean after each local build. The broad `dist/`
+rule already matched them, but the explicit entry is there so a
+future refactor that drops the broad rule still ignores them.
 
 ---
 
