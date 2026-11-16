@@ -259,6 +259,28 @@ class MetadataSyncServiceTest {
         new MetadataSyncService(dhis2, props(), mock(MetadataMirrorRepository.class), mock(ExtendedMirrorRepository.class), mock(MetadataCatalogRepository.class), snapshots, CLOCK, mock(org.springframework.jdbc.core.JdbcTemplate.class)).syncAll(null);
     }
 
+    /**
+     * FR-13-06 — "Stage, verify and activate central metadata
+     * updates safely." Pin that {@code applyToMirror} is
+     * annotated {@code @Transactional}: the snapshot insert +
+     * every mirror upsert + entity-version write must commit
+     * together so a crash mid-activation can't leave the mirror
+     * on a half-new / half-old state. A refactor that drops the
+     * annotation lands here and fails explicitly.
+     */
+    @Test
+    void applyToMirrorCommitsAsOneTransactionForSafeActivation() throws Exception {
+        final java.lang.reflect.Method apply = MetadataSyncService.class
+                .getDeclaredMethod("applyToMirror",
+                        MetadataSnapshot.class,
+                        List.class, List.class, List.class, List.class, List.class,
+                        List.class, List.class, List.class, List.class, List.class);
+        assertThat(apply.isAnnotationPresent(
+                org.springframework.transaction.annotation.Transactional.class))
+                .as("FR-13-06 — applyToMirror @Transactional boundary")
+                .isTrue();
+    }
+
     @Test
     void requireTextRejectsNonTextual() throws Exception {
         final Dhis2ReferenceClient dhis2 = mock(Dhis2ReferenceClient.class);

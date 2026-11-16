@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import ug.ac.mak.der.Generated;
 import ug.ac.mak.der.dhis2.Dhis2Properties;
@@ -186,18 +187,18 @@ public class MetadataSyncService {
                 version.revision(),
                 fingerprint
         );
-        final MetadataSnapshot persisted = snapshots.insert(pending);
-
-        mirror.upsertOrganisationUnits(ous, persisted.snapshotId());
-        mirror.upsertDataElements(des, persisted.snapshotId());
-        mirror.upsertDataSets(dss, persisted.snapshotId());
-        mirror.upsertPrograms(prgs, persisted.snapshotId());
-        mirror.upsertTrackedEntityTypes(tets, persisted.snapshotId());
-        extended.upsertCategoryOptionCombos(cocs, persisted.snapshotId());
-        extended.upsertProgramStages(pss, persisted.snapshotId());
-        extended.upsertTrackedEntityAttributes(teas, persisted.snapshotId());
-        extended.upsertProgramRules(rules, persisted.snapshotId());
-        extended.upsertRelationshipTypes(relTypes, persisted.snapshotId());
+        // FR-13-06 — "Stage, verify and activate central metadata
+        // updates safely." Stage: all ten entity lists are fetched
+        // into memory above, uncommitted. Activate: a single
+        // @Transactional applyToMirror below commits the new
+        // snapshot + every mirror upsert + per-UID version row in
+        // one DB transaction. A crash during activation rolls back
+        // all of it — readers never see a half-new / half-old
+        // mirror. Catalog fetches below run outside the tx
+        // because they're best-effort (a 404 on an individual
+        // resource skips, doesn't rollback).
+        final MetadataSnapshot persisted = applyToMirror(pending,
+                ous, des, dss, prgs, tets, cocs, pss, teas, rules, relTypes);
 
         // der-2.0.17: fetch + mirror the long-tail of metadata the
         // facility needs for offline capture + reporting + access
@@ -227,16 +228,57 @@ public class MetadataSyncService {
                     persisted.snapshotId()));
         }
 
-        // §2.3.28 — row-versioning. One entry per (snapshot, resource, uid)
-        // captures the latest known fingerprint. Enables true per-UID
-        // diff(a, b) across snapshots.
-        writeEntityVersions(persisted.snapshotId(), ous, des, dss, prgs, tets,
-                pss, teas, rules, cocs, relTypes);
-
         LOG.info("Phase 03/05 metadata sync complete, snapshot={} total={} coc={} ps={} tea={} rules={} "
                         + "catalog={}",
                 persisted.snapshotId(), persisted.counts().total(),
                 cocs.size(), pss.size(), teas.size(), rules.size(), cat);
+        return persisted;
+    }
+
+    /**
+     * FR-13-06 activation step. Everything in this method commits
+     * as one transaction: snapshot insert, every mirror / extended
+     * upsert, and the entity-version row set. A crash or a
+     * Postgres error rolls back the whole block, leaving the
+     * mirror on the previous snapshot — readers never observe a
+     * half-new / half-old mirror.
+     *
+     * <p>Kept as a separate public method so the transactional
+     * boundary is visible at review time + so NFR-03 scenario
+     * tests can bind to it directly.</p>
+     */
+    @Transactional
+    public MetadataSnapshot applyToMirror(
+            final MetadataSnapshot pending,
+            final List<MirroredOrganisationUnit> ous,
+            final List<MirroredDataElement> des,
+            final List<MirroredDataSet> dss,
+            final List<MirroredProgram> prgs,
+            final List<MirroredTrackedEntityType> tets,
+            final List<MirroredCategoryOptionCombo> cocs,
+            final List<MirroredProgramStage> pss,
+            final List<MirroredTrackedEntityAttribute> teas,
+            final List<MirroredProgramRule> rules,
+            final List<MirroredRelationshipType> relTypes) {
+        final MetadataSnapshot persisted = snapshots.insert(pending);
+        mirror.upsertOrganisationUnits(ous, persisted.snapshotId());
+        mirror.upsertDataElements(des, persisted.snapshotId());
+        mirror.upsertDataSets(dss, persisted.snapshotId());
+        mirror.upsertPrograms(prgs, persisted.snapshotId());
+        mirror.upsertTrackedEntityTypes(tets, persisted.snapshotId());
+        extended.upsertCategoryOptionCombos(cocs, persisted.snapshotId());
+        extended.upsertProgramStages(pss, persisted.snapshotId());
+        extended.upsertTrackedEntityAttributes(teas, persisted.snapshotId());
+        extended.upsertProgramRules(rules, persisted.snapshotId());
+        extended.upsertRelationshipTypes(relTypes, persisted.snapshotId());
+        // §2.3.28 — row-versioning. One entry per (snapshot,
+        // resource, uid) captures the latest known fingerprint.
+        // Enables true per-UID diff(a, b) across snapshots. Must
+        // be in the same tx as the upserts above — otherwise a
+        // crash could leave the mirror advanced but the version
+        // log stale, breaking drift detection.
+        writeEntityVersions(persisted.snapshotId(), ous, des, dss, prgs, tets,
+                pss, teas, rules, cocs, relTypes);
         return persisted;
     }
 

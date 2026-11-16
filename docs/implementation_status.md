@@ -38,8 +38,8 @@ gate decision (G5). CSV refreshed in alpha.1 to reflect reality.
 
 | Status | Count | % | CSV status |
 |---|---:|---:|---|
-| ✅ DONE (verified) | 204 | 97% | `done` |
-| 🟡 PARTIAL (specific gap documented) | 7 | 3% | `in-progress` |
+| ✅ DONE (verified) | 205 | 97% | `done` |
+| 🟡 PARTIAL (specific gap documented) | 6 | 3% | `in-progress` |
 | ❌ PENDING | 0 | 0% | `pending` |
 
 ### Combined scorecard
@@ -540,7 +540,7 @@ Mostly **✅ DONE / 🟡 PARTIAL** — `JournalWorker` + `JournalPublisher` + ba
 
 ### FR-13 Inbound pull (10 items)
 
-**🟡 PARTIAL / 🧱 SCAFFOLD** — `MetadataSyncService` pull cron shipped; `/sync/notify` push receiver shipped alpha.9; staged metadata activation TODO.
+All **✅ DONE** — `MetadataSyncService` pull cron shipped; `/sync/notify` push receiver shipped alpha.9; FR-13-06 staged-metadata activation now atomic via the new `MetadataSyncService#applyToMirror(@Transactional)` — snapshot insert + all ten mirror upserts + the per-UID `metadata_entity_version` row set commit as one transaction, so a crash mid-sync rolls back the whole block instead of leaving a half-new / half-old mirror. Pinned by `MetadataSyncServiceTest#applyToMirrorCommitsAsOneTransactionForSafeActivation`.
 
 ### FR-14 Resilience (12 items)
 
