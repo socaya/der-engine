@@ -119,7 +119,10 @@ public class BackupWorker {
             final Path forUpload = remoteEncryption.wrapForRemote(locallyEncrypted);
             final long bytes = Files.size(forUpload);
             final String remoteKey = remote.upload(forUpload);
-            repo.markSuccess(run.runId(), forUpload.toString(), bytes, remoteKey);
+            // FR-14-06 anchor — the daily integrity probe
+            // (BackupIntegrityService) recomputes this and alerts on drift.
+            final String sha256 = sha256Hex(forUpload);
+            repo.markSuccess(run.runId(), forUpload.toString(), bytes, remoteKey, sha256);
             LOG.info("backup run {} completed, {} bytes, encrypted={}, remoteWrapped={}, remote={}",
                     run.runId(), bytes, encryption.isEnabled(),
                     remoteEncryption.isEnabled(),
@@ -154,6 +157,28 @@ public class BackupWorker {
                 Thread.currentThread().interrupt();
             }
             return "unknown";
+        }
+    }
+
+    static String sha256Hex(final Path file) throws IOException {
+        try {
+            final java.security.MessageDigest md =
+                    java.security.MessageDigest.getInstance("SHA-256");
+            try (var in = Files.newInputStream(file)) {
+                final byte[] buf = new byte[8192];
+                int n;
+                while ((n = in.read(buf)) > 0) {
+                    md.update(buf, 0, n);
+                }
+            }
+            final byte[] digest = md.digest();
+            final StringBuilder sb = new StringBuilder(digest.length * 2);
+            for (final byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (final java.security.NoSuchAlgorithmException ex) {
+            throw new IOException("SHA-256 unavailable", ex);
         }
     }
 

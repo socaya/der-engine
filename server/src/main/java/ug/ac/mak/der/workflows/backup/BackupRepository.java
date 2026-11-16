@@ -51,7 +51,7 @@ public class BackupRepository {
         return jdbc.query(
                 "SELECT run_id, requested_at, requested_by, kind, status, message, "
                         + "archive_path, archive_bytes, remote_key, started_at, finished_at, "
-                        + "pg_dump_version FROM der.backup_run "
+                        + "pg_dump_version, archive_sha256 FROM der.backup_run "
                         + "ORDER BY requested_at DESC LIMIT ?",
                 rowMapper(), capped);
     }
@@ -60,7 +60,7 @@ public class BackupRepository {
         return jdbc.query(
                 "SELECT run_id, requested_at, requested_by, kind, status, message, "
                         + "archive_path, archive_bytes, remote_key, started_at, finished_at, "
-                        + "pg_dump_version FROM der.backup_run WHERE status = ? "
+                        + "pg_dump_version, archive_sha256 FROM der.backup_run WHERE status = ? "
                         + "ORDER BY requested_at ASC LIMIT ?",
                 rowMapper(), status.name(), Math.max(1, Math.min(200, limit)));
     }
@@ -72,10 +72,15 @@ public class BackupRepository {
     }
 
     public int markSuccess(final long id, final String path, final long bytes, final String key) {
+        return markSuccess(id, path, bytes, key, null);
+    }
+
+    public int markSuccess(final long id, final String path, final long bytes,
+                              final String key, final String sha256) {
         return jdbc.update("UPDATE der.backup_run SET status = 'SUCCESS', finished_at = now(), "
                         + "archive_path = ?, archive_bytes = ?, remote_key = ?, "
-                        + "message = NULL WHERE run_id = ?",
-                path, bytes, key, id);
+                        + "archive_sha256 = ?, message = NULL WHERE run_id = ?",
+                path, bytes, key, sha256, id);
     }
 
     public int markFailed(final long id, final String message) {
@@ -96,7 +101,8 @@ public class BackupRepository {
                 rs.getString("remote_key"),
                 optInstant(rs.getTimestamp("started_at")),
                 optInstant(rs.getTimestamp("finished_at")),
-                rs.getString("pg_dump_version"));
+                rs.getString("pg_dump_version"),
+                rs.getString("archive_sha256"));
     }
 
     private static Instant optInstant(final Timestamp ts) {

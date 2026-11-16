@@ -101,7 +101,8 @@ class BackupWorkerTest {
         assertThat(w.drain()).isOne();
         verify(repo).markStarted(eq(9L), org.mockito.ArgumentMatchers.contains("17.0"));
         verify(repo).markSuccess(eq(9L), any(String.class),
-                org.mockito.ArgumentMatchers.anyLong(), eq("remote-key"));
+                org.mockito.ArgumentMatchers.anyLong(), eq("remote-key"),
+                org.mockito.ArgumentMatchers.argThat(sha -> sha != null && sha.length() == 64));
     }
 
     @Test

@@ -40,6 +40,7 @@ import ug.ac.mak.der.security.SecurityAuditRepository;
 import ug.ac.mak.der.workflows.aggregate.AggregateDataValueService;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
+import ug.ac.mak.der.workflows.backup.BackupIntegrityService;
 import ug.ac.mak.der.workflows.backup.BackupRepository;
 import ug.ac.mak.der.workflows.backup.BackupRun;
 
@@ -68,6 +69,13 @@ public class OperationsAdminController {
     private final Clock clock;
 
     private final ObjectProvider<ScopeAuditService> scopeAudit;
+
+    private BackupIntegrityService backupIntegrity;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setBackupIntegrity(final BackupIntegrityService svc) {
+        this.backupIntegrity = svc;
+    }
 
     public OperationsAdminController(final EdgeUserRepository users,
                                       final ObjectProvider<BackupRepository> backups,
@@ -160,6 +168,33 @@ public class OperationsAdminController {
                         : runs.get(0).startedAt().toString(),
                 "lastFailure", failed.isEmpty() ? null
                         : failed.get(0).startedAt().toString()));
+    }
+
+    /**
+     * FR-14-06 — operator trigger for the lightweight integrity
+     * probe. Audits as {@code source=OPERATOR}.
+     */
+    @PostMapping(path = "/backup/integrity/check")
+    public ResponseEntity<Map<String, Object>> runBackupIntegrity() {
+        if (backupIntegrity == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "code", "INTEGRITY_UNAVAILABLE",
+                    "message", "integrity service not wired"));
+        }
+        return ResponseEntity.ok(backupIntegrity.runNow());
+    }
+
+    /** FR-14-06 — history of lightweight integrity probes. */
+    @GetMapping(path = "/backup/integrity/history")
+    public ResponseEntity<Map<String, Object>> backupIntegrityHistory(
+            @RequestParam(name = "limit", defaultValue = "50") final int limit) {
+        if (backupIntegrity == null) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "code", "INTEGRITY_UNAVAILABLE",
+                    "message", "integrity service not wired"));
+        }
+        return ResponseEntity.ok(Map.of("checks",
+                backupIntegrity.history(limit)));
     }
 
     /** FR-15-08: configuration editor — exposes safe-to-edit runtime settings. */

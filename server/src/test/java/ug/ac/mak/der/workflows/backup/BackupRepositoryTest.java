@@ -88,8 +88,23 @@ class BackupRepositoryTest {
     @Test
     void markSuccessPassesAll() {
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        when(jdbc.update(anyString(), eq("/p"), eq(100L), eq("k"), eq(2L))).thenReturn(1);
+        // FR-14-06: back-compat overload passes null for the sha256 slot.
+        when(jdbc.update(anyString(), eq("/p"), eq(100L), eq("k"),
+                eq((String) null), eq(2L))).thenReturn(1);
         assertThat(new BackupRepository(jdbc).markSuccess(2L, "/p", 100L, "k")).isEqualTo(1);
+    }
+
+    @Test
+    void markSuccessWithSha256PersistsAnchor() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.update(anyString(), eq("/p"), eq(100L), eq("k"),
+                eq("deadbeef"), eq(2L))).thenReturn(1);
+        assertThat(new BackupRepository(jdbc)
+                .markSuccess(2L, "/p", 100L, "k", "deadbeef")).isEqualTo(1);
+        // Pin the UPDATE touches archive_sha256 — a refactor that drops
+        // the column from the SET list would defeat FR-14-06.
+        verify(jdbc).update(org.mockito.ArgumentMatchers.contains("archive_sha256"),
+                eq("/p"), eq(100L), eq("k"), eq("deadbeef"), eq(2L));
     }
 
     @Test
@@ -116,6 +131,7 @@ class BackupRepositoryTest {
         when(rs.getTimestamp("started_at")).thenReturn(Timestamp.from(NOW));
         when(rs.getTimestamp("finished_at")).thenReturn(null);
         when(rs.getString("pg_dump_version")).thenReturn("v16");
+        when(rs.getString("archive_sha256")).thenReturn("deadbeef");
 
         when(jdbc.queryForObject(anyString(), any(RowMapper.class), eq(7L)))
                 .thenAnswer(inv -> ((RowMapper<?>) inv.getArgument(1)).mapRow(rs, 1));
@@ -128,5 +144,6 @@ class BackupRepositoryTest {
         assertThat(row.pgDumpVersion()).isEqualTo("v16");
         assertThat(row.startedAt()).isEqualTo(NOW);
         assertThat(row.finishedAt()).isNull();
+        assertThat(row.archiveSha256()).isEqualTo("deadbeef");
     }
 }

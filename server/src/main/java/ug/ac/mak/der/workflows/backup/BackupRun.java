@@ -17,7 +17,8 @@ public record BackupRun(
         String remoteKey,
         Instant startedAt,
         Instant finishedAt,
-        String pgDumpVersion
+        String pgDumpVersion,
+        String archiveSha256
 ) {
 
     public BackupRun {
@@ -25,6 +26,15 @@ public record BackupRun(
         Objects.requireNonNull(requestedBy, "requestedBy");
         Objects.requireNonNull(kind, "kind");
         Objects.requireNonNull(status, "status");
+    }
+
+    public BackupRun(final Long runId, final Instant requestedAt, final UUID requestedBy,
+                       final Kind kind, final Status status, final String message,
+                       final String archivePath, final Long archiveBytes, final String remoteKey,
+                       final Instant startedAt, final Instant finishedAt,
+                       final String pgDumpVersion) {
+        this(runId, requestedAt, requestedBy, kind, status, message, archivePath,
+             archiveBytes, remoteKey, startedAt, finishedAt, pgDumpVersion, null);
     }
 
     public enum Kind { AUDIT, FULL }
