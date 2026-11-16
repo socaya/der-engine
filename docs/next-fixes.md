@@ -240,7 +240,7 @@ synthetic and how the generator parameterises it.
 `scripts/evaluation/fixtures/README.md` + one additional
 parameterised generator for TEI / enrollment / event payloads.
 
-### NFR-32 — No central coupling
+### ~~NFR-32~~ — No central coupling ✅ DONE
 
 Code-level: every local operation writes to the local journal and
 returns. Gap: no measurement proving there's no blocking call on
