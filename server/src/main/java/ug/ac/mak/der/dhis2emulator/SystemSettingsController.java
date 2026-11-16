@@ -39,17 +39,35 @@ public class SystemSettingsController {
         return ResponseEntity.ok(repo.readAll());
     }
 
-    @GetMapping(path = "/{key}", produces = MediaType.TEXT_PLAIN_VALUE)
-    public ResponseEntity<String> read(@PathVariable("key") final String key) {
-        final String value = repo.read(key);
-        if (value != null) {
-            return ResponseEntity.ok(value);
+    /**
+     * DHIS2 central content-negotiates
+     * {@code /api/systemSettings/<key>} the same way as
+     * {@link UserSettingsController#read}: {@code
+     * application/json} gets a JSON-encoded string, text/plain
+     * gets the raw value. The d2 app-runtime library sends
+     * {@code Accept: application/json}, so both media types must
+     * be produced to avoid 404 content-type-mismatch at bootstrap.
+     */
+    @GetMapping(path = "/{key}", produces = {
+            MediaType.APPLICATION_JSON_VALUE,
+            MediaType.TEXT_PLAIN_VALUE })
+    public ResponseEntity<?> read(@PathVariable("key") final String key,
+                                      @org.springframework.web.bind.annotation.RequestHeader(
+                                              value = "Accept", required = false)
+                                          final String accept) {
+        String value = repo.read(key);
+        if (value == null) {
+            value = defaultFor(key);
         }
-        // Same contract as /api/userSettings/<key>: DHIS2 central
-        // returns 200 + the system default when the key isn't set.
-        // Returning 404 here breaks DHIS2 custom apps that call
-        // /api/systemSettings/<key> during bootstrap.
-        return ResponseEntity.ok(defaultFor(key));
+        final boolean wantsJson = accept != null && accept.contains("application/json");
+        if (wantsJson) {
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"");
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(value);
     }
 
     private static String defaultFor(final String key) {

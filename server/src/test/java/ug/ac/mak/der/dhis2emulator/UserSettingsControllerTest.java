@@ -58,7 +58,7 @@ class UserSettingsControllerTest {
         final UserSettingsRepository repo = mock(UserSettingsRepository.class);
         final var p = principal();
         when(repo.read(p.user().userId(), "keyDateFormat")).thenReturn("yyyy-MM-dd");
-        final var res = new UserSettingsController(repo).read(p, "keyDateFormat");
+        final var res = new UserSettingsController(repo).read(p, "keyDateFormat", null);
         assertThat(res.getStatusCode().value()).isEqualTo(200);
         assertThat(res.getBody()).isEqualTo("yyyy-MM-dd");
     }
@@ -74,9 +74,27 @@ class UserSettingsControllerTest {
         final UserSettingsRepository repo = mock(UserSettingsRepository.class);
         final var p = principal();
         when(repo.read(p.user().userId(), "absent")).thenReturn(null);
-        final var res = new UserSettingsController(repo).read(p, "absent");
+        final var res = new UserSettingsController(repo).read(p, "absent", null);
         assertThat(res.getStatusCode().value()).isEqualTo(200);
-        assertThat(res.getBody()).isEmpty();
+        assertThat(res.getBody()).isEqualTo("");
+    }
+
+    @Test
+    void readSingleReturnsJsonStringWhenClientAcceptsJson() {
+        // The d2 app-runtime library used by every DHIS2 custom
+        // app sends Accept: application/json on userSettings reads.
+        // Our handler must content-negotiate or the app bootstrap
+        // 404s with "Failed to fetch user locale". Pin both the
+        // wrapper quotes and the content-type.
+        final UserSettingsRepository repo = mock(UserSettingsRepository.class);
+        final var p = principal();
+        when(repo.read(p.user().userId(), "keyUiLocale")).thenReturn(null);
+        final var res = new UserSettingsController(repo)
+                .read(p, "keyUiLocale", "application/json");
+        assertThat(res.getStatusCode().value()).isEqualTo(200);
+        assertThat(res.getHeaders().getContentType().toString())
+                .startsWith("application/json");
+        assertThat(res.getBody()).isEqualTo("\"en\"");
     }
 
     @Test
@@ -87,7 +105,7 @@ class UserSettingsControllerTest {
         final UserSettingsRepository repo = mock(UserSettingsRepository.class);
         final var p = principal();
         when(repo.read(p.user().userId(), "keyUiLocale")).thenReturn(null);
-        final var res = new UserSettingsController(repo).read(p, "keyUiLocale");
+        final var res = new UserSettingsController(repo).read(p, "keyUiLocale", null);
         assertThat(res.getStatusCode().value()).isEqualTo(200);
         assertThat(res.getBody()).isEqualTo("en");
     }

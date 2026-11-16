@@ -50,25 +50,42 @@ public class UserSettingsController {
         return ResponseEntity.ok(repo.readAll(principal.user().userId()));
     }
 
+    /**
+     * DHIS2 central serves {@code /api/userSettings/<key>} with
+     * content-negotiation: {@code Accept: application/json} gets
+     * the value as a JSON-encoded string ({@code "en"}),
+     * {@code Accept: text/plain} (or no Accept) gets the raw
+     * value. The d2 app-runtime library used by every DHIS2 custom
+     * app sends {@code Accept: application/json}, so we must emit
+     * both — otherwise Spring returns 404 on content-type
+     * mismatch and the app surfaces "Failed to fetch user locale".
+     */
     @GetMapping(path = "/{key}",
-            produces = MediaType.TEXT_PLAIN_VALUE)
-    public ResponseEntity<String> read(final Authentication auth,
-                                         @PathVariable("key") final String key) {
+            produces = { MediaType.APPLICATION_JSON_VALUE,
+                         MediaType.TEXT_PLAIN_VALUE })
+    public ResponseEntity<?> read(final Authentication auth,
+                                      @PathVariable("key") final String key,
+                                      @org.springframework.web.bind.annotation.RequestHeader(
+                                              value = "Accept", required = false)
+                                          final String accept) {
         if (!(auth instanceof EdgeUserPrincipal principal)) {
             return ResponseEntity.status(401).build();
         }
-        final String value = repo.read(principal.user().userId(), key);
-        if (value != null) {
-            return ResponseEntity.ok(value);
+        String value = repo.read(principal.user().userId(), key);
+        if (value == null) {
+            // DHIS2 central returns 200 + the system-level default
+            // when a per-user setting isn't set.
+            value = defaultFor(key);
         }
-        // DHIS2 central returns 200 + the system-level default when
-        // a per-user setting isn't set. Returning 404 here breaks
-        // stock DHIS2 custom apps (eregisters, Capture) — they call
-        // GET /api/userSettings/keyUiLocale on bootstrap and treat
-        // a non-200 as "Failed to fetch user locale". Mirror the
-        // central contract: 200 with a safe default for the handful
-        // of keys the app runtime cares about, empty 200 otherwise.
-        return ResponseEntity.ok(defaultFor(key));
+        final boolean wantsJson = accept != null && accept.contains("application/json");
+        if (wantsJson) {
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"");
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(value);
     }
 
     /**
