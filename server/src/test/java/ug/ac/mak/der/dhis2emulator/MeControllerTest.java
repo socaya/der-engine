@@ -19,6 +19,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
+import ug.ac.mak.der.metadata.MetadataMirrorRepository;
 import ug.ac.mak.der.orgunit.EdgeOrgUnitBinding;
 import ug.ac.mak.der.orgunit.OrgUnitBindingService;
 import ug.ac.mak.der.security.EdgeRole;
@@ -34,6 +35,7 @@ class MeControllerTest {
 
     @Autowired MockMvc mockMvc;
     @MockBean OrgUnitBindingService binding;
+    @MockBean MetadataMirrorRepository mirror;
 
     private RequestPostProcessor as(final EdgeRole... roles) {
         final Instant now = Instant.now();
