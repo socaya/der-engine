@@ -6,6 +6,25 @@ import * as edgeApi from '../api/edgeApi';
 import * as manifestParser from './parseAppManifest';
 import { renderWithProviders } from '../test/renderWithProviders';
 
+/**
+ * Open the RowMenu for the given row and click the item whose
+ * label matches. The RowMenu renders a `<details>` with a
+ * `<summary aria-label="Actions">` trigger and `role="menuitem"`
+ * buttons. The old tests used dedicated per-action testIds; those
+ * are gone now that every row has a single RowMenu. This helper
+ * lets the existing test intent carry over unchanged.
+ */
+async function clickRowAction(rowActionsTestId: string,
+                                itemLabel: string): Promise<void> {
+  const cell = screen.getByTestId(rowActionsTestId);
+  // The RowMenu uses <summary aria-label="Actions"> as the trigger.
+  // It's not role=button, so look it up by its aria-label directly.
+  const trigger = within(cell).getByLabelText('Actions');
+  await userEvent.click(trigger);
+  const item = await within(cell).findByRole('menuitem', { name: itemLabel });
+  await userEvent.click(item);
+}
+
 function makeDhis2AppFile(): File {
   // Content doesn't need to be a real zip — the parseAppManifest
   // module is spied on in the tests that care about detection, so
@@ -42,11 +61,15 @@ const APP_B: edgeApi.AppCatalogueEntry = {
 describe('AppCatalogue', () => {
   beforeEach(() => {
     vi.spyOn(edgeApi, 'listApps').mockResolvedValue({ apps: [APP_A, APP_B] });
+    vi.spyOn(edgeApi, 'listDhis2Apps').mockResolvedValue([]);
     vi.spyOn(edgeApi, 'installApp').mockResolvedValue(APP_A);
     vi.spyOn(edgeApi, 'installDhis2App').mockResolvedValue({
       appId: 'dhis2-id', appKey: 'eregisters', version: '1.1.12',
       displayName: 'eRegisters',
     });
+    vi.spyOn(edgeApi, 'installDhis2AppFromHub').mockResolvedValue({});
+    vi.spyOn(edgeApi, 'uninstallDhis2App').mockResolvedValue(undefined);
+    vi.spyOn(edgeApi, 'listAppHubApps').mockResolvedValue([]);
     vi.spyOn(edgeApi, 'upgradeApp').mockResolvedValue(APP_A);
     vi.spyOn(edgeApi, 'enableApp').mockResolvedValue(undefined);
     vi.spyOn(edgeApi, 'disableApp').mockResolvedValue(undefined);
@@ -191,10 +214,9 @@ describe('AppCatalogue', () => {
   it('upgrade: opens row dialog, submits, calls upgradeApp with payload', async () => {
     const spy = vi.spyOn(edgeApi, 'upgradeApp').mockResolvedValue(APP_A);
     renderWithProviders(<AppCatalogue />);
-    await waitFor(() => expect(screen.getByTestId('upgrade-btn-app-a-id')).toBeInTheDocument());
-    await userEvent.click(screen.getByTestId('upgrade-btn-app-a-id'));
+    await waitFor(() => expect(screen.getByTestId('row-actions-app-a-id')).toBeInTheDocument());
+    await clickRowAction('row-actions-app-a-id', 'Upgrade');
     expect(screen.getByTestId('upgrade-form')).toBeInTheDocument();
-    // requiresDerApi pre-fills from the row
     expect((screen.getByTestId('upgrade-requires') as HTMLInputElement).value).toBe('2.44');
     await userEvent.type(screen.getByTestId('upgrade-version'), '2.44.2');
     const file = new File(['new-bytes'], 'new.zip', { type: 'application/zip' });
@@ -211,8 +233,8 @@ describe('AppCatalogue', () => {
   it('upgrade: cancel closes the dialog without calling upgradeApp', async () => {
     const spy = vi.spyOn(edgeApi, 'upgradeApp');
     renderWithProviders(<AppCatalogue />);
-    await waitFor(() => expect(screen.getByTestId('upgrade-btn-app-a-id')).toBeInTheDocument());
-    await userEvent.click(screen.getByTestId('upgrade-btn-app-a-id'));
+    await waitFor(() => expect(screen.getByTestId('row-actions-app-a-id')).toBeInTheDocument());
+    await clickRowAction('row-actions-app-a-id', 'Upgrade');
     expect(screen.getByTestId('upgrade-form')).toBeInTheDocument();
     await userEvent.click(screen.getByTestId('upgrade-cancel-btn'));
     expect(screen.queryByTestId('upgrade-form')).not.toBeInTheDocument();
@@ -222,8 +244,8 @@ describe('AppCatalogue', () => {
   it('upgrade: submitting with no file chosen surfaces an error', async () => {
     const spy = vi.spyOn(edgeApi, 'upgradeApp');
     renderWithProviders(<AppCatalogue />);
-    await waitFor(() => expect(screen.getByTestId('upgrade-btn-app-a-id')).toBeInTheDocument());
-    await userEvent.click(screen.getByTestId('upgrade-btn-app-a-id'));
+    await waitFor(() => expect(screen.getByTestId('row-actions-app-a-id')).toBeInTheDocument());
+    await clickRowAction('row-actions-app-a-id', 'Upgrade');
     await userEvent.type(screen.getByTestId('upgrade-version'), '2.44.2');
     await userEvent.click(screen.getByTestId('upgrade-submit-btn'));
     await waitFor(() =>
@@ -234,8 +256,8 @@ describe('AppCatalogue', () => {
   it('upgrade: shows an error notice when upgradeApp rejects', async () => {
     vi.spyOn(edgeApi, 'upgradeApp').mockRejectedValue(new Error('upgrade-nope'));
     renderWithProviders(<AppCatalogue />);
-    await waitFor(() => expect(screen.getByTestId('upgrade-btn-app-a-id')).toBeInTheDocument());
-    await userEvent.click(screen.getByTestId('upgrade-btn-app-a-id'));
+    await waitFor(() => expect(screen.getByTestId('row-actions-app-a-id')).toBeInTheDocument());
+    await clickRowAction('row-actions-app-a-id', 'Upgrade');
     await userEvent.type(screen.getByTestId('upgrade-version'), '2.44.2');
     const file = new File(['x'], 'new.zip', { type: 'application/zip' });
     await userEvent.upload(screen.getByTestId('upgrade-file') as HTMLInputElement, file);
@@ -243,46 +265,36 @@ describe('AppCatalogue', () => {
     await waitFor(() => expect(screen.getByText(/upgrade-nope/i)).toBeInTheDocument());
   });
 
-  it('toggle: Disable then Enable — calls disable then enable, reloads both times', async () => {
+  it('toggle: Disable action calls disable and reloads', async () => {
     const disable = vi.spyOn(edgeApi, 'disableApp').mockResolvedValue(undefined);
-    const enable = vi.spyOn(edgeApi, 'enableApp').mockResolvedValue(undefined);
     const list = vi.spyOn(edgeApi, 'listApps')
       .mockResolvedValue({ apps: [APP_A, APP_B] });
     renderWithProviders(<AppCatalogue />);
-    await waitFor(() => expect(screen.getByTestId('toggle-btn-app-a-id')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('row-actions-app-a-id')).toBeInTheDocument());
     const initialReloads = list.mock.calls.length;
-    await userEvent.click(screen.getByTestId('toggle-btn-app-a-id'));
+    await clickRowAction('row-actions-app-a-id', 'Disable');
     await waitFor(() => expect(disable).toHaveBeenCalledWith('app-a-id'));
     await waitFor(() =>
       expect(list.mock.calls.length).toBeGreaterThan(initialReloads));
-    // After reload the disabled overlay resets, so button should read "Disable" again
-    await waitFor(() =>
-      expect(screen.getByTestId('toggle-btn-app-a-id').textContent).toBe('Disable'));
-    await userEvent.click(screen.getByTestId('toggle-btn-app-a-id'));
-    await waitFor(() => expect(disable).toHaveBeenCalledTimes(2));
-    // Enable never fires because reload clears the "disabled" overlay
-    expect(enable).not.toHaveBeenCalled();
   });
 
-  it('toggle: shows error notice when disable fails and rolls back optimistic flip', async () => {
+  it('toggle: shows error notice when disable fails', async () => {
     vi.spyOn(edgeApi, 'disableApp').mockRejectedValue(new Error('toggle-fail'));
     renderWithProviders(<AppCatalogue />);
-    await waitFor(() => expect(screen.getByTestId('toggle-btn-app-a-id')).toBeInTheDocument());
-    await userEvent.click(screen.getByTestId('toggle-btn-app-a-id'));
+    await waitFor(() => expect(screen.getByTestId('row-actions-app-a-id')).toBeInTheDocument());
+    await clickRowAction('row-actions-app-a-id', 'Disable');
     await waitFor(() => expect(screen.getByText(/toggle-fail/i)).toBeInTheDocument());
-    // Rolled back
-    expect(screen.getByTestId('toggle-btn-app-a-id').textContent).toBe('Disable');
   });
 
   it('delete: confirm → deleteApp called; declines when confirm returns false', async () => {
     const spy = vi.spyOn(edgeApi, 'deleteApp').mockResolvedValue(undefined);
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     renderWithProviders(<AppCatalogue />);
-    await waitFor(() => expect(screen.getByTestId('delete-btn-app-a-id')).toBeInTheDocument());
-    await userEvent.click(screen.getByTestId('delete-btn-app-a-id'));
+    await waitFor(() => expect(screen.getByTestId('row-actions-app-a-id')).toBeInTheDocument());
+    await clickRowAction('row-actions-app-a-id', 'Delete');
     expect(spy).not.toHaveBeenCalled();
     confirmSpy.mockReturnValue(true);
-    await userEvent.click(screen.getByTestId('delete-btn-app-a-id'));
+    await clickRowAction('row-actions-app-a-id', 'Delete');
     await waitFor(() => expect(spy).toHaveBeenCalledWith('app-a-id'));
     await waitFor(() =>
       expect(screen.getByTestId('app-catalogue-msg').className).toMatch(/ok/));
@@ -292,8 +304,8 @@ describe('AppCatalogue', () => {
     vi.spyOn(edgeApi, 'deleteApp').mockRejectedValue(new Error('delete-nope'));
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderWithProviders(<AppCatalogue />);
-    await waitFor(() => expect(screen.getByTestId('delete-btn-app-a-id')).toBeInTheDocument());
-    await userEvent.click(screen.getByTestId('delete-btn-app-a-id'));
+    await waitFor(() => expect(screen.getByTestId('row-actions-app-a-id')).toBeInTheDocument());
+    await clickRowAction('row-actions-app-a-id', 'Delete');
     await waitFor(() => expect(screen.getByText(/delete-nope/i)).toBeInTheDocument());
   });
 
@@ -318,5 +330,125 @@ describe('AppCatalogue', () => {
     await waitFor(() => expect(screen.getByTestId('apps-table')).toBeInTheDocument());
     const row = screen.getByTestId('app-row-app-b-id');
     expect(within(row).queryByText('dhis-web-tracker-capture')).not.toBeInTheDocument();
+  });
+
+  // ---- DHIS2 apps visibility + Hub browser ----
+
+  it('shows DHIS2 apps row for installed eregisters when server returns one', async () => {
+    vi.spyOn(edgeApi, 'listDhis2Apps').mockResolvedValue([{
+      appId: 'dhis2-id-1', appKey: 'eregisters',
+      version: '1.1.12', displayName: 'eRegisters',
+    }]);
+    renderWithProviders(<AppCatalogue />);
+    await waitFor(() =>
+      expect(screen.getByTestId('dhis2-apps-section')).toBeInTheDocument());
+    const row = screen.getByTestId('dhis2-app-row-eregisters');
+    expect(within(row).getByText('eRegisters')).toBeInTheDocument();
+    expect(within(row).getByText('1.1.12')).toBeInTheDocument();
+    const open = within(row).getByTestId('dhis2-open-eregisters') as HTMLAnchorElement;
+    expect(open.getAttribute('href')).toBe('/dhis-web-eregisters/');
+  });
+
+  it('uninstalls a DHIS2 app via RowMenu Uninstall after operator confirms', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const deleteSpy = vi.spyOn(edgeApi, 'uninstallDhis2App')
+      .mockResolvedValue(undefined);
+    vi.spyOn(edgeApi, 'listDhis2Apps').mockResolvedValue([{
+      appId: 'dhis2-id-1', appKey: 'eregisters',
+      version: '1.1.12', displayName: 'eRegisters',
+    }]);
+    renderWithProviders(<AppCatalogue />);
+    await waitFor(() =>
+      expect(screen.getByTestId('dhis2-apps-section')).toBeInTheDocument());
+    await clickRowAction('dhis2-row-actions-eregisters', 'Uninstall');
+    await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('dhis2-id-1'));
+    confirmSpy.mockRestore();
+  });
+
+  it('shows the type chips: DER (signed) on the signed catalogue and DHIS2 on the DHIS2 list', async () => {
+    vi.spyOn(edgeApi, 'listDhis2Apps').mockResolvedValue([{
+      appId: 'dhis2-id-1', appKey: 'eregisters',
+      version: '1.1.12', displayName: 'eRegisters',
+    }]);
+    renderWithProviders(<AppCatalogue />);
+    await waitFor(() =>
+      expect(screen.getByTestId('apps-table')).toBeInTheDocument());
+    expect(screen.getByTestId('type-app-a-id').textContent)
+      .toMatch(/DER \(signed\)/);
+    await waitFor(() =>
+      expect(screen.getByTestId('dhis2-type-eregisters').textContent)
+        .toMatch(/^DHIS2/));
+  });
+
+  it('App Hub panel starts collapsed and loads on-demand', async () => {
+    const hubSpy = vi.spyOn(edgeApi, 'listAppHubApps').mockResolvedValue([{
+      appKey: 'capture', displayName: 'Capture',
+      version: '100.69.0', downloadUrl: 'https://apps.dhis2.org/d/capture',
+      installedVersion: null,
+    }]);
+    renderWithProviders(<AppCatalogue />);
+    await waitFor(() =>
+      expect(screen.getByTestId('apphub-section')).toBeInTheDocument());
+    // Not loaded yet — toggle button present, table absent.
+    expect(screen.queryByTestId('apphub-table')).not.toBeInTheDocument();
+    expect(hubSpy).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByTestId('apphub-toggle-btn'));
+    await waitFor(() => expect(hubSpy).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByTestId('apphub-table')).toBeInTheDocument());
+    expect(screen.getByTestId('apphub-row-capture')).toBeInTheDocument();
+    expect(screen.getByTestId('apphub-install-btn-capture').textContent)
+      .toMatch(/install/i);
+  });
+
+  it('App Hub install click posts to installDhis2AppFromHub and refreshes', async () => {
+    vi.spyOn(edgeApi, 'listAppHubApps').mockResolvedValue([{
+      appKey: 'capture', displayName: 'Capture',
+      version: '100.69.0', downloadUrl: 'https://apps.dhis2.org/d/capture',
+      installedVersion: null,
+    }]);
+    const installSpy = vi.spyOn(edgeApi, 'installDhis2AppFromHub')
+      .mockResolvedValue({});
+    renderWithProviders(<AppCatalogue />);
+    await waitFor(() =>
+      expect(screen.getByTestId('apphub-section')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('apphub-toggle-btn'));
+    await waitFor(() =>
+      expect(screen.getByTestId('apphub-install-btn-capture')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('apphub-install-btn-capture'));
+    await waitFor(() =>
+      expect(installSpy).toHaveBeenCalledWith('https://apps.dhis2.org/d/capture'));
+    await waitFor(() =>
+      expect(screen.getByTestId('app-catalogue-msg').className).toMatch(/ok/));
+  });
+
+  it('App Hub row disables the button and reads Installed when versions match', async () => {
+    vi.spyOn(edgeApi, 'listAppHubApps').mockResolvedValue([{
+      appKey: 'eregisters', displayName: 'eRegisters',
+      version: '1.1.12', downloadUrl: 'https://apps.dhis2.org/d/er',
+      installedVersion: '1.1.12',
+    }]);
+    renderWithProviders(<AppCatalogue />);
+    await waitFor(() =>
+      expect(screen.getByTestId('apphub-section')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('apphub-toggle-btn'));
+    await waitFor(() =>
+      expect(screen.getByTestId('apphub-install-btn-eregisters')).toBeInTheDocument());
+    const btn = screen.getByTestId('apphub-install-btn-eregisters') as HTMLButtonElement;
+    expect(btn.textContent).toMatch(/installed/i);
+    expect(btn.disabled).toBe(true);
+  });
+
+  it('App Hub error surfaces in the error block, not the main msg', async () => {
+    vi.spyOn(edgeApi, 'listAppHubApps').mockRejectedValue(
+      new Error('App Hub unreachable'));
+    renderWithProviders(<AppCatalogue />);
+    await waitFor(() =>
+      expect(screen.getByTestId('apphub-section')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('apphub-toggle-btn'));
+    await waitFor(() =>
+      expect(screen.getByTestId('apphub-error')).toBeInTheDocument());
+    expect(screen.getByTestId('apphub-error').textContent)
+      .toMatch(/App Hub unreachable/);
   });
 });

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'r
 import * as edgeApi from '../api/edgeApi';
 import * as manifestParser from './parseAppManifest';
 import type { ParsedKind, ParsedManifest } from './parseAppManifest';
-import { Panel } from './shared';
+import { Panel, RowMenu } from './shared';
 
 /**
  * EA App catalogue — admin installs, upgrades, enables/disables and
@@ -14,11 +14,20 @@ import { Panel } from './shared';
  */
 export function AppCatalogue(): JSX.Element {
   const [apps, setApps] = useState<edgeApi.AppCatalogueEntry[]>([]);
+  const [dhis2Apps, setDhis2Apps] = useState<edgeApi.InstalledDhis2App[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   // Optimistic enable/disable overlay. Cleared on reload (server state wins).
   const [disabledIds, setDisabledIds] = useState<ReadonlySet<string>>(new Set());
+
+  // App Hub browser state. Opened on-demand to avoid calling App Hub
+  // on every catalogue page load — some pilot sites are air-gapped.
+  const [hubOpen, setHubOpen] = useState(false);
+  const [hubApps, setHubApps] = useState<edgeApi.AppHubListing[]>([]);
+  const [hubLoading, setHubLoading] = useState(false);
+  const [hubError, setHubError] = useState<string | null>(null);
+  const [hubInstallingKey, setHubInstallingKey] = useState<string | null>(null);
 
   // Install form state
   const [installOpen, setInstallOpen] = useState(false);
@@ -46,8 +55,24 @@ export function AppCatalogue(): JSX.Element {
 
   async function reload(): Promise<void> {
     try {
-      const r = await edgeApi.listApps();
-      setApps(r.apps);
+      // Fetch both lists in parallel so a slow one doesn't delay
+      // the other. Signed-bundle failures are fatal (something's
+      // very wrong); DHIS2-list failures just log and show empty
+      // because they're the newer surface.
+      const [sig, dhis2] = await Promise.allSettled([
+        edgeApi.listApps(),
+        edgeApi.listDhis2Apps(),
+      ]);
+      if (sig.status === 'fulfilled') {
+        setApps(sig.value.apps);
+      } else {
+        setMsg({ kind: 'err', text: (sig.reason as Error).message });
+      }
+      if (dhis2.status === 'fulfilled') {
+        setDhis2Apps(dhis2.value);
+      } else {
+        setDhis2Apps([]);
+      }
       setDisabledIds(new Set());
       setLoaded(true);
     } catch (err) {
@@ -55,6 +80,51 @@ export function AppCatalogue(): JSX.Element {
     }
   }
   useEffect(() => { void reload(); }, []);
+
+  async function reloadHub(): Promise<void> {
+    setHubLoading(true);
+    setHubError(null);
+    try {
+      const r = await edgeApi.listAppHubApps();
+      setHubApps(r);
+    } catch (err) {
+      setHubError((err as Error).message);
+      setHubApps([]);
+    } finally {
+      setHubLoading(false);
+    }
+  }
+
+  async function onInstallFromHub(row: edgeApi.AppHubListing): Promise<void> {
+    setHubInstallingKey(row.appKey);
+    setMsg(null);
+    try {
+      await edgeApi.installDhis2AppFromHub(row.downloadUrl);
+      setMsg({ kind: 'ok',
+               text: `Installed ${row.displayName} ${row.version} from App Hub.` });
+      await reload();
+      await reloadHub();
+    } catch (err) {
+      setMsg({ kind: 'err',
+               text: `App Hub install failed: ${(err as Error).message}` });
+    } finally {
+      setHubInstallingKey(null);
+    }
+  }
+
+  async function onDeleteDhis2(app: edgeApi.InstalledDhis2App): Promise<void> {
+    if (!window.confirm(`Uninstall DHIS2 app "${app.displayName}"?`)) {
+      return;
+    }
+    setMsg(null);
+    try {
+      await edgeApi.uninstallDhis2App(app.appId);
+      setMsg({ kind: 'ok', text: `Uninstalled ${app.displayName}.` });
+      await reload();
+    } catch (err) {
+      setMsg({ kind: 'err', text: (err as Error).message });
+    }
+  }
 
   function resetInstallForm(): void {
     setInstallAppKey('');
@@ -405,11 +475,12 @@ export function AppCatalogue(): JSX.Element {
           </form>
         )}
 
-        {loaded && apps.length === 0 ? (
+        {loaded && apps.length === 0 && dhis2Apps.length === 0 ? (
           <p className="ea-text-muted" data-test="empty-state">
-            No apps installed yet. Use Install app to add one.
+            No apps installed yet. Use Install app to add one,
+            or Browse App Hub to pick from the public catalogue.
           </p>
-        ) : (
+        ) : apps.length === 0 ? null : (
           <table
             className="ea-table"
             data-test="apps-table"
@@ -418,6 +489,7 @@ export function AppCatalogue(): JSX.Element {
             <thead>
               <tr>
                 <th style={{ textAlign: 'left', padding: '6px 8px' }}>App</th>
+                <th style={{ textAlign: 'left', padding: '6px 8px' }}>Type</th>
                 <th style={{ textAlign: 'left', padding: '6px 8px' }}>Version</th>
                 <th style={{ textAlign: 'left', padding: '6px 8px' }}>Requires DER API</th>
                 <th style={{ textAlign: 'left', padding: '6px 8px' }}>SHA-256</th>
@@ -437,6 +509,15 @@ export function AppCatalogue(): JSX.Element {
                         </div>
                       )}
                     </td>
+                    <td style={{ padding: '6px 8px' }}
+                        data-test={`type-${a.appId}`}>
+                      <span style={{ fontSize: 12, padding: '2px 6px',
+                                     borderRadius: 10,
+                                     background: '#e6effb',
+                                     color: '#1b4a7a' }}>
+                        DER (signed)
+                      </span>
+                    </td>
                     <td style={{ padding: '6px 8px' }}>{a.version}</td>
                     <td style={{ padding: '6px 8px' }}>{a.requiresDerApi}</td>
                     <td style={{ padding: '6px 8px' }}>
@@ -444,33 +525,19 @@ export function AppCatalogue(): JSX.Element {
                         {a.bundleSha256.slice(0, 10)}
                       </code>
                     </td>
-                    <td style={{ padding: '6px 8px', textAlign: 'right' }}>
-                      <button
-                        type="button"
-                        className="ea-btn"
-                        onClick={() => onPickUpgrade(a)}
-                        data-test={`upgrade-btn-${a.appId}`}
-                      >
-                        Upgrade
-                      </button>
-                      <button
-                        type="button"
-                        className="ea-btn"
-                        onClick={() => void onToggle(a)}
-                        data-test={`toggle-btn-${a.appId}`}
-                        style={{ marginLeft: 6 }}
-                      >
-                        {disabled ? 'Enable' : 'Disable'}
-                      </button>
-                      <button
-                        type="button"
-                        className="ea-btn ea-btn--danger"
-                        onClick={() => void onDelete(a)}
-                        data-test={`delete-btn-${a.appId}`}
-                        style={{ marginLeft: 6 }}
-                      >
-                        Delete
-                      </button>
+                    <td style={{ padding: '6px 8px', textAlign: 'right' }}
+                        data-test={`row-actions-${a.appId}`}>
+                      <RowMenu
+                        items={[
+                          { label: 'Upgrade',
+                            onSelect: () => onPickUpgrade(a) },
+                          { label: disabled ? 'Enable' : 'Disable',
+                            onSelect: () => { void onToggle(a); } },
+                          { label: 'Delete',
+                            onSelect: () => { void onDelete(a); },
+                            danger: true },
+                        ]}
+                      />
                     </td>
                   </tr>
                 );
@@ -478,6 +545,192 @@ export function AppCatalogue(): JSX.Element {
             </tbody>
           </table>
         )}
+
+        {/* ADR-0005 DHIS2 custom apps — separate storage from the
+            signed-bundle catalogue above; the merge is cosmetic for
+            the operator. */}
+        {dhis2Apps.length > 0 && (
+          <div style={{ marginTop: 20 }}
+               data-test="dhis2-apps-section">
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>
+              DHIS2 custom apps (ADR-0005)
+            </div>
+            <p className="ea-text-muted" style={{ marginTop: 0, fontSize: 13 }}>
+              Served at <code>/dhis-web-&lt;appKey&gt;/</code>.
+              Listed by <code>/api/apps</code> for DHIS2 discovery.
+            </p>
+            <table
+              className="ea-table"
+              data-test="dhis2-apps-table"
+              style={{ width: '100%', borderCollapse: 'collapse' }}
+            >
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'left', padding: '6px 8px' }}>App</th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px' }}>Type</th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px' }}>Version</th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px' }}>Deep-link</th>
+                  <th style={{ textAlign: 'right', padding: '6px 8px' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dhis2Apps.map((a) => (
+                  <tr key={a.appId} data-test={`dhis2-app-row-${a.appKey}`}>
+                    <td style={{ padding: '6px 8px' }}>
+                      <div style={{ fontWeight: 600 }}>{a.displayName}</div>
+                      <div className="ea-text-muted ea-text-xs">
+                        {a.appKey}
+                      </div>
+                    </td>
+                    <td style={{ padding: '6px 8px' }}
+                        data-test={`dhis2-type-${a.appKey}`}>
+                      <span style={{ fontSize: 12, padding: '2px 6px',
+                                     borderRadius: 10,
+                                     background: '#e6f4ea',
+                                     color: '#276a3f' }}>
+                        DHIS2
+                      </span>
+                    </td>
+                    <td style={{ padding: '6px 8px' }}>{a.version}</td>
+                    <td style={{ padding: '6px 8px' }}>
+                      <a href={`/dhis-web-${a.appKey}/`}
+                         target="_blank" rel="noopener noreferrer"
+                         data-test={`dhis2-open-${a.appKey}`}>
+                        Open ↗
+                      </a>
+                    </td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right' }}
+                        data-test={`dhis2-row-actions-${a.appKey}`}>
+                      <RowMenu
+                        items={[
+                          { label: 'Open',
+                            onSelect: () => {
+                              window.open(`/dhis-web-${a.appKey}/`,
+                                '_blank', 'noopener,noreferrer');
+                            } },
+                          { label: 'Uninstall',
+                            onSelect: () => { void onDeleteDhis2(a); },
+                            danger: true },
+                        ]}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* DHIS2 App Hub browser — opt-in because we don't want to
+            call the public hub on every catalogue page load (pilot
+            sites may be air-gapped). */}
+        <div style={{ marginTop: 20 }} data-test="apphub-section">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ fontWeight: 600 }}>DHIS2 App Hub</div>
+            <button
+              type="button"
+              className="ea-btn"
+              data-test="apphub-toggle-btn"
+              onClick={() => {
+                const next = !hubOpen;
+                setHubOpen(next);
+                if (next && hubApps.length === 0) void reloadHub();
+              }}
+            >
+              {hubOpen ? 'Hide App Hub' : 'Browse App Hub'}
+            </button>
+            {hubOpen && (
+              <button
+                type="button"
+                className="ea-btn"
+                data-test="apphub-refresh-btn"
+                onClick={() => void reloadHub()}
+                disabled={hubLoading}
+              >
+                {hubLoading ? 'Refreshing...' : 'Refresh'}
+              </button>
+            )}
+          </div>
+          {hubOpen && (
+            <div style={{ marginTop: 10, border: '1px solid #d7dde5',
+                          borderRadius: 6, padding: 12 }}>
+              {hubError && (
+                <div
+                  className="ea-notice ea-notice--error"
+                  role="alert"
+                  data-test="apphub-error"
+                  style={{ padding: '8px 12px', marginBottom: 8,
+                           border: '1px solid #a93232',
+                           background: '#fdecec', color: '#6b1f1f' }}
+                >
+                  {hubError}
+                </div>
+              )}
+              {hubLoading && !hubError && (
+                <div className="ea-text-muted" data-test="apphub-loading">
+                  Loading App Hub catalogue...
+                </div>
+              )}
+              {!hubLoading && !hubError && hubApps.length === 0 && (
+                <div className="ea-text-muted" data-test="apphub-empty">
+                  No compatible apps from App Hub for this DHIS2 version.
+                </div>
+              )}
+              {hubApps.length > 0 && (
+                <table
+                  className="ea-table"
+                  data-test="apphub-table"
+                  style={{ width: '100%', borderCollapse: 'collapse' }}
+                >
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: '6px 8px' }}>App</th>
+                      <th style={{ textAlign: 'left', padding: '6px 8px' }}>Available</th>
+                      <th style={{ textAlign: 'left', padding: '6px 8px' }}>Installed</th>
+                      <th style={{ textAlign: 'right', padding: '6px 8px' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hubApps.map((row) => {
+                      const installing = hubInstallingKey === row.appKey;
+                      const alreadyAtThis = row.installedVersion === row.version;
+                      const label = row.installedVersion
+                        ? (alreadyAtThis ? 'Installed'
+                                          : `Upgrade to ${row.version}`)
+                        : 'Install';
+                      return (
+                        <tr key={row.appKey}
+                            data-test={`apphub-row-${row.appKey}`}>
+                          <td style={{ padding: '6px 8px' }}>
+                            <div style={{ fontWeight: 600 }}>{row.displayName}</div>
+                            <div className="ea-text-muted ea-text-xs">
+                              {row.appKey}
+                            </div>
+                          </td>
+                          <td style={{ padding: '6px 8px' }}>{row.version}</td>
+                          <td style={{ padding: '6px 8px' }}>
+                            {row.installedVersion ?? '—'}
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                            <button
+                              type="button"
+                              className="ea-btn ea-btn--primary"
+                              onClick={() => void onInstallFromHub(row)}
+                              disabled={installing || alreadyAtThis}
+                              data-test={`apphub-install-btn-${row.appKey}`}
+                            >
+                              {installing ? 'Installing...' : label}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </div>
 
         {upgradeFor && (
           <form

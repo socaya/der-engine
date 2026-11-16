@@ -3809,6 +3809,76 @@ export async function installApp(form: {
   return r.json() as Promise<AppCatalogueEntry>;
 }
 
+export interface InstalledDhis2App {
+  appId: string;
+  appKey: string;
+  version: string;
+  displayName: string;
+  enabled?: boolean;
+  installedAt?: string;
+}
+
+/**
+ * ADR-0005 legacy list — standard DHIS2 custom apps installed on
+ * this appliance (as opposed to the ADR-0037 signed-bundle
+ * catalogue at `listApps()`). These are served at
+ * `/dhis-web-<appKey>/**` and listed by `/api/apps` for DHIS2
+ * discovery. The admin UI unions these rows with the signed
+ * catalogue to avoid an "invisible-install" trap where an operator
+ * installs a DHIS2 app but doesn't see it in the catalogue screen.
+ */
+export async function listDhis2Apps(): Promise<InstalledDhis2App[]> {
+  return request<InstalledDhis2App[]>('GET', '/edge-api/v1/apps/installed');
+}
+
+/** ADR-0005 uninstall — distinct from `uninstallApp` (ADR-0037). */
+export async function uninstallDhis2App(appId: string): Promise<void> {
+  return request<void>('DELETE', `/edge-api/v1/apps/${encodeURIComponent(appId)}`);
+}
+
+export interface AppHubListing {
+  appKey: string;
+  displayName: string;
+  version: string;
+  downloadUrl: string;
+  /** Currently-installed version for this appKey, if any. */
+  installedVersion: string | null;
+}
+
+/**
+ * Browse the DHIS2 App Hub (filtered to versions compatible with
+ * the DER-pinned DHIS2 version). Each row includes the
+ * currently-installed version so the UI can render Install vs
+ * Upgrade appropriately.
+ */
+export async function listAppHubApps(): Promise<AppHubListing[]> {
+  const r = await request<{ apps: AppHubListing[] }>(
+    'GET', '/edge-api/v1/admin/apps/hub');
+  return r.apps;
+}
+
+/**
+ * ADR-0005 install-from-URL — the admin UI calls this after an
+ * operator clicks Install on an App Hub row. The server fetches
+ * the bundle, parses `manifest.webapp`, and installs.
+ */
+export async function installDhis2AppFromHub(downloadUrl: string): Promise<unknown> {
+  const r = await fetch('/edge-api/v1/apps/install-from-hub', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: downloadUrl }),
+  });
+  if (!r.ok) {
+    let detail = '';
+    try { detail = (await r.json() as { error?: string }).error ?? ''; }
+    catch { /* non-json */ }
+    throw new EdgeApiError(r.status, 'UNKNOWN',
+      detail || `App Hub install failed with status ${r.status}`);
+  }
+  return r.json();
+}
+
 /**
  * Install a standard DHIS2 custom app bundle (ADR-0005). The server
  * reads `manifest.webapp` from the zip root itself — no form fields

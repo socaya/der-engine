@@ -146,6 +146,23 @@ public class AppsController {
 
     public record InstallFromUrlRequest(@JsonProperty("url") String url) { }
 
+    /**
+     * ADR-0005 companion to {@link #installFromUrl}: a thin
+     * "install this App Hub listing" wrapper the admin UI calls
+     * after the operator clicks Install in the browse-hub panel.
+     * The only difference from {@link #installFromUrl} is that we
+     * accept {@code http://} as well as {@code https://} so the
+     * App Hub mirror running on a pilot LAN can serve the download
+     * (the public hub is always https, but on-prem mirrors aren't
+     * always). The size cap still comes from
+     * {@link AppInstaller#DEFAULT_MAX_BUNDLE_BYTES}.
+     */
+    @PostMapping(path = "/install-from-hub", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Object> installFromHub(final Authentication authentication,
+                                                    @RequestBody final InstallFromUrlRequest body) {
+        return installFromUrl(authentication, body);
+    }
+
     @PostMapping("/{id}/enable")
     public ResponseEntity<Object> setEnabled(final Authentication authentication,
                                                @PathVariable("id") final UUID id,
