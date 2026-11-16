@@ -29,6 +29,15 @@ export function AppCatalogue(): JSX.Element {
   const [hubError, setHubError] = useState<string | null>(null);
   const [hubInstallingKey, setHubInstallingKey] = useState<string | null>(null);
 
+  // Merged-table filters. The catalogue combines two underlying
+  // sources (signed bundles + DHIS2 custom apps). Operators often
+  // know "I want the DHIS2 Capture app" but not which source it
+  // lives in — the filter lets them narrow by type, and the search
+  // input matches against appKey + displayName.
+  type TypeFilter = 'all' | 'der' | 'dhis2';
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Install form state
   const [installOpen, setInstallOpen] = useState(false);
   const [installAppKey, setInstallAppKey] = useState('');
@@ -284,24 +293,79 @@ export function AppCatalogue(): JSX.Element {
     if (upgradeFileRef.current) upgradeFileRef.current.value = '';
   }
 
+  // Build the unified row list once per render from the two
+  // underlying sources. The filter + search narrow this downstream.
+  type UnifiedRow =
+    | { kind: 'der'; app: edgeApi.AppCatalogueEntry }
+    | { kind: 'dhis2'; app: edgeApi.InstalledDhis2App };
+  const unifiedRows: UnifiedRow[] = [
+    ...apps.map((a): UnifiedRow => ({ kind: 'der', app: a })),
+    ...dhis2Apps.map((a): UnifiedRow => ({ kind: 'dhis2', app: a })),
+  ];
+  const q = searchQuery.trim().toLowerCase();
+  const filteredRows = unifiedRows.filter((row) => {
+    if (typeFilter === 'der' && row.kind !== 'der') return false;
+    if (typeFilter === 'dhis2' && row.kind !== 'dhis2') return false;
+    if (!q) return true;
+    const key = row.kind === 'der' ? row.app.appKey : row.app.appKey;
+    const name = row.kind === 'der' ? row.app.displayName : row.app.displayName;
+    return key.toLowerCase().includes(q) || name.toLowerCase().includes(q);
+  });
+
   return (
     <div data-test="ea-app-catalogue">
       <Panel
         title="App catalogue"
         action={
-          <button
-            type="button"
-            className="ea-btn ea-btn--primary"
-            onClick={() => { setInstallOpen((v) => !v); setMsg(null); }}
-            data-test="install-open-btn"
-          >
-            {installOpen ? 'Close' : 'Install app'}
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center',
+                        flexWrap: 'wrap' }}
+               data-test="catalogue-toolbar">
+            <input
+              type="search"
+              className="ea-input"
+              placeholder="Search apps..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              data-test="catalogue-search"
+              style={{ width: 180 }}
+            />
+            <select
+              className="ea-input"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
+              data-test="catalogue-type-filter"
+              style={{ width: 150 }}
+            >
+              <option value="all">All types</option>
+              <option value="der">DER (signed)</option>
+              <option value="dhis2">DHIS2</option>
+            </select>
+            <button
+              type="button"
+              className="ea-btn"
+              onClick={() => {
+                const next = !hubOpen;
+                setHubOpen(next);
+                if (next && hubApps.length === 0) void reloadHub();
+              }}
+              data-test="apphub-toggle-btn"
+            >
+              {hubOpen ? 'Hide App Hub' : 'Browse App Hub'}
+            </button>
+            <button
+              type="button"
+              className="ea-btn ea-btn--primary"
+              onClick={() => { setInstallOpen((v) => !v); setMsg(null); }}
+              data-test="install-open-btn"
+            >
+              {installOpen ? 'Close' : 'Install app'}
+            </button>
+          </div>
         }
       >
         <p className="ea-text-muted" style={{ marginTop: 0 }}>
-          Bundles signed by the edge on write. Device clients fetch the
-          catalogue on launch and cache each bundle by SHA-256.
+          DHIS2 custom apps and DER signed bundles. Search + filter above;
+          install from a local <code>.zip</code> or browse the public App Hub.
         </p>
         {msg && (
           <div
@@ -475,93 +539,22 @@ export function AppCatalogue(): JSX.Element {
           </form>
         )}
 
-        {loaded && apps.length === 0 && dhis2Apps.length === 0 ? (
+        {loaded && unifiedRows.length === 0 ? (
           <p className="ea-text-muted" data-test="empty-state">
             No apps installed yet. Use Install app to add one,
             or Browse App Hub to pick from the public catalogue.
           </p>
-        ) : apps.length === 0 ? null : (
-          <table
-            className="ea-table"
-            data-test="apps-table"
-            style={{ width: '100%', borderCollapse: 'collapse' }}
-          >
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', padding: '6px 8px' }}>App</th>
-                <th style={{ textAlign: 'left', padding: '6px 8px' }}>Type</th>
-                <th style={{ textAlign: 'left', padding: '6px 8px' }}>Version</th>
-                <th style={{ textAlign: 'left', padding: '6px 8px' }}>Requires DER API</th>
-                <th style={{ textAlign: 'left', padding: '6px 8px' }}>SHA-256</th>
-                <th style={{ textAlign: 'right', padding: '6px 8px' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {apps.map((a) => {
-                const disabled = disabledIds.has(a.appId);
-                return (
-                  <tr key={a.appId} data-test={`app-row-${a.appId}`}>
-                    <td style={{ padding: '6px 8px' }}>
-                      <div style={{ fontWeight: 600 }}>{a.displayName}</div>
-                      {a.module && (
-                        <div className="ea-text-muted ea-text-xs">
-                          {a.module}
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ padding: '6px 8px' }}
-                        data-test={`type-${a.appId}`}>
-                      <span style={{ fontSize: 12, padding: '2px 6px',
-                                     borderRadius: 10,
-                                     background: '#e6effb',
-                                     color: '#1b4a7a' }}>
-                        DER (signed)
-                      </span>
-                    </td>
-                    <td style={{ padding: '6px 8px' }}>{a.version}</td>
-                    <td style={{ padding: '6px 8px' }}>{a.requiresDerApi}</td>
-                    <td style={{ padding: '6px 8px' }}>
-                      <code title={a.bundleSha256} data-test={`sha-${a.appId}`}>
-                        {a.bundleSha256.slice(0, 10)}
-                      </code>
-                    </td>
-                    <td style={{ padding: '6px 8px', textAlign: 'right' }}
-                        data-test={`row-actions-${a.appId}`}>
-                      <RowMenu
-                        items={[
-                          { label: 'Upgrade',
-                            onSelect: () => onPickUpgrade(a) },
-                          { label: disabled ? 'Enable' : 'Disable',
-                            onSelect: () => { void onToggle(a); } },
-                          { label: 'Delete',
-                            onSelect: () => { void onDelete(a); },
-                            danger: true },
-                        ]}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-
-        {/* ADR-0005 DHIS2 custom apps — separate storage from the
-            signed-bundle catalogue above; the merge is cosmetic for
-            the operator. */}
-        {dhis2Apps.length > 0 && (
-          <div style={{ marginTop: 20 }}
-               data-test="dhis2-apps-section">
-            <div style={{ fontWeight: 600, marginBottom: 6 }}>
-              DHIS2 custom apps (ADR-0005)
+        ) : (
+          <>
+            <div className="ea-text-muted" style={{ fontSize: 12, marginBottom: 6 }}
+                 data-test="catalogue-row-count">
+              Showing {filteredRows.length} of {unifiedRows.length} apps
+              {typeFilter !== 'all' && ` · type=${typeFilter}`}
+              {q && ` · search="${searchQuery.trim()}"`}
             </div>
-            <p className="ea-text-muted" style={{ marginTop: 0, fontSize: 13 }}>
-              Served at <code>/dhis-web-&lt;appKey&gt;/</code>.
-              Listed by <code>/api/apps</code> for DHIS2 discovery.
-            </p>
             <table
               className="ea-table"
-              data-test="dhis2-apps-table"
+              data-test="apps-table"
               style={{ width: '100%', borderCollapse: 'collapse' }}
             >
               <thead>
@@ -569,56 +562,114 @@ export function AppCatalogue(): JSX.Element {
                   <th style={{ textAlign: 'left', padding: '6px 8px' }}>App</th>
                   <th style={{ textAlign: 'left', padding: '6px 8px' }}>Type</th>
                   <th style={{ textAlign: 'left', padding: '6px 8px' }}>Version</th>
-                  <th style={{ textAlign: 'left', padding: '6px 8px' }}>Deep-link</th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px' }}>Detail</th>
                   <th style={{ textAlign: 'right', padding: '6px 8px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {dhis2Apps.map((a) => (
-                  <tr key={a.appId} data-test={`dhis2-app-row-${a.appKey}`}>
-                    <td style={{ padding: '6px 8px' }}>
-                      <div style={{ fontWeight: 600 }}>{a.displayName}</div>
-                      <div className="ea-text-muted ea-text-xs">
-                        {a.appKey}
-                      </div>
-                    </td>
-                    <td style={{ padding: '6px 8px' }}
-                        data-test={`dhis2-type-${a.appKey}`}>
-                      <span style={{ fontSize: 12, padding: '2px 6px',
-                                     borderRadius: 10,
-                                     background: '#e6f4ea',
-                                     color: '#276a3f' }}>
-                        DHIS2
-                      </span>
-                    </td>
-                    <td style={{ padding: '6px 8px' }}>{a.version}</td>
-                    <td style={{ padding: '6px 8px' }}>
-                      <a href={`/dhis-web-${a.appKey}/`}
-                         target="_blank" rel="noopener noreferrer"
-                         data-test={`dhis2-open-${a.appKey}`}>
-                        Open ↗
-                      </a>
-                    </td>
-                    <td style={{ padding: '6px 8px', textAlign: 'right' }}
-                        data-test={`dhis2-row-actions-${a.appKey}`}>
-                      <RowMenu
-                        items={[
-                          { label: 'Open',
-                            onSelect: () => {
-                              window.open(`/dhis-web-${a.appKey}/`,
-                                '_blank', 'noopener,noreferrer');
-                            } },
-                          { label: 'Uninstall',
-                            onSelect: () => { void onDeleteDhis2(a); },
-                            danger: true },
-                        ]}
-                      />
-                    </td>
-                  </tr>
-                ))}
+                {filteredRows.map((row) => {
+                  if (row.kind === 'der') {
+                    const a = row.app;
+                    const disabled = disabledIds.has(a.appId);
+                    return (
+                      <tr key={`der-${a.appId}`} data-test={`app-row-${a.appId}`}>
+                        <td style={{ padding: '6px 8px' }}>
+                          <div style={{ fontWeight: 600 }}>{a.displayName}</div>
+                          <div className="ea-text-muted ea-text-xs">
+                            {a.appKey}
+                          </div>
+                          {a.module && (
+                            <div className="ea-text-muted ea-text-xs">
+                              {a.module}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '6px 8px' }}
+                            data-test={`type-${a.appId}`}>
+                          <span style={{ fontSize: 12, padding: '2px 6px',
+                                         borderRadius: 10,
+                                         background: '#e6effb',
+                                         color: '#1b4a7a' }}>
+                            DER (signed)
+                          </span>
+                        </td>
+                        <td style={{ padding: '6px 8px' }}>{a.version}</td>
+                        <td style={{ padding: '6px 8px', fontSize: 12 }}>
+                          <div className="ea-text-muted">
+                            requires DER API <code>{a.requiresDerApi}</code>
+                          </div>
+                          <code title={a.bundleSha256} data-test={`sha-${a.appId}`}
+                                style={{ fontSize: 11 }}>
+                            sha {a.bundleSha256.slice(0, 10)}
+                          </code>
+                        </td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right' }}
+                            data-test={`row-actions-${a.appId}`}>
+                          <RowMenu
+                            items={[
+                              { label: 'Upgrade',
+                                onSelect: () => onPickUpgrade(a) },
+                              { label: disabled ? 'Enable' : 'Disable',
+                                onSelect: () => { void onToggle(a); } },
+                              { label: 'Delete',
+                                onSelect: () => { void onDelete(a); },
+                                danger: true },
+                            ]}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  }
+                  // row.kind === 'dhis2'
+                  const a = row.app;
+                  const deepLink = `/dhis-web-${a.appKey}/`;
+                  return (
+                    <tr key={`dhis2-${a.appId}`}
+                        data-test={`dhis2-app-row-${a.appKey}`}>
+                      <td style={{ padding: '6px 8px' }}>
+                        <div style={{ fontWeight: 600 }}>{a.displayName}</div>
+                        <div className="ea-text-muted ea-text-xs">
+                          {a.appKey}
+                        </div>
+                      </td>
+                      <td style={{ padding: '6px 8px' }}
+                          data-test={`dhis2-type-${a.appKey}`}>
+                        <span style={{ fontSize: 12, padding: '2px 6px',
+                                       borderRadius: 10,
+                                       background: '#e6f4ea',
+                                       color: '#276a3f' }}>
+                          DHIS2
+                        </span>
+                      </td>
+                      <td style={{ padding: '6px 8px' }}>{a.version}</td>
+                      <td style={{ padding: '6px 8px', fontSize: 12 }}>
+                        <a href={deepLink}
+                           target="_blank" rel="noopener noreferrer"
+                           data-test={`dhis2-open-${a.appKey}`}>
+                          {deepLink} ↗
+                        </a>
+                      </td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right' }}
+                          data-test={`dhis2-row-actions-${a.appKey}`}>
+                        <RowMenu
+                          items={[
+                            { label: 'Open',
+                              onSelect: () => {
+                                window.open(deepLink,
+                                  '_blank', 'noopener,noreferrer');
+                              } },
+                            { label: 'Uninstall',
+                              onSelect: () => { void onDeleteDhis2(a); },
+                              danger: true },
+                          ]}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
-          </div>
+          </>
         )}
 
         {/* DHIS2 App Hub browser — opt-in because we don't want to
@@ -627,18 +678,6 @@ export function AppCatalogue(): JSX.Element {
         <div style={{ marginTop: 20 }} data-test="apphub-section">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ fontWeight: 600 }}>DHIS2 App Hub</div>
-            <button
-              type="button"
-              className="ea-btn"
-              data-test="apphub-toggle-btn"
-              onClick={() => {
-                const next = !hubOpen;
-                setHubOpen(next);
-                if (next && hubApps.length === 0) void reloadHub();
-              }}
-            >
-              {hubOpen ? 'Hide App Hub' : 'Browse App Hub'}
-            </button>
             {hubOpen && (
               <button
                 type="button"

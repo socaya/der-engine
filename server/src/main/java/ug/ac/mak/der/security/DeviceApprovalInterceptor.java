@@ -69,6 +69,18 @@ public class DeviceApprovalInterceptor implements HandlerInterceptor {
         if (isExempt(request.getRequestURI())) {
             return true;
         }
+        // ADMIN bypass. Admins operate from the admin UI (same
+        // origin, carries session cookie) to verify installed apps;
+        // they don't carry a device ID because the admin console
+        // isn't a "device" in the ADR-0019 sense. Without this
+        // bypass, opening /dhis-web-<key>/ from the admin catalogue
+        // returns 403 DEVICE_HEADER_REQUIRED and the operator has
+        // no path to inspect what they just installed. Audit still
+        // records the serve via DER_APP_OPENED in AppStaticHandler;
+        // nothing is silently relaxed.
+        if (isAuthenticatedAdmin()) {
+            return true;
+        }
         final String rawHeader = request.getHeader(DEVICE_HEADER);
         if (rawHeader == null || rawHeader.isBlank()) {
             return reject(response, request, "DEVICE_HEADER_REQUIRED",
@@ -88,6 +100,21 @@ public class DeviceApprovalInterceptor implements HandlerInterceptor {
                     "device " + rawHeader.trim() + " trust=" + trustName);
         }
         return true;
+    }
+
+    /**
+     * True when the current {@link org.springframework.security.core.SecurityContext}
+     * carries a session principal whose roles include ADMIN. Called
+     * once per guarded request; cheap because SecurityContextHolder
+     * is a ThreadLocal.
+     */
+    private static boolean isAuthenticatedAdmin() {
+        final var auth = org.springframework.security.core.context
+                .SecurityContextHolder.getContext().getAuthentication();
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return false;
+        }
+        return principal.user().roles().contains(EdgeRole.ADMIN);
     }
 
     /** Endpoints that must stay reachable regardless of trust so an

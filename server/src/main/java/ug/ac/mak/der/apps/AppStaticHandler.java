@@ -147,12 +147,27 @@ public class AppStaticHandler {
                     .cacheControl(CacheControl.noCache())
                     .body(app.manifestJson().getBytes(StandardCharsets.UTF_8));
         }
-        // DHIS2_IFRAME apps are served from the zip stored in the
-        // active installed_app_version row — AppCatalogueController
-        // persists the whole zip as the versioned artifact so rollback
-        // keeps working.
+        // DHIS2_IFRAME apps can live in either of two storage worlds:
+        //   - ADR-0037 signed-bundle path: `installPath` is a db://
+        //     sentinel, actual bytes live in installed_app_version.
+        //   - ADR-0005 legacy path (AppInstaller): `installPath` is
+        //     a filesystem directory where the zip was extracted.
+        // DER_ESM apps always use filesystem. Decide by inspecting
+        // installPath so both DHIS2 install flows serve correctly.
         byte[] body;
-        if (app.hostKind() == InstalledApp.HostKind.DHIS2_IFRAME) {
+        // Zip-backed storage uses a scheme sentinel in installPath so
+        // we can distinguish it from a real filesystem directory:
+        //   - `db://<key>` — ADR-0037 signed-bundle path. Bytes live
+        //     in installed_app_version.
+        //   - `zip://<key>` — legacy sentinel retained for
+        //     back-compat with Phase 5d fixtures.
+        // Anything else (an absolute filesystem path) means the
+        // ADR-0005 AppInstaller extracted the zip to disk.
+        final boolean zipBacked = app.hostKind() == InstalledApp.HostKind.DHIS2_IFRAME
+                && app.installPath() != null
+                && (app.installPath().startsWith("db://")
+                    || app.installPath().startsWith("zip://"));
+        if (zipBacked) {
             final Optional<byte[]> served = serveFromZip(app, relative);
             if (served.isEmpty()) {
                 return ResponseEntity.notFound().build();

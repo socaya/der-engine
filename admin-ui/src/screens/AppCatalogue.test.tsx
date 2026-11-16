@@ -91,7 +91,7 @@ describe('AppCatalogue', () => {
     expect(screen.getByText('Data Entry')).toBeInTheDocument();
     expect(screen.getByText('dhis-web-tracker-capture')).toBeInTheDocument();
     const sha = screen.getByTestId('sha-app-a-id');
-    expect(sha.textContent).toBe('abcdef0123');
+    expect(sha.textContent).toMatch(/abcdef0123/);
     expect(sha.getAttribute('title')).toBe(APP_A.bundleSha256);
   });
 
@@ -341,7 +341,7 @@ describe('AppCatalogue', () => {
     }]);
     renderWithProviders(<AppCatalogue />);
     await waitFor(() =>
-      expect(screen.getByTestId('dhis2-apps-section')).toBeInTheDocument());
+      expect(screen.getByTestId('dhis2-app-row-eregisters')).toBeInTheDocument());
     const row = screen.getByTestId('dhis2-app-row-eregisters');
     expect(within(row).getByText('eRegisters')).toBeInTheDocument();
     expect(within(row).getByText('1.1.12')).toBeInTheDocument();
@@ -359,7 +359,7 @@ describe('AppCatalogue', () => {
     }]);
     renderWithProviders(<AppCatalogue />);
     await waitFor(() =>
-      expect(screen.getByTestId('dhis2-apps-section')).toBeInTheDocument());
+      expect(screen.getByTestId('dhis2-app-row-eregisters')).toBeInTheDocument());
     await clickRowAction('dhis2-row-actions-eregisters', 'Uninstall');
     await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('dhis2-id-1'));
     confirmSpy.mockRestore();

@@ -161,4 +161,61 @@ class DeviceApprovalInterceptorTest {
         }
         verify(repo, never()).findClient(org.mockito.ArgumentMatchers.anyString());
     }
+
+    // ---- ADMIN-session bypass (admin-ui opening installed apps) ----
+
+    private EdgeUser user(final java.util.Set<EdgeRole> roles) {
+        return new EdgeUser(UUID.randomUUID(), "op", "Operator",
+                EdgeUser.Origin.BOOTSTRAP, null, false,
+                roles, Instant.now(CLOCK), Instant.now(CLOCK));
+    }
+
+    private EdgeUserPrincipal principal(final java.util.Set<EdgeRole> roles) {
+        final EdgeUser u = user(roles);
+        final EdgeSession s = new EdgeSession(UUID.randomUUID(), u.userId(),
+                "h", Instant.now(CLOCK), Instant.now(CLOCK),
+                Instant.now(CLOCK).plusSeconds(3600), null, null, null);
+        return new EdgeUserPrincipal(u, s);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void clearSecurityContext() {
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void adminSessionBypassesDeviceHeaderGate() throws Exception {
+        // FR for admin-ui opening /dhis-web-<key>/ via <a href> — the
+        // browser doesn't send X-DER-Device-Id on navigation. Without
+        // this bypass the admin sees DEVICE_HEADER_REQUIRED 403 and
+        // can't inspect the app they just installed.
+        final NetworkRepository repo = mock(NetworkRepository.class);
+        final DeviceApprovalInterceptor i = interceptor(true, repo,
+                mock(SecurityAuditRepository.class));
+        org.springframework.security.core.context.SecurityContextHolder
+                .getContext()
+                .setAuthentication(principal(java.util.EnumSet.of(EdgeRole.ADMIN)));
+        final MockHttpServletResponse resp = new MockHttpServletResponse();
+        assertThat(i.preHandle(req("/dhis-web-eregisters/index.html"), resp,
+                new Object())).isTrue();
+        verify(repo, never()).findClient(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void nonAdminSessionStillRequiresDeviceHeader() throws Exception {
+        // OPERATOR + no device header → still rejected. The bypass is
+        // ADMIN-only on purpose; nurses on the device client always
+        // carry the header set by the client's fetch wrapper.
+        final NetworkRepository repo = mock(NetworkRepository.class);
+        final DeviceApprovalInterceptor i = interceptor(true, repo,
+                mock(SecurityAuditRepository.class));
+        org.springframework.security.core.context.SecurityContextHolder
+                .getContext()
+                .setAuthentication(principal(java.util.EnumSet.of(EdgeRole.OPERATOR)));
+        final MockHttpServletResponse resp = new MockHttpServletResponse();
+        assertThat(i.preHandle(req("/dhis-web-eregisters/index.html"), resp,
+                new Object())).isFalse();
+        assertThat(resp.getStatus()).isEqualTo(403);
+        assertThat(resp.getContentAsString()).contains("DEVICE_HEADER_REQUIRED");
+    }
 }

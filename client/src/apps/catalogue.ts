@@ -100,25 +100,83 @@ function parseTrustLevel(raw: unknown): TrustLevel {
 }
 
 /**
- * Fetch the current server catalogue without consulting an HTTP cache.
- * Kept outside the hook so the bundle installer can revalidate metadata
- * after an administrator replaces an app without changing its version.
+ * Fetch the full launcher catalogue — unions the ADR-0037 signed
+ * bundle catalogue (`/edge-api/v1/apps`) with the ADR-0005 DHIS2
+ * custom apps (`/edge-api/v1/apps/installed`). Without the merge,
+ * DHIS2 apps installed by an admin on the server are invisible to
+ * the device launcher; operators see the app under /admin/apps
+ * but can't open it from the client. Kept outside the hook so the
+ * bundle installer can revalidate metadata after an administrator
+ * replaces an app without changing its version.
  */
 export async function fetchAppCatalogue(): Promise<CatalogueApp[]> {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  const device = readDeviceHeader();
+  if (device) headers['X-DER-Device-Id'] = device;
+  const init: RequestInit = {
+    credentials: 'include', cache: 'no-store', headers,
+  };
+  const [signedRaw, dhis2Raw] = await Promise.all([
+    fetchJson('/edge-api/v1/apps', init),
+    fetchJson('/edge-api/v1/apps/installed', init),
+  ]);
+  const signed = sanitize(signedRaw);
+  const dhis2 = sanitizeDhis2(dhis2Raw);
+  // Dedupe on appKey — the signed catalogue is authoritative when
+  // both lists carry the same key (a DER-built app installed both
+  // via the signed path and the legacy ADR-0005 path).
+  const seen = new Set<string>(signed.map((a) => a.appKey));
+  const merged = [...signed, ...dhis2.filter((a) => !seen.has(a.appKey))];
+  return merged;
+}
+
+async function fetchJson(url: string, init: RequestInit): Promise<unknown> {
   try {
-    const headers: Record<string, string> = { Accept: 'application/json' };
-    const device = readDeviceHeader();
-    if (device) headers['X-DER-Device-Id'] = device;
-    const r = await fetch('/edge-api/v1/apps', {
-      credentials: 'include',
-      cache: 'no-store',
-      headers,
-    });
-    if (!r.ok) return [];
-    return sanitize(await r.json() as unknown);
+    const r = await fetch(url, init);
+    if (!r.ok) return null;
+    return await r.json();
   } catch {
-    return [];
+    return null;
   }
+}
+
+/**
+ * Normalise a `/edge-api/v1/apps/installed` row (DHIS2 custom app,
+ * ADR-0005) into the launcher's {@link CatalogueApp} shape. These
+ * apps are always `DHIS2_IFRAME` + `DEEPLINK` since they serve raw
+ * HTML out of `/dhis-web-<appKey>/`.
+ */
+function sanitizeDhis2(raw: unknown): CatalogueApp[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((r): CatalogueApp[] => {
+    if (!r || typeof r !== 'object') return [];
+    const o = r as Record<string, unknown>;
+    if (typeof o.appId !== 'string'
+      || typeof o.appKey !== 'string'
+      || typeof o.version !== 'string') {
+      return [];
+    }
+    const displayName = typeof o.displayName === 'string'
+      ? o.displayName : o.appKey;
+    const deepLink = `/dhis-web-${o.appKey}/`;
+    return [{
+      appId: o.appId,
+      appKey: o.appKey,
+      displayName,
+      module: null,
+      version: o.version,
+      bundleUrl: deepLink,
+      bundleSha256: '',
+      signatureB64: '',
+      requiresDerApi: '',
+      iconUrl: null,
+      hostKind: 'DHIS2_IFRAME',
+      source: 'MANUAL_UPLOAD',
+      trustLevel: 'UNSIGNED',
+      launchUrl: deepLink,
+      launchMode: 'DEEPLINK',
+    }];
+  });
 }
 
 function readDeviceHeader(): string | null {
