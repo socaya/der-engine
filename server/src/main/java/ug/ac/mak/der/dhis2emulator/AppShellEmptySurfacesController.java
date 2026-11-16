@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -100,6 +101,38 @@ public class AppShellEmptySurfacesController {
     @PostMapping({"/api/resourceTables", "/api/resourceTables/analytics"})
     public ResponseEntity<Map<String, Object>> runResourceTables(final Authentication auth) {
         return jobAck(auth, "resourceTables");
+    }
+
+    /**
+     * Data Administration → "Generate Min Max Values" posts to
+     * {@code /api/minMaxValues} with a dataSet + OU scope;
+     * central scans analytics-table history to derive bounds.
+     * DER is an edge appliance — the analytics table isn't
+     * replicated locally (too large for the appliance
+     * footprint), so generation can't run here. Ack cleanly so
+     * the UI progresses to its empty state instead of surfacing
+     * a 404. Remove-min-max mirrors the shape (DELETE).
+     */
+    @PostMapping("/api/minMaxValues")
+    public ResponseEntity<Map<String, Object>> generateMinMax(final Authentication auth) {
+        return jobAck(auth, "minMaxValueGeneration");
+    }
+
+    @DeleteMapping("/api/minMaxValues")
+    public ResponseEntity<Map<String, Object>> removeMinMax(final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(Map.of(
+                "httpStatus", "OK",
+                "httpStatusCode", 200,
+                "status", "OK",
+                "message", "min-max values are not generated on this appliance."));
+    }
+
+    @GetMapping("/api/minMaxValues")
+    public ResponseEntity<Map<String, Object>> listMinMax(final Authentication auth) {
+        return listEmpty(auth, "minMaxDataElements");
     }
 
     // ---- Dashboard ----
