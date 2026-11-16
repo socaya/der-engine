@@ -28,6 +28,7 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
 import ug.ac.mak.der.workflow.SystemWorkflowService;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalEntry;
 import ug.ac.mak.der.workflows.aggregate.OperationJournalRepository;
+import ug.ac.mak.der.workflows.tracker.TeiUniquenessChecker;
 import ug.ac.mak.der.workflows.tracker.TrackedEntityRepository;
 import ug.ac.mak.der.workflows.tracker.TrackedEntityRepository.TrackedEntity;
 import ug.ac.mak.der.workflows.tracker.TrackerService;
@@ -49,6 +50,15 @@ public class TrackedEntityController {
     private final OperationJournalRepository journal;
     private final ObjectMapper jsonMapper;
     private final Clock clock;
+    /** FR-08-08 — optional pre-upsert uniqueness enforcement. When
+     *  the bean isn't wired (older test configs), the controller
+     *  behaves as pre-FR-08-08. */
+    private TeiUniquenessChecker uniqueness;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setUniqueness(final TeiUniquenessChecker uniqueness) {
+        this.uniqueness = uniqueness;
+    }
 
     public TrackedEntityController(final TrackedEntityRepository repo,
                                      final TrackerService trackerService,
@@ -87,6 +97,29 @@ public class TrackedEntityController {
         final String teiUid = body.teiUid() == null || body.teiUid().isBlank()
                 ? generateDhis2Uid()
                 : body.teiUid().trim();
+        // FR-08-08 — local uniqueness check before upsert. A collision
+        // here is a locally-detectable constraint violation; central-
+        // side collisions (same attribute value held by a TEI DER
+        // doesn't mirror) surface later via the publisher's
+        // ResponseClassifier conflict path.
+        if (uniqueness != null) {
+            final TeiUniquenessChecker.Result result = uniqueness.check(
+                    teiUid, body.attributes() == null ? Map.of() : body.attributes());
+            if (!result.passed()) {
+                final var first = result.collisions().get(0);
+                return ResponseEntity.status(409).body(Map.of(
+                        "code", "UNIQUE_ATTRIBUTE_COLLISION",
+                        "message", "attribute "
+                                + first.attributeUid()
+                                + " value \"" + first.value()
+                                + "\" is already held by tei "
+                                + first.existingTeiUid(),
+                        "attributeUid", first.attributeUid(),
+                        "value", first.value(),
+                        "existingTeiUid", first.existingTeiUid(),
+                        "collisions", result.collisions().size()));
+            }
+        }
         final Instant now = Instant.now(clock);
         final java.util.UUID runId = systemWorkflows.ensureTrackerCaptureRun(
                 "_TEI_", body.orgUnit(), principal.userId());
