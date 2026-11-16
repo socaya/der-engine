@@ -185,7 +185,7 @@ evidence bundle that shows all four knobs tripped and holding.
 PII-masking test output (regex over sample audit rows), backup
 encryption on (envelope sealed), hash chain verification pass.
 
-### NFR-07 — Every acknowledged commit retrievable by second client
+### ~~NFR-07~~ — Every acknowledged commit retrievable by second client ✅ DONE
 
 The journal design supports it (local commits are durable before
 the drain). Gap: no dedicated test that spins up two clients, has

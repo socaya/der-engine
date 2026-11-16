@@ -592,7 +592,7 @@ All **🟡 PARTIAL** — ADR-0017 Phase 10 hardening (TLS enforce, PII mask, bac
 | NFR-04 | Zero invalid references or silent lost updates | P0 | 🧱 SCAFFOLD | — |
 | NFR-05 | 100% forbidden access rejected | P0 | 🟡 PARTIAL | Spring Security filter chain |
 | NFR-06 | Transport + credential + log + storage protection | P0 | 🟡 PARTIAL | ADR-0017 part 1 |
-| NFR-07 | Every acknowledged commit retrievable by second client | P0 | 🟡 PARTIAL | — |
+| ~~NFR-07~~ | ~~Every acknowledged commit retrievable by second client~~ | P0 | ✅ DONE | `Nfr07TwoClientRetrievalScenarioTest` — MockMvc two-session scenario walking the full HTTP stack. Alice POSTs `/api/dataValueSets`, write sink captures the row; Bob GETs on his own cookie, repo returns Alice's row. Pins value preservation + `stored_by=Alice.userId` across readers + `lastUpdated==submittedAt` + 401 for anonymous. Scenario spec at `tests/security/nfr-07-two-client-local-retrieval.md`. Complementary to NFR-32's architectural no-central-coupling pin. |
 | NFR-08 | Deterministic equivalent edge + central effects | P0 | 📋 DESIGN-ONLY | `JournalPublisher` + capability matrix |
 | NFR-09 | 100% agreement for reference comparison set | P0 | 🟡 PARTIAL | — |
 | NFR-10 | 100% integrity-critical conflicts detected | P0 | 🧱 SCAFFOLD | `ConflictReviewService` |
