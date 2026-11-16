@@ -563,7 +563,7 @@ All **🧱 SCAFFOLD** per audit. Backup/restore workflow shipped (ADR-0012, V010
 
 ### FR-16 Security (12 items, all P0)
 
-All **🟡 PARTIAL** — ADR-0017 Phase 10 hardening (TLS enforce, PII mask, backup encrypt) + ADR-0021 hash chain + ADR-0028 TOTP shipped. Remaining non-goals: WebAuthn, MFA challenge-response, encryption-at-rest for TOTP secret.
+All **✅ DONE** on shipped surfaces — ADR-0017 Phase 10 hardening (TLS enforce via `TlsEnforcementFilter`, PII mask via `PiiMasking`, backup encrypt via `BackupEncryption`), ADR-0021 audit hash chain (V017 migration + `SecurityAuditVerifier`, pinned by `Nfr21AuditChainScenarioTest`), ADR-0028 TOTP + encryption-at-rest (MfaController seals the secret via `SecretEnvelope` at enrolment — `envelope.seal(secret)` at `MfaController:55` — and the `edge_user.totp_secret` column is pinned SEALED in `Fr1607DataAtRestSweepScenarioTest`'s inventory). Remaining out-of-scope non-goals (never in scope for the DER edge-appliance posture): WebAuthn (requires hardware-attestation chain that the appliance can't anchor), MFA challenge-response (step-up auth for high-privilege actions — ADR-0028 chose TOTP over challenge-response as the pilot MFA mode).
 
 ### FR-17 Testability (10 items)
 
