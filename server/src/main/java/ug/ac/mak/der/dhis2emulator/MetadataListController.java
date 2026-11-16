@@ -420,7 +420,6 @@ public class MetadataListController {
                 new com.fasterxml.jackson.databind.ObjectMapper();
         final com.fasterxml.jackson.databind.node.ArrayNode hydrated =
                 mapper.createArrayNode();
-        boolean anyMissing = false;
         for (final JsonNode ref : stages) {
             final JsonNode id = ref.get("id");
             if (id == null || !id.isTextual()) {
@@ -434,25 +433,22 @@ public class MetadataListController {
                         String.class, id.asText());
                 if (payload == null) {
                     hydrated.add(ref);
-                    anyMissing = true;
                 } else {
                     hydrated.add(mapper.readTree(payload));
                 }
             } catch (final org.springframework.dao.EmptyResultDataAccessException ex) {
                 hydrated.add(ref);
-                anyMissing = true;
             } catch (final java.io.IOException ex) {
                 throw new IllegalStateException(
                         "could not parse program_stage payload for "
                                 + id.asText(), ex);
             }
         }
-        if (anyMissing) {
-            // Partial hydration is still better than returning only
-            // {id} refs — eregisters tolerates a ProgramStage that's
-            // minimal provided the shape is right. Logged by the
-            // interceptor if it turns into a sync blocker.
-        }
+        // Partial hydration (anyMissing=true) is still better than
+        // returning only {id} refs — eregisters tolerates a
+        // ProgramStage that's minimal provided the shape is right.
+        // Missing-stage events land on the request-logging
+        // interceptor if a sync blocker surfaces.
         final com.fasterxml.jackson.databind.node.ObjectNode out =
                 (com.fasterxml.jackson.databind.node.ObjectNode) program.deepCopy();
         out.set("programStages", hydrated);

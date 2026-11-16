@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -47,12 +46,9 @@ import ug.ac.mak.der.workflows.tracker.TrackedEntityRepository.TrackedEntity;
 public class TrackerListController {
 
     private final TrackedEntityRepository teis;
-    private final ObjectMapper mapper;
 
-    public TrackerListController(final TrackedEntityRepository teis,
-                                    final ObjectMapper mapper) {
+    public TrackerListController(final TrackedEntityRepository teis) {
         this.teis = Objects.requireNonNull(teis, "teis");
-        this.mapper = Objects.requireNonNull(mapper, "mapper");
     }
 
     @GetMapping

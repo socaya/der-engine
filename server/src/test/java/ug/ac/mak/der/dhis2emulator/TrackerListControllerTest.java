@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
@@ -49,7 +48,7 @@ class TrackerListControllerTest {
                                 Map.of("w75KJ2mc4zz", "Bob"),
                                 UUID.randomUUID(),
                                 Instant.now(), Instant.now(), 1, null)));
-        final var r = new TrackerListController(repo, new ObjectMapper())
+        final var r = new TrackerListController(repo)
                 .list(principal(), "ueBhWkWll5v", "OU_1",
                         "nEenWmSyUEp", 1, 50, null);
         assertThat(r.getStatusCode().value()).isEqualTo(200);
@@ -77,7 +76,7 @@ class TrackerListControllerTest {
         final var repo = mock(TrackedEntityRepository.class);
         when(repo.search(any(), any(), any(), anyInt(), any()))
                 .thenReturn(List.of());
-        final var r = new TrackerListController(repo, new ObjectMapper())
+        final var r = new TrackerListController(repo)
                 .list(principal(), null, null, null, 1, 10000, null);
         // Underlying search receives the capped fetch; pager honors
         // the requested-but-capped pageSize.
@@ -87,8 +86,7 @@ class TrackerListControllerTest {
 
     @Test
     void anonymousRejected() {
-        final var r = new TrackerListController(
-                mock(TrackedEntityRepository.class), new ObjectMapper())
+        final var r = new TrackerListController(mock(TrackedEntityRepository.class))
                 .list(null, null, null, null, 1, 50, null);
         assertThat(r.getStatusCode().value()).isEqualTo(401);
     }
@@ -98,7 +96,7 @@ class TrackerListControllerTest {
         final var repo = mock(TrackedEntityRepository.class);
         when(repo.search(any(), any(), any(), anyInt(), any()))
                 .thenReturn(List.of());
-        final var r = new TrackerListController(repo, new ObjectMapper())
+        final var r = new TrackerListController(repo)
                 .list(principal(), "prog", "ou", null, 1, 50, null);
         assertThat(r.getStatusCode().value()).isEqualTo(200);
         assertThat((List<?>) r.getBody().get("trackedEntities")).isEmpty();
