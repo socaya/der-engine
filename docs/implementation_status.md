@@ -429,7 +429,7 @@ DHIS2_IFRAME unsigned + verify skipped. Central-side signing
 | FR-04-06 | 502 vs 503 distinction exists; "unsupported operation" taxonomy incomplete |
 | FR-04-09 | Period semantics covered; timezone/locale fallbacks TODO |
 | ~~FR-05-10 / FR-05-11 / FR-05-12~~ | ~~Pending-op quarantine on metadata drift partially shipped (quarantine, no explicit reinterpretation guard, no diagnostic surface)~~ — ✅ **DONE** as of 2026-11-15 (commit `e022f64a`); diagnostic surface was already shipped at `GET /edge-api/v1/metadata/drift/pending`, `JournalWorker` now auto-quarantines drifted entries before publish + emits `METADATA_DRIFT_QUARANTINED` audit; opt-out via `der.journal.drift-guard.enabled=false`. |
-| FR-07-08 | Event-level central divergence detection — journal captures state, UI classification deferred |
+| ~~FR-07-08~~ | ~~Event-level central divergence detection — journal captures state, UI classification deferred~~ — ✅ **DONE** as of 2026-11-15 (commit `31bfe4c1`); `EventDivergenceClass` taxonomy (CENTRAL_DIVERGED / CENTRAL_DELETED / DUPLICATE_LOCAL / IN_SYNC), `EventDivergenceClassifier` pure function with field + dataValue diff, `EVENT_DIVERGENCE_*` audits emitted from `EventPuller` on overwrite + from the new `sweepDeletions`, admin endpoint `GET /edge-api/v1/events/divergence/recent`. |
 | FR-08-06..12 | Tracker relationships, hand-off, uniqueness, program rules, graph reconciliation, import summary classification — minimal TEI surface shipped, lifecycle not completed |
 | FR-09-10 | Journal purge policy exists; retention knob + evidence export not formalised |
 | FR-10-04 / FR-10-05 | Approved-merge path + no-silent-last-write-wins — gated by APPROVER role, acceptance ADR but not programmatic enforcement test |
