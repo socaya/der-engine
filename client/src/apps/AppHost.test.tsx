@@ -140,4 +140,52 @@ describe('AppHost', () => {
     // no signed bundle to fetch.
     expect(ensureSpy).not.toHaveBeenCalled();
   });
+
+  it('swaps iframe for a DER crash card when the embedded app throws', async () => {
+    // Same-origin DHIS2 iframe → DER can listen on its contentWindow
+    // for uncaught errors and unhandled promise rejections. The
+    // envelope hides the app's own raw stack trace, shows the app's
+    // display name, and surfaces "Copy details" + Reload + Back —
+    // so an operator can't mistake a DHIS2-app bug for a DER bug.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(catalogueResponse([{
+      appId: 'id-er', appKey: 'eregisters', displayName: 'eRegisters',
+      module: null, version: '1.1.12',
+      bundleUrl: '/dhis-web-eregisters/', bundleSha256: '',
+      signatureB64: '', requiresDerApi: '',
+      iconUrl: null,
+      hostKind: 'DHIS2_IFRAME', source: 'MANUAL_UPLOAD',
+      trustLevel: 'UNSIGNED',
+      launchUrl: '/dhis-web-eregisters/',
+      launchMode: 'DEEPLINK',
+    }]));
+    renderAt('eregisters');
+    const iframe = await screen.findByTestId('der-apphost-iframe-eregisters');
+    // jsdom's HTMLIFrameElement doesn't wire a real contentWindow on
+    // render; monkey-patch to simulate the handshake AppHost does on
+    // the iframe's `load` event.
+    const fakeWindow = new EventTarget() as unknown as Window;
+    Object.defineProperty(iframe, 'contentWindow',
+        { value: fakeWindow, configurable: true });
+    Object.defineProperty(iframe, 'contentDocument',
+        { value: { getElementById: () => null, createElement: () => ({}),
+                   head: { appendChild: () => undefined } },
+          configurable: true });
+    iframe.dispatchEvent(new Event('load', { bubbles: false }));
+    // Fire the kind of unhandled rejection eregisters throws when a
+    // required field is missing on its remote metadata.
+    const rejectionEvent = Object.assign(new Event('unhandledrejection'),
+        { reason: new TypeError(
+            "Cannot read properties of undefined (reading 'metadata')") });
+    (fakeWindow as unknown as EventTarget).dispatchEvent(rejectionEvent);
+    await waitFor(() => expect(
+        screen.getByTestId('der-apphost-iframe-crashed')).toBeInTheDocument());
+    expect(screen.getByRole('heading',
+        { name: /eRegisters is not responding/i })).toBeInTheDocument();
+    expect(screen.getByTestId('der-apphost-iframe-crashed-copy'))
+        .toHaveTextContent(/Copy details/);
+    expect(screen.getByTestId('der-apphost-iframe-crashed-reload'))
+        .toBeInTheDocument();
+    expect(screen.getByTestId('der-apphost-iframe-crashed-back'))
+        .toBeInTheDocument();
+  });
 });

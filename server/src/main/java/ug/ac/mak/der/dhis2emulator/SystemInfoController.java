@@ -28,8 +28,18 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
  * {@code version} field carries the pinned central version so client code
  * that gates on DHIS2 version strings behaves correctly.</p>
  */
+/*
+ * {@code /api/system/info} (slash) is DHIS2 2.4x's canonical path.
+ * Older DHIS2 custom apps (and the HeaderBar in {@code @dhis2/ui})
+ * still read the pre-2.4 alias {@code /api/systemInfo} (no slash).
+ * Both routes are mapped to the same handler so embedded apps
+ * don't crash with {@code undefined - <appKey>} titles or
+ * {@code Cannot read properties of undefined (reading 'map')}
+ * from iterating over an unresolved systemInfo payload.
+ */
 @RestController
-@RequestMapping(path = "/api/system/info", produces = MediaType.APPLICATION_JSON_VALUE)
+@RequestMapping(path = { "/api/system/info", "/api/systemInfo" },
+        produces = MediaType.APPLICATION_JSON_VALUE)
 public class SystemInfoController {
 
     private final BuildInfoProvider build;

@@ -71,6 +71,15 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
+                // DHIS2 custom apps (ADR-0005) are served from the
+                // same origin as the DER client shell and mounted in
+                // an iframe at {@code /apps/<key>}. Spring Security's
+                // default {@code X-Frame-Options: DENY} would refuse
+                // that render ("Refused to display … in a frame").
+                // Loosen to {@code SAMEORIGIN} — only the DER shell
+                // itself can embed DER-served pages; external sites
+                // still cannot (clickjacking posture preserved).
+                .headers(h -> h.frameOptions(fo -> fo.sameOrigin()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(eh -> eh.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth

@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import ug.ac.mak.der.metadata.MetadataMirrorRepository;
+import ug.ac.mak.der.metadata.MirroredProgram;
 import ug.ac.mak.der.orgunit.EdgeOrgUnitBinding;
 import ug.ac.mak.der.orgunit.OrgUnitBindingService;
 import ug.ac.mak.der.security.EdgeUser;
@@ -35,9 +37,20 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
 public class MeController {
 
     private final ObjectProvider<OrgUnitBindingService> bindingProvider;
+    private final MetadataMirrorRepository mirror;
 
-    public MeController(final ObjectProvider<OrgUnitBindingService> bindingProvider) {
+    public MeController(final ObjectProvider<OrgUnitBindingService> bindingProvider,
+                            final MetadataMirrorRepository mirror) {
         this.bindingProvider = bindingProvider;
+        this.mirror = mirror;
+    }
+
+    private List<Map<String, String>> programRefs() {
+        final List<Map<String, String>> refs = new ArrayList<>();
+        for (final MirroredProgram p : mirror.findAllPrograms()) {
+            refs.add(Map.of("id", p.dhis2Uid()));
+        }
+        return refs;
     }
 
     @GetMapping
@@ -50,6 +63,16 @@ public class MeController {
         body.put("id", user.userId().toString());
         body.put("username", user.username());
         body.put("displayName", user.displayName());
+        // DHIS2 central's /api/me returns a combined {@code name}
+        // alongside {@code displayName}. @dhis2/ui's HeaderBar
+        // text-avatar component reads {@code name} and calls
+        // {@code name.split(' ')} unguarded, so a missing field
+        // crashes the avatar render inside embedded DHIS2 apps
+        // (eregisters 1.1.12, Capture 101.x). Mirror the field so
+        // the avatar renders the user's initials without hitting
+        // {@code Cannot read properties of undefined (reading
+        // 'split')}.
+        body.put("name", user.displayName());
         body.put("firstName", user.displayName());
         body.put("surname", "");
         body.put("email", "");
@@ -59,6 +82,19 @@ public class MeController {
         final OrgUnitBindingService.EffectiveScope scope = svc == null
                 ? null : svc.effectiveScopeFor(user.userId());
         final List<Map<String, Object>> ous = ouList(scope);
+        // DHIS2 central ships each OU on /api/me with a {@code
+        // programs: [{id}]} array listing the programs accessible
+        // under that unit. eregisters' route guard
+        // {@code require-programs.ts} walks every OU and reads
+        // {@code unit.programs.length === 0}; an unset
+        // {@code programs} throws {@code Cannot read properties of
+        // undefined (reading 'length')} before the sync machine
+        // can even boot. Attach the full mirrored-program list
+        // (shallow id refs) to every OU so the guard sees non-empty.
+        final List<Map<String, String>> programRefs = programRefs();
+        for (final Map<String, Object> ou : ous) {
+            ou.put("programs", programRefs);
+        }
         body.put("organisationUnits", ous);
         body.put("dataViewOrganisationUnits", ous);
         body.put("teiSearchOrganisationUnits", ous);

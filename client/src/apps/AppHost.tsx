@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentType } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAppCatalogue, type CatalogueApp } from './catalogue';
 import { ensureInstalled, type InstallError } from './installer';
 
@@ -14,7 +14,17 @@ type Status =
    *  /dhis-web-<appKey>/ and must be mounted inside an iframe so
    *  they load their own HTML entry. Rendering inside the DER
    *  shell keeps nav, sign-in and session chrome consistent. */
-  | { kind: 'iframe'; src: string };
+  | { kind: 'iframe'; src: string }
+  /** The embedded DHIS2 app threw and DER swapped the iframe out
+   *  for a branded error card. Carries the collected details so
+   *  an operator can copy them for the ops channel. */
+  | { kind: 'iframe-crashed';
+      appKey: string;
+      appName: string;
+      src: string;
+      message: string;
+      stack: string | null;
+      capturedAt: string; };
 
 /**
  * ADR-0037 C-UI-5b — host that runs a DER-dispatched app.
@@ -132,6 +142,11 @@ export function AppHost(): JSX.Element {
       </div>
     );
   }
+  if (status.kind === 'iframe-crashed') {
+    return <IframeCrashCard status={status}
+                             onReload={() => setStatus({ kind: 'iframe',
+                                                         src: status.src })} />;
+  }
   if (status.kind === 'iframe') {
     // DHIS2 apps render their own @dhis2/ui HeaderBar on mount
     // (apps-menu icon, logout, profile, etc.). When embedded inside
@@ -142,16 +157,67 @@ export function AppHost(): JSX.Element {
     // Same-origin iframe → contentDocument is reachable without
     // CORS gymnastics. Idempotent: re-injection is a no-op because
     // the <style> id is checked first.
+    const appName = apps.find((a) => a.appKey === appKey)?.displayName ?? appKey;
+    const trapCrash = (message: string, stack: string | null): void => {
+      // Snapshot once — subsequent errors during unmount add noise
+      // without changing the operator's next step. React-StrictMode
+      // double-invoke on dev doesn't break this either because the
+      // state transition is idempotent for the same error payload.
+      setStatus((prev) => prev.kind === 'iframe' ? {
+        kind: 'iframe-crashed',
+        appKey, appName,
+        src: prev.src,
+        message, stack,
+        capturedAt: new Date().toISOString(),
+      } : prev);
+    };
     const onIframeLoad = (ev: React.SyntheticEvent<HTMLIFrameElement>): void => {
       const doc = ev.currentTarget.contentDocument;
+      const win = ev.currentTarget.contentWindow;
       if (!doc) return;
+      // Attach crash listeners on first paint. `error` catches
+      // synchronous throws (React render errors bubble up here via
+      // reportError); `unhandledrejection` catches the async
+      // sync-machine failures we just saw in eregisters (xstate's
+      // onError is propagated as an unhandled rejection when there's
+      // no handler).
+      if (win && !(win as unknown as { __derCrashHandled?: boolean })
+              .__derCrashHandled) {
+        (win as unknown as { __derCrashHandled: boolean })
+            .__derCrashHandled = true;
+        win.addEventListener('error', (e) => {
+          trapCrash(e.message || 'Unknown error',
+                  e.error instanceof Error ? e.error.stack ?? null : null);
+        });
+        win.addEventListener('unhandledrejection', (e) => {
+          const reason = e.reason;
+          const msg = reason instanceof Error ? reason.message
+                  : typeof reason === 'string' ? reason
+                  : 'Unhandled rejection';
+          const stack = reason instanceof Error ? reason.stack ?? null : null;
+          trapCrash(msg, stack);
+        });
+      }
       if (doc.getElementById('der-hide-dhis2-header')) return;
       const style = doc.createElement('style');
       style.id = 'der-hide-dhis2-header';
       // Targets every known DHIS2-shell header mount. The leading
       // comment is intentional — makes the rule trivially
       // discoverable in DevTools when an operator asks why.
+      // DHIS2 2.4x's @dhis2/ui HeaderBar renders as:
+      //   <header class="jsx-<hash>">
+      //     <div class="main">
+      //       [data-test="headerbar-logo" | "headerbar-title" | …]
+      //     </div>
+      //   </header>
+      // The outer <header> gets a styled-jsx class with a build-
+      // specific hash (no stable `.headerbar` class), so we target
+      // the header by its descendant data-test hooks via :has().
+      // All evergreen browsers support :has() since late 2023;
+      // Chromium / Firefox / Safari are green for the appliance's
+      // pinned client baseline.
       style.textContent = `/* DER: hide DHIS2 HeaderBar inside embedded apps */
+        header:has([data-test^="headerbar-"]),
         header.headerbar, .headerbar,
         [data-test="headerbar"],
         [data-test^="headerbar-"],
@@ -188,6 +254,75 @@ export function AppHost(): JSX.Element {
   return (
     <div className="der-apphost" data-test="der-apphost-ready">
       <Mod />
+    </div>
+  );
+}
+
+/**
+ * DER error envelope rendered in place of the DHIS2 iframe when the
+ * embedded app has thrown a top-level error (sync.ts crash, React
+ * boundary, unhandled promise rejection). Operators can't confuse
+ * "eregisters bug" with "DER bug" — the card is DER-branded and
+ * exposes the raw payload only via "Copy details" for ops escalation.
+ */
+function IframeCrashCard({ status, onReload }: {
+  status: Extract<Status, { kind: 'iframe-crashed' }>;
+  onReload: () => void;
+}): JSX.Element {
+  const navigate = useNavigate();
+  const [copied, setCopied] = useState(false);
+  const details = JSON.stringify({
+    app: status.appKey,
+    appName: status.appName,
+    capturedAt: status.capturedAt,
+    message: status.message,
+    stack: status.stack,
+  }, null, 2);
+  const onCopy = async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(details);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard write can fail on some sandboxed contexts; the
+      // details stay visible below so the operator can still grab
+      // them manually.
+    }
+  };
+  return (
+    <div className="der-apphost der-apphost--app-crashed"
+         data-test="der-apphost-iframe-crashed"
+         data-app-key={status.appKey}
+         style={{ padding: '2rem', maxWidth: 720, margin: '2rem auto' }}>
+      <h2 style={{ marginTop: 0 }}>
+        {status.appName} is not responding
+      </h2>
+      <p>
+        The app crashed while loading. Nothing on DER itself is
+        affected — other apps and your appliance remain available.
+      </p>
+      <div style={{ display: 'flex', gap: '0.5rem', margin: '1rem 0' }}>
+        <button type="button" onClick={onCopy}
+                data-test="der-apphost-iframe-crashed-copy">
+          {copied ? 'Copied' : 'Copy details'}
+        </button>
+        <button type="button" onClick={onReload}
+                data-test="der-apphost-iframe-crashed-reload">
+          Reload app
+        </button>
+        <button type="button" onClick={() => navigate('/apps')}
+                data-test="der-apphost-iframe-crashed-back">
+          Back to launcher
+        </button>
+      </div>
+      <details>
+        <summary>Error details (for support)</summary>
+        <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.8rem',
+                       overflow: 'auto', maxHeight: 240,
+                       background: '#f4f5f7', padding: '0.5rem' }}>
+          {details}
+        </pre>
+      </details>
     </div>
   );
 }

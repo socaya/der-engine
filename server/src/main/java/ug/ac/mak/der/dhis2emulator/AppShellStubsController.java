@@ -125,6 +125,19 @@ public class AppShellStubsController {
         return readSignInImage();
     }
 
+    /**
+     * Legacy Struts feature-detection probe used by very old DHIS2
+     * app shells (eregisters ships one at bootstrap). Modern apps
+     * swallow the 404, but returning an empty list here cleans up
+     * the DevTools console noise on every app load. Matches how
+     * DHIS2 central responds when no custom modules exist.
+     */
+    @GetMapping(path = "/dhis-web-commons/menu/getModules.action",
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> getModulesAction() {
+        return ResponseEntity.ok(Map.of("modules", List.of()));
+    }
+
     private ResponseEntity<byte[]> readSignInImage() {
         try {
             final Map<String, Object> row = jdbc.queryForMap(

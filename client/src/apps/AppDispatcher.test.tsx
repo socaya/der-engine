@@ -50,18 +50,22 @@ afterEach(() => {
 });
 
 describe('AppDispatcher', () => {
-  it('deep-links DHIS2_IFRAME entries to a new tab by default', async () => {
+  it('mounts DHIS2_IFRAME entries inside the DER shell by default', async () => {
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
-    vi.mocked(globalThis.fetch).mockResolvedValue(
-      catalogueResponse([IFRAME_APP]));
+    // Both AppDispatcher and AppHost run their own useAppCatalogue
+    // fetch, so the stub must yield a fresh Response per call (a
+    // single shared Response has a one-shot body stream).
+    vi.mocked(globalThis.fetch).mockImplementation(() =>
+      Promise.resolve(catalogueResponse([IFRAME_APP])));
     renderAt('who-anc');
-    // The dispatcher calls window.open and renders a holding message
-    // while the current tab navigates back to the catalogue.
-    await waitFor(() => expect(openSpy)
-      .toHaveBeenCalledWith('/dhis-web-who-anc/', '_blank',
-        'noopener,noreferrer'));
-    // The in-shell iframe host must NOT mount under the default
-    // (deep-link) launch mode.
+    // Default dispatch is AppHost's in-shell iframe branch (data-test
+    // der-apphost-iframe-<key>). Operators keep the DER chrome visible
+    // around the embedded DHIS2 app.
+    await waitFor(() => expect(
+      screen.queryByTestId('der-apphost-iframe-who-anc')).not.toBeNull());
+    // No new-tab deep-link under the default launch mode.
+    expect(openSpy).not.toHaveBeenCalled();
+    // The pinned-IFRAME IframeHost mount must NOT fire by default.
     expect(screen.queryByTestId('der-iframehost-frame')).toBeNull();
   });
 

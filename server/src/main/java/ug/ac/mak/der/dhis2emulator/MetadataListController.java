@@ -252,10 +252,53 @@ public class MetadataListController {
         return true;
     }
 
+    /**
+     * DHIS2 central's {@code /api/organisationUnits/{uid}} has two
+     * shapes:
+     * <ul>
+     *   <li>default — single OU object (just the row).</li>
+     *   <li>{@code ?includeDescendants=true} — wraps the OU + its
+     *       descendants in {@code {organisationUnits: [...]}}.</li>
+     * </ul>
+     * eregisters' bulk metadata pull uses the descendants shape to
+     * get the facility + any sub-clinics in one call. Returning the
+     * bare object there would leave eregisters reading
+     * {@code e.organisationUnits.organisationUnits} as undefined
+     * and {@code putRows} throwing {@code Cannot read properties
+     * of undefined (reading 'length')}.
+     */
     @GetMapping("/organisationUnits/{uid}")
-    public ResponseEntity<?> organisationUnit(final Authentication auth, @PathVariable final String uid) {
-        return single(auth, "organisationUnit", uid,
-                mirror.findOrganisationUnit(uid).map(MirroredEntity::payload));
+    public ResponseEntity<?> organisationUnit(final Authentication auth,
+                                                  @PathVariable final String uid,
+                                                  @RequestParam(name = "includeDescendants",
+                                                          defaultValue = "false")
+                                                      final boolean includeDescendants) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final var root = mirror.findOrganisationUnit(uid);
+        if (root.isEmpty()) {
+            return single(auth, "organisationUnit", uid, java.util.Optional.empty());
+        }
+        if (!includeDescendants) {
+            return ResponseEntity.ok(root.get().payload());
+        }
+        // Descendant walk: every OU whose `path` starts with this
+        // one's `path + "/"`, plus the root itself. The path
+        // prefix is cheap and avoids a recursive CTE.
+        final String rootPath = root.get().path();
+        final String descendantPrefix = rootPath == null
+                ? null : rootPath + "/";
+        final List<JsonNode> out = new ArrayList<>();
+        out.add(root.get().payload());
+        if (descendantPrefix != null) {
+            for (final var ou : mirror.findAllOrganisationUnits()) {
+                if (ou.path() != null && ou.path().startsWith(descendantPrefix)) {
+                    out.add(ou.payload());
+                }
+            }
+        }
+        return ResponseEntity.ok(Map.of("organisationUnits", out));
     }
 
     @GetMapping("/dataElements")
@@ -338,10 +381,82 @@ public class MetadataListController {
         return ResponseEntity.ok(buildList("programs", mirror.findAllPrograms(), page, pageSize));
     }
 
+    /**
+     * DHIS2 custom apps (eregisters' metadata sync, Capture) read
+     * {@code programs/{uid}} with a deep {@code fields=
+     * programStages[programStageDataElements[dataElement[...]]]}
+     * projection. The raw program payload stored by the metadata
+     * mirror keeps {@code programStages} as a shallow list of
+     * {@code {id}} references (that's how DHIS2 central ships the
+     * export), so a client that walks
+     * {@code programStages[0].programStageDataElements.map(...)}
+     * hits {@code .map} on undefined and crashes the whole app.
+     *
+     * <p>Hydrate here: inline each referenced stage's full payload
+     * from {@code der.metadata_program_stage.payload}. The
+     * stage-level payload already carries full
+     * {@code programStageDataElements} + {@code
+     * programStageSections} (with their own shallow {@code
+     * dataElement: {id}} refs, which eregisters reconciles client-
+     * side against its separate {@code dataElements} list pull).</p>
+     */
     @GetMapping("/programs/{uid}")
     public ResponseEntity<?> program(final Authentication auth, @PathVariable final String uid) {
-        return single(auth, "program", uid,
-                mirror.findProgram(uid).map(MirroredEntity::payload));
+        final var p = mirror.findProgram(uid).map(MirroredEntity::payload);
+        if (p.isEmpty()) {
+            return single(auth, "program", uid, p);
+        }
+        final JsonNode hydrated = hydrateProgramStages(p.get());
+        return single(auth, "program", uid, java.util.Optional.of(hydrated));
+    }
+
+    private JsonNode hydrateProgramStages(final JsonNode program) {
+        final JsonNode stages = program.get("programStages");
+        if (!(stages instanceof com.fasterxml.jackson.databind.node.ArrayNode)
+                || stages.size() == 0) {
+            return program;
+        }
+        final com.fasterxml.jackson.databind.ObjectMapper mapper =
+                new com.fasterxml.jackson.databind.ObjectMapper();
+        final com.fasterxml.jackson.databind.node.ArrayNode hydrated =
+                mapper.createArrayNode();
+        boolean anyMissing = false;
+        for (final JsonNode ref : stages) {
+            final JsonNode id = ref.get("id");
+            if (id == null || !id.isTextual()) {
+                hydrated.add(ref);
+                continue;
+            }
+            try {
+                final String payload = jdbc.queryForObject(
+                        "SELECT payload::text FROM der.metadata_program_stage "
+                                + "WHERE dhis2_uid = ?",
+                        String.class, id.asText());
+                if (payload == null) {
+                    hydrated.add(ref);
+                    anyMissing = true;
+                } else {
+                    hydrated.add(mapper.readTree(payload));
+                }
+            } catch (final org.springframework.dao.EmptyResultDataAccessException ex) {
+                hydrated.add(ref);
+                anyMissing = true;
+            } catch (final java.io.IOException ex) {
+                throw new IllegalStateException(
+                        "could not parse program_stage payload for "
+                                + id.asText(), ex);
+            }
+        }
+        if (anyMissing) {
+            // Partial hydration is still better than returning only
+            // {id} refs — eregisters tolerates a ProgramStage that's
+            // minimal provided the shape is right. Logged by the
+            // interceptor if it turns into a sync blocker.
+        }
+        final com.fasterxml.jackson.databind.node.ObjectNode out =
+                (com.fasterxml.jackson.databind.node.ObjectNode) program.deepCopy();
+        out.set("programStages", hydrated);
+        return out;
     }
 
     @GetMapping("/trackedEntityTypes")
@@ -533,7 +648,8 @@ public class MetadataListController {
 
     @GetMapping({
             "/optionSets", "/optionGroups", "/optionGroupSets",
-            "/categoryCombos", "/categoryOptions", "/categoryOptionGroups",
+            "/categories", "/categoryCombos",
+            "/categoryOptions", "/categoryOptionGroups",
             "/categoryOptionGroupSets",
             "/programIndicators", "/programRuleVariables",
             "/programSections",
@@ -564,7 +680,8 @@ public class MetadataListController {
 
     @GetMapping({
             "/optionSets/{uid}", "/optionGroups/{uid}", "/optionGroupSets/{uid}",
-            "/categoryCombos/{uid}", "/categoryOptions/{uid}", "/categoryOptionGroups/{uid}",
+            "/categories/{uid}", "/categoryCombos/{uid}",
+            "/categoryOptions/{uid}", "/categoryOptionGroups/{uid}",
             "/categoryOptionGroupSets/{uid}",
             "/programIndicators/{uid}", "/programRuleVariables/{uid}",
             "/programSections/{uid}",
