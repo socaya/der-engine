@@ -307,8 +307,10 @@ public class OperationsAdminController {
         final int purged = jr.purgeTerminalBefore(cutoff);
         audit.append(new AuditEvent("JOURNAL_RETENTION_PURGE",
                 AuditEvent.Outcome.SUCCESS, principal.userId(), null, null, null,
-                Map.of("olderThanDays", String.valueOf(capped),
-                        "rowsPurged", String.valueOf(purged))),
+                Map.of("source", "OPERATOR",
+                        "olderThanDays", String.valueOf(capped),
+                        "rowsPurged", String.valueOf(purged),
+                        "cutoff", cutoff.toString())),
                 Instant.now(clock));
         return ResponseEntity.ok(Map.of("rowsPurged", purged, "cutoff", cutoff.toString()));
     }
@@ -344,6 +346,62 @@ public class OperationsAdminController {
                 "observedAt", row.observedAt().toString(),
                 "rowsPurged", rowsPurged,
                 "olderThanDays", olderThanDays));
+    }
+
+    /**
+     * FR-09-10 evidence export. Returns the N most-recent
+     * {@code JOURNAL_RETENTION_PURGE} audit rows (operator- and
+     * scheduler-triggered) so compliance reviewers can see what was
+     * purged, when, by whom, and at which cutoff. Capped at 200 per
+     * request to keep the payload bounded.
+     */
+    @GetMapping(path = "/journal/purge/history")
+    public ResponseEntity<Map<String, Object>> purgeHistory(
+            final Authentication authentication,
+            @RequestParam(value = "limit", defaultValue = "50") final int limit) {
+        if (!(authentication instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final int capped = Math.max(1, Math.min(limit, 200));
+        final var rows = audit.findRecent("JOURNAL_RETENTION_PURGE", null, capped);
+        final java.util.List<Map<String, Object>> items = new java.util.ArrayList<>();
+        int totalRowsPurged = 0;
+        int scheduledRuns = 0;
+        int operatorRuns = 0;
+        for (final var row : rows) {
+            final Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("auditId", row.auditId());
+            m.put("observedAt", row.observedAt().toString());
+            m.put("actorUserId", row.actorUserId() == null ? null
+                    : row.actorUserId().toString());
+            String source = "UNKNOWN";
+            int rowsPurged = 0;
+            int olderThanDays = 0;
+            try {
+                final var detail = mapper.readTree(row.detailJson());
+                source = detail.path("source").asText("UNKNOWN");
+                rowsPurged = detail.path("rowsPurged").asInt(0);
+                olderThanDays = detail.path("olderThanDays").asInt(0);
+            } catch (Exception ignored) {
+                // tolerated — see lastPurge comment
+            }
+            m.put("source", source);
+            m.put("rowsPurged", rowsPurged);
+            m.put("olderThanDays", olderThanDays);
+            totalRowsPurged += rowsPurged;
+            if ("SCHEDULED".equals(source)) {
+                scheduledRuns++;
+            } else if ("OPERATOR".equals(source)) {
+                operatorRuns++;
+            }
+            items.add(m);
+        }
+        return ResponseEntity.ok(Map.of(
+                "count", items.size(),
+                "totalRowsPurged", totalRowsPurged,
+                "scheduledRuns", scheduledRuns,
+                "operatorRuns", operatorRuns,
+                "items", items));
     }
 
     /**
