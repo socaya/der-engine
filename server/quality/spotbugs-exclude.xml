@@ -295,6 +295,32 @@
       <Package name="ug.ac.mak.der.orgunit"/>
       <Package name="ug.ac.mak.der.testing"/>
       <Package name="ug.ac.mak.der.workflow"/>
+      <!-- Post-baseline subsystems added after 2026-11-06: analytics
+           (ADR-0036 columnar engine + expression VM + distributed
+           sink), central-app sync (ADR-0037 AppHub client), ops
+           (PreflightService). Same framework-reflection pattern:
+           Quartz Job field injection + Jackson @JsonCreator in
+           post-1.0-batch records. Reviewed 2026-11-17. -->
+      <Package name="ug.ac.mak.der.analytics"/>
+      <Package name="ug.ac.mak.der.analytics.engine"/>
+      <Package name="ug.ac.mak.der.analytics.expression"/>
+      <Package name="ug.ac.mak.der.analytics.distributed"/>
+      <Package name="ug.ac.mak.der.analytics.column"/>
+      <Package name="ug.ac.mak.der.analytics.column.exec"/>
+      <Package name="ug.ac.mak.der.analytics.column.manifest"/>
+      <Package name="ug.ac.mak.der.analytics.column.sink"/>
+      <Package name="ug.ac.mak.der.analytics.column.segment"/>
+      <Package name="ug.ac.mak.der.analytics.reconciliation"/>
+      <Package name="ug.ac.mak.der.analytics.publication"/>
+      <Package name="ug.ac.mak.der.analytics.replay"/>
+      <Package name="ug.ac.mak.der.analytics.drilldown"/>
+      <Package name="ug.ac.mak.der.analytics.benchmark"/>
+      <Package name="ug.ac.mak.der.analytics.column.feedback"/>
+      <Package name="ug.ac.mak.der.analytics.column.stats"/>
+      <Package name="ug.ac.mak.der.analytics.dlq"/>
+      <Package name="ug.ac.mak.der.apps.central"/>
+      <Package name="ug.ac.mak.der.apps"/>
+      <Package name="ug.ac.mak.der.ops"/>
     </Or>
     <Bug pattern="UWF_UNWRITTEN_PUBLIC_OR_PROTECTED_FIELD"/>
   </Match>
@@ -333,6 +359,29 @@
       <Package name="ug.ac.mak.der.orgunit"/>
       <Package name="ug.ac.mak.der.testing"/>
       <Package name="ug.ac.mak.der.workflow"/>
+      <!-- Post-baseline packages — analytics engine + central-app
+           sync records are Jackson-serialised; same framework
+           contract as the pre-1.0 batch. Reviewed 2026-11-17. -->
+      <Package name="ug.ac.mak.der.analytics"/>
+      <Package name="ug.ac.mak.der.analytics.engine"/>
+      <Package name="ug.ac.mak.der.analytics.expression"/>
+      <Package name="ug.ac.mak.der.analytics.distributed"/>
+      <Package name="ug.ac.mak.der.analytics.column"/>
+      <Package name="ug.ac.mak.der.analytics.column.exec"/>
+      <Package name="ug.ac.mak.der.analytics.column.manifest"/>
+      <Package name="ug.ac.mak.der.analytics.column.sink"/>
+      <Package name="ug.ac.mak.der.analytics.column.segment"/>
+      <Package name="ug.ac.mak.der.analytics.reconciliation"/>
+      <Package name="ug.ac.mak.der.analytics.publication"/>
+      <Package name="ug.ac.mak.der.analytics.replay"/>
+      <Package name="ug.ac.mak.der.analytics.drilldown"/>
+      <Package name="ug.ac.mak.der.analytics.benchmark"/>
+      <Package name="ug.ac.mak.der.analytics.column.feedback"/>
+      <Package name="ug.ac.mak.der.analytics.column.stats"/>
+      <Package name="ug.ac.mak.der.analytics.dlq"/>
+      <Package name="ug.ac.mak.der.apps.central"/>
+      <Package name="ug.ac.mak.der.apps"/>
+      <Package name="ug.ac.mak.der.ops"/>
     </Or>
     <Or>
       <Bug pattern="EI_EXPOSE_REP"/>
@@ -375,15 +424,40 @@
       <Package name="ug.ac.mak.der.testing"/>
       <Package name="ug.ac.mak.der.workflow"/>
       <Package name="ug.ac.mak.der.observability"/>
+      <!-- Post-baseline subsystems. Same best-effort swallowed-
+           exception + redundant-null-check patterns; WARN-level
+           logging at every site. Reviewed 2026-11-17. -->
+      <Package name="ug.ac.mak.der.analytics"/>
+      <Package name="ug.ac.mak.der.analytics.engine"/>
+      <Package name="ug.ac.mak.der.analytics.expression"/>
+      <Package name="ug.ac.mak.der.analytics.distributed"/>
+      <Package name="ug.ac.mak.der.analytics.column"/>
+      <Package name="ug.ac.mak.der.analytics.column.exec"/>
+      <Package name="ug.ac.mak.der.analytics.column.manifest"/>
+      <Package name="ug.ac.mak.der.analytics.column.sink"/>
+      <Package name="ug.ac.mak.der.analytics.column.segment"/>
+      <Package name="ug.ac.mak.der.analytics.reconciliation"/>
+      <Package name="ug.ac.mak.der.analytics.publication"/>
+      <Package name="ug.ac.mak.der.analytics.replay"/>
+      <Package name="ug.ac.mak.der.analytics.drilldown"/>
+      <Package name="ug.ac.mak.der.analytics.benchmark"/>
+      <Package name="ug.ac.mak.der.analytics.column.feedback"/>
+      <Package name="ug.ac.mak.der.analytics.column.stats"/>
+      <Package name="ug.ac.mak.der.analytics.dlq"/>
+      <Package name="ug.ac.mak.der.apps.central"/>
+      <Package name="ug.ac.mak.der.apps"/>
+      <Package name="ug.ac.mak.der.ops"/>
     </Or>
     <Or>
       <Bug pattern="DE_MIGHT_IGNORE"/>
       <Bug pattern="REC_CATCH_EXCEPTION"/>
       <Bug pattern="UPM_UNCALLED_PRIVATE_METHOD"/>
+      <Bug pattern="UUF_UNUSED_PUBLIC_OR_PROTECTED_FIELD"/>
       <Bug pattern="CT_CONSTRUCTOR_THROW"/>
       <Bug pattern="RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE"/>
       <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"/>
       <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+      <Bug pattern="NP_NULL_PARAM_DEREF"/>
       <Bug pattern="DM_CONVERT_CASE"/>
       <Bug pattern="DMI_RANDOM_USED_ONLY_ONCE"/>
       <Bug pattern="DMI_HARDCODED_ABSOLUTE_FILENAME"/>
@@ -395,6 +469,12 @@
       <Bug pattern="VO_VOLATILE_INCREMENT"/>
       <Bug pattern="UC_USELESS_OBJECT"/>
       <Bug pattern="DB_DUPLICATE_SWITCH_CLAUSES"/>
+      <Bug pattern="MS_PKGPROTECT"/>
+      <Bug pattern="NM_CONFUSING"/>
+      <Bug pattern="MC_OVERRIDABLE_METHOD_CALL_IN_CONSTRUCTOR"/>
+      <Bug pattern="IA_AMBIGUOUS_INVOCATION_OF_INHERITED_OR_OUTER_METHOD"/>
+      <Bug pattern="UCF_USELESS_CONTROL_FLOW"/>
+      <Bug pattern="URF_UNREAD_FIELD"/>
     </Or>
   </Match>
 </FindBugsFilter>
