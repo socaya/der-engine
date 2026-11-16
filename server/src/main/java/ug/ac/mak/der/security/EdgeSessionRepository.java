@@ -82,6 +82,19 @@ public class EdgeSessionRepository {
         );
     }
 
+    /**
+     * FR-02-10 — purge sessions that expired before {@code cutoff}.
+     * An expired session is already inactive per {@code isActive};
+     * this just reclaims the row so the table doesn't grow unbounded.
+     *
+     * @return rows deleted
+     */
+    public int purgeExpiredBefore(final Instant cutoff) {
+        return jdbc.update(
+                "DELETE FROM der.edge_session WHERE expires_at < ?",
+                Timestamp.from(cutoff));
+    }
+
     private static RowMapper<EdgeSession> rowMapper() {
         return (ResultSet rs, int rowNum) -> new EdgeSession(
                 rs.getObject("session_id", UUID.class),

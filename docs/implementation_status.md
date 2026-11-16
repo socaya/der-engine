@@ -494,7 +494,7 @@ All P0, all **🟡 PARTIAL** in audit (code present, non-goals in security harde
 | FR-02-07 | Deny first-time offline auth | ✅ DONE |
 | FR-02-08 | Update/disable users on central reconciliation | 🟡 PARTIAL |
 | FR-02-09 | Emergency-access procedure | 🟡 PARTIAL (bootstrap admin provisioner) |
-| FR-02-10 | Clock skew + token expiry fail-safe | 🟡 PARTIAL |
+| ~~FR-02-10~~ | ~~Clock skew + token expiry fail-safe~~ | ✅ DONE | Clock-skew side was already shipped (`SecurityProperties.ClockDrift` + `/admin/metrics/clock/report` with WARN_ONLY / REVOKE_SESSION / REVOKE_ALL_FOR_USER policies). Token-expiry side now surfaced: `SessionValidationService` emits `SESSION_VALIDATION_REJECTED` audit on every reject with `reason=SESSION_EXPIRED` or `SESSION_REVOKED` so operators can tell apart legitimate inactivity from a clock-drift incident; audit append failures are swallowed so a dead chain doesn't 500 every request. New `ExpiredSessionPurgeService` daily at 04:45 UTC reclaims rows (configurable `der.security.session.expired-retention-days`, default 7). Alternate ClockDrift policies pinned by new `ClockDriftAlternatePolicyTest` (WARN_ONLY doesn't revoke; REVOKE_ALL_FOR_USER calls `revokeAllForUser`). Full suite 2726 tests green. Live-smoked: expired `DER_SESSION` cookie → 401 + `SESSION_VALIDATION_REJECTED` audit row with `reason=SESSION_EXPIRED`. |
 
 ### FR-03 Authorisation (10 items, all P0)
 

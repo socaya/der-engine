@@ -121,4 +121,76 @@ class SessionValidationServiceTest {
                 Clock.fixed(NOW, ZoneOffset.UTC));
         assertThat(svc.resolve("x")).isEmpty();
     }
+
+    /**
+     * FR-02-10 — expired session rejection is a load-bearing
+     * fail-safe decision. This test pins that we emit a
+     * SESSION_VALIDATION_REJECTED audit event with reason=
+     * SESSION_EXPIRED so an operator can tell apart "user's
+     * cookie timed out" from "central revoked them" from
+     * "clock drift is burning sessions."
+     */
+    @Test
+    void expiredSessionAuditsReason() {
+        final EdgeUserRepository users = mock(EdgeUserRepository.class);
+        final EdgeSessionRepository sessions = mock(EdgeSessionRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        final UUID uid = UUID.randomUUID();
+        final EdgeSession expired = new EdgeSession(UUID.randomUUID(), uid, "h",
+                NOW.minusSeconds(600), NOW.minusSeconds(500), NOW.minusSeconds(60),
+                null, null, null);
+        when(sessions.findByTokenHash(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(Optional.of(expired));
+        final SessionValidationService svc = new SessionValidationService(users, sessions,
+                new SessionIssuer(), Clock.fixed(NOW, ZoneOffset.UTC));
+        svc.setAudit(audit);
+        svc.resolve("x");
+        verify(audit).append(org.mockito.ArgumentMatchers.argThat((AuditEvent e) ->
+                "SESSION_VALIDATION_REJECTED".equals(e.eventType())
+                        && e.outcome() == AuditEvent.Outcome.DENIED
+                        && "SESSION_EXPIRED".equals(e.detail().get("reason"))),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void revokedSessionAuditsReason() {
+        final EdgeUserRepository users = mock(EdgeUserRepository.class);
+        final EdgeSessionRepository sessions = mock(EdgeSessionRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        final UUID uid = UUID.randomUUID();
+        final EdgeSession revoked = new EdgeSession(UUID.randomUUID(), uid, "h",
+                NOW, NOW, NOW.plusSeconds(600), NOW.minusSeconds(10), null, null);
+        when(sessions.findByTokenHash(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(Optional.of(revoked));
+        final SessionValidationService svc = new SessionValidationService(users, sessions,
+                new SessionIssuer(), Clock.fixed(NOW, ZoneOffset.UTC));
+        svc.setAudit(audit);
+        svc.resolve("x");
+        verify(audit).append(org.mockito.ArgumentMatchers.argThat((AuditEvent e) ->
+                "SESSION_REVOKED".equals(e.detail().get("reason"))),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void auditFailureDoesNotPropagateToCaller() {
+        // Belt-and-braces: a dead audit chain must not cause a 500
+        // on every expired-cookie request. The resolve() call must
+        // still return empty.
+        final EdgeUserRepository users = mock(EdgeUserRepository.class);
+        final EdgeSessionRepository sessions = mock(EdgeSessionRepository.class);
+        final SecurityAuditRepository audit = mock(SecurityAuditRepository.class);
+        final UUID uid = UUID.randomUUID();
+        final EdgeSession expired = new EdgeSession(UUID.randomUUID(), uid, "h",
+                NOW.minusSeconds(600), NOW.minusSeconds(500), NOW.minusSeconds(60),
+                null, null, null);
+        when(sessions.findByTokenHash(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(Optional.of(expired));
+        org.mockito.Mockito.doThrow(new RuntimeException("audit chain down"))
+                .when(audit).append(org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any());
+        final SessionValidationService svc = new SessionValidationService(users, sessions,
+                new SessionIssuer(), Clock.fixed(NOW, ZoneOffset.UTC));
+        svc.setAudit(audit);
+        assertThat(svc.resolve("x")).isEmpty();
+    }
 }

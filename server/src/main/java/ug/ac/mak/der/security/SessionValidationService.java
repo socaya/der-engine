@@ -21,6 +21,13 @@ public class SessionValidationService {
     private final SessionIssuer sessionIssuer;
     private final Clock clock;
 
+    private SecurityAuditRepository audit;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setAudit(final SecurityAuditRepository a) {
+        this.audit = a;
+    }
+
     public SessionValidationService(final EdgeUserRepository users,
                                     final EdgeSessionRepository sessions,
                                     final SessionIssuer sessionIssuer,
@@ -49,6 +56,27 @@ public class SessionValidationService {
         final EdgeSession session = maybeSession.get();
         final Instant now = Instant.now(clock);
         if (!session.isActive(now)) {
+            // FR-02-10 — explicit fail-safe decision: an expired or
+            // revoked session MUST reject the request, no grace
+            // window. Emit an audit event so operators can see
+            // whether an expiry-rejection volume spike indicates a
+            // clock-drift incident or legitimate inactivity.
+            if (audit != null) {
+                final String reason = session.revokedAt() != null
+                        ? "SESSION_REVOKED" : "SESSION_EXPIRED";
+                try {
+                    audit.append(new AuditEvent("SESSION_VALIDATION_REJECTED",
+                            AuditEvent.Outcome.DENIED,
+                            null, session.userId(), null, null,
+                            java.util.Map.of(
+                                    "sessionId", session.sessionId().toString(),
+                                    "reason", reason,
+                                    "expiresAt", session.expiresAt().toString())),
+                            now);
+                } catch (final RuntimeException ignored) {
+                    // Rejection must not fail on audit error.
+                }
+            }
             return Optional.empty();
         }
         final Optional<EdgeUser> maybeUser = users.findById(session.userId());
