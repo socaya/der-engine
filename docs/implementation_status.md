@@ -590,7 +590,7 @@ All **🟡 PARTIAL** — ADR-0017 Phase 10 hardening (TLS enforce, PII mask, bac
 | NFR-02 | No acknowledged commit lost | P0 | 📋 DESIGN-ONLY | Journal design |
 | NFR-03 | Business change + journal persist together | P0 | 📋 DESIGN-ONLY | `@Transactional` sites |
 | NFR-04 | Zero invalid references or silent lost updates | P0 | 🧱 SCAFFOLD | — |
-| NFR-05 | 100% forbidden access rejected | P0 | 🟡 PARTIAL | Spring Security filter chain |
+| ~~NFR-05~~ | ~~100% forbidden access rejected~~ | P0 | ✅ DONE | New `scripts/evaluation/forbidden_access_matrix.py` walks a pinned (role × path × method) grid against a running DER, 36 probes per run, exits non-zero + emits evidence JSON on any violation. Discovery fix during pin: Spring's `/<prefix>/**` doesn't match the bare `/<prefix>` so the sync metadata/data/drift branches needed dual matchers — SecurityConfig tightened. Scenario spec at `tests/security/nfr-05-forbidden-access-matrix.md`. |
 | NFR-06 | Transport + credential + log + storage protection | P0 | 🟡 PARTIAL | ADR-0017 part 1 |
 | ~~NFR-07~~ | ~~Every acknowledged commit retrievable by second client~~ | P0 | ✅ DONE | `Nfr07TwoClientRetrievalScenarioTest` — MockMvc two-session scenario walking the full HTTP stack. Alice POSTs `/api/dataValueSets`, write sink captures the row; Bob GETs on his own cookie, repo returns Alice's row. Pins value preservation + `stored_by=Alice.userId` across readers + `lastUpdated==submittedAt` + 401 for anonymous. Scenario spec at `tests/security/nfr-07-two-client-local-retrieval.md`. Complementary to NFR-32's architectural no-central-coupling pin. |
 | NFR-08 | Deterministic equivalent edge + central effects | P0 | 📋 DESIGN-ONLY | `JournalPublisher` + capability matrix |

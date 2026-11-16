@@ -165,9 +165,19 @@ public class SecurityConfig {
                         // Fine-grained split: metadata sync vs inbound data pull are
                         // separate authorities, but both fall under /sync/** paths.
                         // SYNC_WORKER holds both; REVIEWER holds neither.
-                        .requestMatchers("/edge-api/v1/sync/metadata/**").hasAuthority("der.sync.metadata.run")
-                        .requestMatchers("/edge-api/v1/sync/data/**").hasAuthority("der.sync.data.run")
-                        .requestMatchers("/edge-api/v1/sync/drift/**").hasAuthority("der.sync.drift.resolve")
+                        // NFR-05 pin — Spring's `/<prefix>/**` does NOT
+                        // match `/<prefix>` itself, so we list both so the
+                        // tighter authority applies to the bare path AND
+                        // anything nested.
+                        .requestMatchers("/edge-api/v1/sync/metadata",
+                                         "/edge-api/v1/sync/metadata/**")
+                                .hasAuthority("der.sync.metadata.run")
+                        .requestMatchers("/edge-api/v1/sync/data",
+                                         "/edge-api/v1/sync/data/**")
+                                .hasAuthority("der.sync.data.run")
+                        .requestMatchers("/edge-api/v1/sync/drift",
+                                         "/edge-api/v1/sync/drift/**")
+                                .hasAuthority("der.sync.drift.resolve")
                         .requestMatchers("/edge-api/v1/sync/**").hasAuthority("der.sync.read")
                         .requestMatchers("/edge-api/v1/backup/**").hasAuthority("der.backup.trigger")
                         .requestMatchers("/edge-api/v1/restore/**").hasAuthority("der.restore.execute")

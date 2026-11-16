@@ -162,7 +162,7 @@ because they require a measurement run that can only happen on
 pilot hardware or against a seeded reference corpus that doesn't
 exist yet. No code changes are expected; the tasks are:
 
-### NFR-05 — 100% forbidden access rejected
+### ~~NFR-05~~ — 100% forbidden access rejected ✅ DONE
 
 Spring Security filter chain is in place with role + scope
 interceptors (`OrgUnitScopeInterceptor`, `SecurityConfig`). Gap:
