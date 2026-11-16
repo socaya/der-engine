@@ -41,11 +41,27 @@ public class StorageAdmissionInterceptor implements HandlerInterceptor {
             return true;
         }
         final String path = request.getRequestURI();
-        if (path == null || !path.startsWith("/edge-api/")) {
+        if (path == null) {
+            return true;
+        }
+        // NFR-30 — also gate the DHIS2-emulated write surfaces
+        // (/api/dataValueSets, /api/events, /api/tracker). These
+        // are the hot paths that persist to operation_journal; if
+        // storage is below the reject threshold, acknowledging
+        // them would violate "never report false success."
+        if (!path.startsWith("/edge-api/") && !path.startsWith("/api/")) {
             return true;
         }
         if (path.startsWith("/edge-api/v1/auth/")
                 || path.startsWith("/edge-api/v1/admin/ops/")) {
+            return true;
+        }
+        // DHIS2 /api/* exemptions: auth-adjacent + settings
+        // writes that just update a kv row. Keep the heavy
+        // mutation paths (dataValueSets, events, tracker) gated.
+        if (path.equals("/api/me")
+                || path.startsWith("/api/userSettings")
+                || path.startsWith("/api/systemSettings")) {
             return true;
         }
         final StorageHealthProbe.Snapshot s = probe.sample();

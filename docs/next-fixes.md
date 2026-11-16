@@ -219,7 +219,7 @@ policy actually denies after N days offline.
 test `Clock` bean — advance 31 days, hit `/auth/sign-in`, assert
 403 with `DER-Offline-Credential-Expired` header.
 
-### NFR-30 — Fail-safe acceptance under storage pressure
+### ~~NFR-30~~ — Fail-safe acceptance under storage pressure ✅ DONE
 
 `StorageAdmissionInterceptor` already returns 507 when
 `StorageHealthProbe` reports REJECT (FR-14-09). Gap: no

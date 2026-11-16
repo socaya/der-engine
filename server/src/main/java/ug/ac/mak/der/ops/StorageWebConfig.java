@@ -31,6 +31,6 @@ public class StorageWebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(final InterceptorRegistry registry) {
         registry.addInterceptor(storageAdmissionInterceptor())
-                .addPathPatterns("/edge-api/**");
+                .addPathPatterns("/edge-api/**", "/api/**");
     }
 }
