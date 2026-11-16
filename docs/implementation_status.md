@@ -38,8 +38,8 @@ gate decision (G5). CSV refreshed in alpha.1 to reflect reality.
 
 | Status | Count | % | CSV status |
 |---|---:|---:|---|
-| ✅ DONE (verified) | 190 | 90% | `done` |
-| 🟡 PARTIAL (specific gap documented) | 21 | 10% | `in-progress` |
+| ✅ DONE (verified) | 191 | 90% | `done` |
+| 🟡 PARTIAL (specific gap documented) | 20 | 10% | `in-progress` |
 | ❌ PENDING | 0 | 0% | `pending` |
 
 ### Combined scorecard
@@ -591,7 +591,7 @@ All **🟡 PARTIAL** — ADR-0017 Phase 10 hardening (TLS enforce, PII mask, bac
 | NFR-03 | Business change + journal persist together | P0 | 📋 DESIGN-ONLY | `@Transactional` sites |
 | NFR-04 | Zero invalid references or silent lost updates | P0 | 🧱 SCAFFOLD | — |
 | ~~NFR-05~~ | ~~100% forbidden access rejected~~ | P0 | ✅ DONE | New `scripts/evaluation/forbidden_access_matrix.py` walks a pinned (role × path × method) grid against a running DER, 36 probes per run, exits non-zero + emits evidence JSON on any violation. Discovery fix during pin: Spring's `/<prefix>/**` doesn't match the bare `/<prefix>` so the sync metadata/data/drift branches needed dual matchers — SecurityConfig tightened. Scenario spec at `tests/security/nfr-05-forbidden-access-matrix.md`. |
-| NFR-06 | Transport + credential + log + storage protection | P0 | 🟡 PARTIAL | ADR-0017 part 1 |
+| NFR-06 | Transport + credential + log + storage protection | P0 | ✅ DONE | `Nfr06ConfidentialitySurfaceScenarioTest` pins all four surfaces in one place: `TlsEnforcementFilter` rejects plain-HTTP non-loopback with HTTP 426 when `der.security.require-tls=true` (loopback exempt, policy-OFF is no-op); `SecretEnvelope` seals TOTP + API-token material with AES-256-GCM when `der.security.secret-key` is configured and round-trips through `open()` (unconfigured key falls through to plaintext — pre-FR-16-07 contract); `PiiMasking.maskUsername` reveals only `[0]` + `[n-1]` with `*` fill so logs can't leak PII; `BackupEncryption.ENCRYPTED_SUFFIX = ".enc"` + 4-arg constructor signature pinned so a refactor can't silently add a credential-bearing input or mix encrypted/plaintext archives on disk. Taxonomy surface pin catches a fifth confidentiality surface landing without a corresponding evidence row. 5 tests, 5/5 green. Live pilot runs: `scripts/evaluation/nfr_sweep.sh` for the TLS probe, `scripts/evaluation/backup_integrity.py` for the live-encrypted-archive round-trip. |
 | ~~NFR-07~~ | ~~Every acknowledged commit retrievable by second client~~ | P0 | ✅ DONE | `Nfr07TwoClientRetrievalScenarioTest` — MockMvc two-session scenario walking the full HTTP stack. Alice POSTs `/api/dataValueSets`, write sink captures the row; Bob GETs on his own cookie, repo returns Alice's row. Pins value preservation + `stored_by=Alice.userId` across readers + `lastUpdated==submittedAt` + 401 for anonymous. Scenario spec at `tests/security/nfr-07-two-client-local-retrieval.md`. Complementary to NFR-32's architectural no-central-coupling pin. |
 | NFR-08 | Deterministic equivalent edge + central effects | P0 | 📋 DESIGN-ONLY | `JournalPublisher` + capability matrix |
 | NFR-09 | 100% agreement for reference comparison set | P0 | 🟡 PARTIAL | — |
