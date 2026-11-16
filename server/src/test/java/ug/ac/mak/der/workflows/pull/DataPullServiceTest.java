@@ -96,6 +96,14 @@ class DataPullServiceTest {
                 any(), any());
         verify(cursors).markSuccess(eq(DataPullCursor.EntityType.TRACKER), anyString(),
                 any(), any());
+        // FR-11-09 invariant — the failing EVENT stream MUST NOT
+        // have markSuccess called. A silent cursor advance on
+        // failure would skip the row central didn't yet acknowledge
+        // on the next tick. This pin fails if anyone later "optimises"
+        // the catch block to update the cursor for retry-tracking
+        // without reading the FR.
+        verify(cursors, org.mockito.Mockito.never())
+                .markSuccess(eq(DataPullCursor.EntityType.EVENT), any(), any(), any());
     }
 
     @Test

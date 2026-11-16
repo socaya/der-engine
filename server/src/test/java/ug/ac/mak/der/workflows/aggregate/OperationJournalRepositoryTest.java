@@ -154,6 +154,34 @@ class OperationJournalRepositoryTest {
                 any(org.springframework.jdbc.core.RowMapper.class), eq(10));
     }
 
+    /**
+     * FR-11-10 invariant — the drain-ready query MUST short-circuit
+     * when an operation's {@code supersedes} target is still
+     * non-terminal. This test pins the SQL predicate shape so a
+     * future refactor can't silently drop the ordering guard.
+     */
+    @Test
+    void findPendingReadyToDrainPredicatePreservesSupersedesGuard() {
+        final JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(jdbc.query(anyString(), any(RowMapper.class), eq(10)))
+                .thenReturn(List.of());
+        new OperationJournalRepository(jdbc, json).findPendingReadyToDrain(10);
+        verify(jdbc).query(
+                org.mockito.ArgumentMatchers.contains("supersedes IS NULL"),
+                any(RowMapper.class), eq(10));
+        verify(jdbc).query(
+                org.mockito.ArgumentMatchers.contains("NOT EXISTS"),
+                any(RowMapper.class), eq(10));
+        // Terminal states must NOT appear in the guard's state filter
+        // (CENTRAL_ACCEPTED / CENTRAL_REJECTED would mean "the parent
+        // already drained — proceed"). Pin the exact state tuple so
+        // adding a new state without rethinking the dep-chain fails.
+        verify(jdbc).query(
+                org.mockito.ArgumentMatchers.contains(
+                        "'PENDING', 'IN_FLIGHT', 'RETRYABLE', 'UNKNOWN_OUTCOME'"),
+                any(RowMapper.class), eq(10));
+    }
+
     @Test
     void findPendingReadyToDrainCapsLimits() {
         final JdbcTemplate jdbc = mock(JdbcTemplate.class);

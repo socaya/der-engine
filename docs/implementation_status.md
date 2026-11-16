@@ -266,7 +266,16 @@ local DHIS2 2.44-SNAPSHOT pilot stack:
   enforces the `supersedes` chain so an entry cannot drain until its
   prerequisite is centrally acknowledged. ADR-0025/0026 formalises
   the invariant; next-hop referrals (ADR-0027) preserve ordering
-  across edge-to-edge chains.
+  across edge-to-edge chains. Pinned by
+  `OperationJournalRepositoryTest#findPendingReadyToDrainPredicatePreservesSupersedesGuard`
+  (predicate text + non-terminal state tuple).
+- **FR-11-09 Persist sync cursors only after associated effects are
+  durably acknowledged.** `DataPullService.pullAll` calls
+  `markSuccess` only on puller success and `markFailure` on any
+  thrown exception; per-entity isolation means a 502 on EVENT cannot
+  advance the EVENT cursor even if AGGREGATE + TRACKER succeed.
+  Pinned by `DataPullServiceTest#pullerExceptionMarksFailureNotSuccess`
+  (explicit `never()` on `markSuccess(EVENT, ...)`).
 
 ## Alpha.1 (this release — der-2.0.2-alpha.1)
 
@@ -434,7 +443,7 @@ DHIS2_IFRAME unsigned + verify skipped. Central-side signing
 | ~~FR-09-10~~ | ~~Journal purge policy exists; retention knob + evidence export not formalised~~ — ✅ **DONE** as of 2026-11-16 (commit `efa598ea`); new `JournalRetentionService` runs daily at 04:15 with configurable `der.journal.retention-days` (default 90); evidence-export endpoint `GET /admin/ops/journal/purge/history` aggregates per-source counters; pinned invariant test that unresolved states (PENDING / IN_FLIGHT / RETRYABLE / UNKNOWN_OUTCOME / CONFLICT_REVIEW) are never purged. |
 | ~~FR-10-04 / FR-10-05~~ | ~~Approved-merge path + no-silent-last-write-wins — gated by APPROVER role, acceptance ADR but not programmatic enforcement test~~ — ✅ **DONE** as of 2026-11-16 (commit `4cf13d19`); 4 new invariant tests pin the whitelist (resolve refuses every non-CONFLICT_REVIEW state), rationale preservation, enum rigidity (no AUTO_MERGE / LATEST_WINS outcome), and append-only re-journal (new operation id via `supersedes`, never in-place state mutation). |
 | FR-10-10 | Precision/recall measurement needs seeded conflict corpus — scripts/evaluation stub only |
-| FR-11-09 / FR-11-10 | Cursor-after-effects + ordering — supersedes column shipped alpha.2; cross-entity ordering not formalised |
+| ~~FR-11-09 / FR-11-10~~ | ~~Cursor-after-effects + ordering — supersedes column shipped alpha.2; cross-entity ordering not formalised~~ — ✅ **DONE** as of 2026-11-16; invariants pinned by test: `OperationJournalRepositoryTest#findPendingReadyToDrainPredicatePreservesSupersedesGuard` pins the SQL predicate (both `supersedes IS NULL` and `NOT EXISTS` clauses, plus the exact non-terminal state tuple) so an accidental refactor can't silently drop the FR-11-10 ordering guard; `DataPullServiceTest#pullerExceptionMarksFailureNotSuccess` pins FR-11-09 — `markSuccess` MUST NOT fire on a failing puller stream (explicit `never()` assertion for the failed EVENT entity type). Cross-entity ordering trade-off (TEI → ENROLLMENT → EVENT) is documented inline in `OperationJournalRepository.findPendingReadyToDrain` as a deliberate deferral to `TrackerGraphReconciler` post-hoc handling, not a bug. |
 | ~~FR-13-02..09~~ | ~~Inbound pull — MetadataSyncService covers metadata; data-value pull back from central (reconciliation) not shipped~~ — ✅ **DONE**: FR-13-01/03/04/05/09 shipped via `AggregatePuller` / `EventPuller` / `TrackerPuller` + `DataPullCursorRepository`; FR-13-06 via `MetadataSyncService`; FR-13-07 via the User Scope viewer (FR-15-06); FR-13-08 for events shipped Phase 7, for aggregates as of commit `34c81c1b` — `AggregatePuller.sweepDeletions` emits `AGGREGATE_DIVERGENCE_CENTRAL_DELETED` when a previously-CENTRAL_ACCEPTED row is missing from central. |
 | FR-14-06..10 | Backup/restore runbook exists; integrity verification + storage-alarm + full drift procedures deferred to pilot |
 | FR-16-07 | Backup encryption shipped (ADR-0017); DB-level TDE / full data-at-rest sweep deferred |

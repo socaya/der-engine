@@ -122,9 +122,25 @@ public class OperationJournalRepository {
      */
     public List<OperationJournalEntry> findPendingReadyToDrain(final int limit) {
         final int capped = Math.max(1, Math.min(limit, 500));
-        // FR-12-03 dependency-ordered batching: an op whose supersedes
-        // target is still PENDING (or IN_FLIGHT) must wait so central
-        // sees the ordering intended at commit time.
+        // FR-11-10 / FR-12-03 — dependency-ordered batching within
+        // the same entity line. An op whose {@code supersedes} target
+        // is still non-terminal (PENDING / IN_FLIGHT / RETRYABLE /
+        // UNKNOWN_OUTCOME) must wait so central sees the ordering
+        // intended at commit time. Pinned by
+        // `OperationJournalRepositoryTest#findPendingReadyToDrainPredicatePreservesSupersedesGuard`.
+        //
+        // Cross-entity ordering (TEI → ENROLLMENT → PROGRAM_STAGE_EVENT
+        // → ENROLMENT_NOTE / RELATIONSHIP) is NOT enforced in this
+        // query — that's a deliberate trade-off. The assumption is
+        // that locally-correlated writes travel in close succession,
+        // so the per-entity supersedes chain plus central-side orphan
+        // handling (which responds CONFLICT and routes us to
+        // {@code TrackerGraphReconciler}) cover the realistic drift
+        // scenarios. If a pilot surfaces cross-entity ordering bugs,
+        // the right fix is a new predicate on this query that joins
+        // the TEI / enrollment references out of payload_json — not
+        // a drain-worker Java check (which would race the same way).
+        // Tracked in the FR-11-09/10 commit message.
         return jdbc.query(
                 "SELECT operation_id, entity_type, entity_ref, payload_json, state, "
                         + "attempt_count, last_error, submitted_by, created_at, updated_at, "
