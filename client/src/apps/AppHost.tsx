@@ -8,7 +8,13 @@ type Status =
   | { kind: 'unknown-app' }
   | { kind: 'install-error'; code: InstallError['code']; message: string }
   | { kind: 'import-error'; message: string }
-  | { kind: 'ready'; Mod: ComponentType };
+  | { kind: 'ready'; Mod: ComponentType }
+  /** DHIS2 custom apps (ADR-0005) are standard DHIS2 bundles that
+   *  can't be imported as ES modules. They're served at
+   *  /dhis-web-<appKey>/ and must be mounted inside an iframe so
+   *  they load their own HTML entry. Rendering inside the DER
+   *  shell keeps nav, sign-in and session chrome consistent. */
+  | { kind: 'iframe'; src: string };
 
 /**
  * ADR-0037 C-UI-5b — host that runs a DER-dispatched app.
@@ -41,6 +47,16 @@ export function AppHost(): JSX.Element {
     }
     if (!entry) {
       setStatus({ kind: 'unknown-app' });
+      return;
+    }
+    // DHIS2 custom apps (ADR-0005) can't be ESM-imported — they're
+    // standalone bundles with their own HTML entry served at
+    // /dhis-web-<key>/. Mount them in an iframe inside the DER
+    // shell so launcher → in-shell render stays uniform across
+    // DER_ESM and DHIS2 apps.
+    if (entry.hostKind === 'DHIS2_IFRAME') {
+      const src = entry.launchUrl ?? `/dhis-web-${entry.appKey}/`;
+      setStatus({ kind: 'iframe', src });
       return;
     }
     let revoked = false;
@@ -113,6 +129,23 @@ export function AppHost(): JSX.Element {
            data-test="der-apphost-import-error">
         <h2>App bundle failed to load</h2>
         <p>{status.message}</p>
+      </div>
+    );
+  }
+  if (status.kind === 'iframe') {
+    return (
+      <div className="der-apphost der-apphost--iframe"
+           data-test="der-apphost-iframe"
+           style={{ width: '100%', height: '100%',
+                    display: 'flex', flexDirection: 'column' }}>
+        <iframe src={status.src}
+                title={`DHIS2 app: ${appKey}`}
+                data-test={`der-apphost-iframe-${appKey}`}
+                style={{ flex: 1, width: '100%',
+                         height: '100%', border: 0,
+                         minHeight: 'calc(100vh - 60px)' }}
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
+                allow="clipboard-read; clipboard-write" />
       </div>
     );
   }

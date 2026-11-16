@@ -109,4 +109,35 @@ describe('AppHost', () => {
     await waitFor(() => expect(installer.ensureInstalled)
       .toHaveBeenCalledWith(expect.objectContaining({ appKey: 'hello' })));
   });
+
+  it('renders DHIS2_IFRAME apps inside an iframe in the DER shell', async () => {
+    // DHIS2 custom apps (ADR-0005) cannot be ESM-imported — they
+    // serve raw HTML from /dhis-web-<key>/. AppHost must detect
+    // hostKind=DHIS2_IFRAME and mount the iframe inside the shell
+    // instead of hitting the installer. Pins the Launcher →
+    // /apps/<key> → in-shell render invariant so DHIS2 apps don't
+    // break out of the DER chrome.
+    const ensureSpy = vi.spyOn(installer, 'ensureInstalled');
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(catalogueResponse([{
+      appId: 'id-er', appKey: 'eregisters', displayName: 'eRegisters',
+      module: null, version: '1.1.12',
+      bundleUrl: '/dhis-web-eregisters/', bundleSha256: '',
+      signatureB64: '', requiresDerApi: '',
+      iconUrl: null,
+      hostKind: 'DHIS2_IFRAME', source: 'MANUAL_UPLOAD',
+      trustLevel: 'UNSIGNED',
+      launchUrl: '/dhis-web-eregisters/',
+      launchMode: 'DEEPLINK',
+    }]));
+    renderAt('eregisters');
+    await waitFor(() => expect(
+        screen.getByTestId('der-apphost-iframe-eregisters'))
+      .toBeInTheDocument());
+    const iframe = screen.getByTestId('der-apphost-iframe-eregisters');
+    expect(iframe.getAttribute('src')).toBe('/dhis-web-eregisters/');
+    expect(iframe.getAttribute('title')).toBe('DHIS2 app: eregisters');
+    // The installer path MUST NOT fire for DHIS2 apps — they have
+    // no signed bundle to fetch.
+    expect(ensureSpy).not.toHaveBeenCalled();
+  });
 });
