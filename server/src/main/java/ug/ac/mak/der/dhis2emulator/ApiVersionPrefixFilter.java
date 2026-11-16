@@ -52,21 +52,41 @@ public class ApiVersionPrefixFilter extends OncePerRequestFilter {
     private static final Pattern VERSION_PREFIX =
             Pattern.compile("^/api/v?(\\d{2,3})/(.*)$");
 
+    /** DHIS2 clients commonly append {@code .json} as a content-type
+     *  override hint (e.g. {@code /api/44/programRules.json}). Our
+     *  controllers rely on Spring content-negotiation + the {@code
+     *  Accept} header, so the suffix is pure sugar — strip it here. */
+    private static final Pattern JSON_SUFFIX =
+            Pattern.compile("^(/api/.+)\\.json$");
+
     @Override
     protected void doFilterInternal(final HttpServletRequest request,
                                         final HttpServletResponse response,
                                         final FilterChain chain)
             throws ServletException, IOException {
-        final String uri = request.getRequestURI();
-        final Matcher m = VERSION_PREFIX.matcher(uri);
-        if (!m.matches()) {
+        String uri = request.getRequestURI();
+        boolean rewrote = false;
+        // 1. Strip the DHIS2 API version prefix.
+        final Matcher ver = VERSION_PREFIX.matcher(uri);
+        if (ver.matches()) {
+            uri = "/api/" + ver.group(2);
+            rewrote = true;
+        }
+        // 2. Strip a trailing .json content-type sugar suffix. Applied
+        //    AFTER the version strip so the combined form works:
+        //    `/api/44/programRules.json` → `/api/programRules`.
+        final Matcher sfx = JSON_SUFFIX.matcher(uri);
+        if (sfx.matches()) {
+            uri = sfx.group(1);
+            rewrote = true;
+        }
+        if (!rewrote) {
             chain.doFilter(request, response);
             return;
         }
-        final String rest = m.group(2);
-        final String forward = "/api/" + rest;
-        LOG.debug("DHIS2 app-runtime versioned request: {} -> {}",
-                uri, forward);
+        final String forward = uri;
+        LOG.debug("DHIS2 app-runtime request rewrite: {} -> {}",
+                request.getRequestURI(), forward);
         // Preserve the query string via request.getRequestDispatcher.
         final RequestDispatcher dispatcher = request.getRequestDispatcher(forward);
         if (dispatcher == null) {

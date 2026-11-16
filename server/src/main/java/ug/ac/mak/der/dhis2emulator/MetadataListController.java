@@ -449,6 +449,50 @@ public class MetadataListController {
         return body;
     }
 
+    /**
+     * DHIS2 custom apps (eregisters, Capture) commonly fetch
+     * {@code /api/options?fields=...} on bootstrap to populate
+     * option-set dropdowns, and {@code
+     * /api/categoryCombos/<uid>/categoryOptionCombos} to resolve
+     * disaggregation axes. DER doesn't mirror the Option table
+     * directly (options travel with option sets), and the nested
+     * categoryOptionCombos lookup isn't shipped yet. Both return
+     * empty-but-well-formed DHIS2 shapes so the app gets a 200
+     * and continues bootstrap instead of hanging on retry loops.
+     *
+     * <p>If an operator needs real values, they come through the
+     * existing {@code /api/optionSets/<uid>} and
+     * {@code /api/categoryOptionCombos} endpoints.</p>
+     */
+    @GetMapping("/options")
+    public ResponseEntity<Map<String, Object>> options(
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final Map<String, Object> pager = new LinkedHashMap<>();
+        pager.put("page", 1);
+        pager.put("pageSize", 50);
+        pager.put("total", 0);
+        pager.put("pageCount", 0);
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("pager", pager);
+        body.put("options", java.util.List.of());
+        return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/categoryCombos/{uid}/categoryOptionCombos")
+    public ResponseEntity<Map<String, Object>> categoryOptionCombosForCombo(
+            final Authentication auth,
+            @PathVariable("uid") final String uid) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("categoryOptionCombos", java.util.List.of());
+        return ResponseEntity.ok(body);
+    }
+
     // ─── Catalog-backed resources (V030 der-2.0.17) ──────────────────
 
     @GetMapping({
