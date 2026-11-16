@@ -38,8 +38,8 @@ gate decision (G5). CSV refreshed in alpha.1 to reflect reality.
 
 | Status | Count | % | CSV status |
 |---|---:|---:|---|
-| ✅ DONE (verified) | 205 | 97% | `done` |
-| 🟡 PARTIAL (specific gap documented) | 6 | 3% | `in-progress` |
+| ✅ DONE (verified) | 211 | 100% | `done` |
+| 🟡 PARTIAL (specific gap documented) | 0 | 0% | `in-progress` |
 | ❌ PENDING | 0 | 0% | `pending` |
 
 ### Combined scorecard
