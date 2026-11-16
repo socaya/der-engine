@@ -1,0 +1,24 @@
+{
+  "endpoint": "/api/system/info",
+  "method": "GET",
+  "centralVersion": "2.44-SNAPSHOT",
+  "capturedAt": "2026-11-16T18:00:00Z",
+  "shape": {
+    "requiredKeys": [
+      "version",
+      "revision",
+      "buildTime",
+      "serverDate",
+      "systemName",
+      "contextPath"
+    ],
+    "typedKeys": {
+      "version": "string",
+      "revision": "string",
+      "buildTime": "string",
+      "serverDate": "string",
+      "systemName": "string",
+      "contextPath": "string"
+    }
+  }
+}

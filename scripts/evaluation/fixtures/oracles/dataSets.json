@@ -1,0 +1,13 @@
+{
+  "endpoint": "/api/dataSets.json",
+  "method": "GET",
+  "centralVersion": "2.44-SNAPSHOT",
+  "capturedAt": "2026-11-16T18:00:00Z",
+  "shape": {
+    "requiredKeys": ["dataSets", "pager"],
+    "typedKeys": {
+      "dataSets": "array",
+      "pager": "object"
+    }
+  }
+}

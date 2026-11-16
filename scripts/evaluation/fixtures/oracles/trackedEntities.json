@@ -1,0 +1,16 @@
+{
+  "endpoint": "/api/tracker/trackedEntities",
+  "method": "GET",
+  "centralVersion": "2.44-SNAPSHOT",
+  "capturedAt": "2026-11-16T18:00:00Z",
+  "shape": {
+    "requiredKeys": ["trackedEntities", "pager"],
+    "requiredObjectKeys": {
+      "pager": ["page", "pageSize", "pageCount", "total"]
+    },
+    "typedKeys": {
+      "trackedEntities": "array",
+      "pager": "object"
+    }
+  }
+}

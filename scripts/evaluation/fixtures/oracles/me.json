@@ -1,0 +1,39 @@
+{
+  "endpoint": "/api/me",
+  "method": "GET",
+  "centralVersion": "2.44-SNAPSHOT",
+  "capturedAt": "2026-11-16T18:00:00Z",
+  "shape": {
+    "requiredKeys": [
+      "id",
+      "username",
+      "name",
+      "displayName",
+      "firstName",
+      "surname",
+      "email",
+      "organisationUnits",
+      "dataViewOrganisationUnits",
+      "teiSearchOrganisationUnits",
+      "userGroups",
+      "userRoles",
+      "settings",
+      "authorities"
+    ],
+    "requiredArrayKeys": {
+      "organisationUnits": ["id", "path", "programs"],
+      "dataViewOrganisationUnits": ["id", "path"],
+      "teiSearchOrganisationUnits": ["id", "path"],
+      "userRoles": ["id", "displayName"]
+    },
+    "typedKeys": {
+      "id": "string",
+      "username": "string",
+      "name": "string",
+      "displayName": "string",
+      "organisationUnits": "array",
+      "settings": "object",
+      "authorities": "array"
+    }
+  }
+}

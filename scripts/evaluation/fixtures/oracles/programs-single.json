@@ -1,0 +1,25 @@
+{
+  "endpoint": "/api/programs/{uid}",
+  "method": "GET",
+  "centralVersion": "2.44-SNAPSHOT",
+  "capturedAt": "2026-11-16T18:00:00Z",
+  "shape": {
+    "requiredKeys": [
+      "id",
+      "name",
+      "programType",
+      "programStages",
+      "programTrackedEntityAttributes"
+    ],
+    "requiredArrayKeys": {
+      "programStages": ["id", "programStageDataElements"],
+      "programTrackedEntityAttributes": ["id", "trackedEntityAttribute"]
+    },
+    "typedKeys": {
+      "id": "string",
+      "name": "string",
+      "programStages": "array",
+      "programTrackedEntityAttributes": "array"
+    }
+  }
+}
