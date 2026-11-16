@@ -34,14 +34,23 @@ state at this commit: **2726 passing** (`mvn -DskipITs test`).
 
 ---
 
-## P0 — code gaps
+## P0 — ~~code gaps~~ ✅ ALL SHIPPED
 
-The four remaining FRs all live in the authentication-reconciliation
-band (FR-02-01, 02-02, 02-08, 02-09). They form one logical slice:
-"central is the source of truth for user records; DER mirrors a copy
-locally so offline sign-in works." Shipping them together makes the
-most sense — the shared piece is a new `UserSyncService` that pulls
-from `/api/users` and reconciles against `edge_user`.
+The four P0 FRs in the authentication-reconciliation band are all
+flipped DONE:
+
+- **FR-02-02** — `UserSyncService` daily pull + upsert (commit `aef26d26`)
+- **FR-02-08** — lifecycle disable + tombstone sweep (same commit)
+- **FR-02-01** — flipped by evidence after 02-02 landed; DHIS2-origin
+  users now mirror in from central and sign in offline through the
+  existing auth path.
+- **FR-02-09** — service was already shipped; closed by adding
+  §7.4 runbook + smoke-test step 6 in this commit.
+
+The P0 column is empty. Remaining work is all P1 evidence runs
+below.
+
+### ~~FR-02-02~~ — Identity provisioning ✅ DONE at `aef26d26`
 
 ### FR-02-02 — Identity provisioning  *(blocking)*
 
@@ -76,7 +85,7 @@ through the SQL layer.
 **Estimated size:** 1 slice (~1 commit). Depends on nothing;
 unblocks FR-02-08.
 
-### FR-02-08 — User lifecycle  *(follows 02-02)*
+### ~~FR-02-08~~ — User lifecycle ✅ DONE at `aef26d26`
 
 **Requirement:** Update or disable locally provisioned users upon
 central change and record effective scope.
@@ -105,7 +114,7 @@ weeks of tolerance for a revoked account.
 
 **Estimated size:** Same commit as FR-02-02 or immediate follow-up.
 
-### FR-02-01 — Offline login  *(largely shipped; flip after 02-02 lands)*
+### ~~FR-02-01~~ — Offline login ✅ DONE (flipped by evidence post-02-02)
 
 **Requirement:** Authenticate previously provisioned and authorised
 users without central availability.
@@ -119,7 +128,7 @@ provisioned" without manual SQL — exactly what FR-02-02 ships.
 with evidence that a user mirrored from central can sign in offline
 while the WAN is down.
 
-### FR-02-09 — Emergency-access procedure  *(largely shipped)*
+### ~~FR-02-09~~ — Emergency-access procedure ✅ DONE
 
 **Requirement:** Support a formally configured, audited
 emergency-access policy only if approved.

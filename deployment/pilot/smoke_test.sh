@@ -65,4 +65,38 @@ say "step 5 — journal worker health"
 curl -fsS -b "${COOKIE_JAR}" "${DER_BASE_URL}/edge-api/v1/journal/worker" \
   | grep -q '"enabled"' || fail "/journal/worker missing 'enabled'"
 
-echo "[smoke] PASS — all 5 checks succeeded against ${DER_BASE_URL}"
+# FR-02-09 — optional break-glass wire-up probe. Skipped unless the
+# operator sets DER_BREAK_GLASS_TEST_TOKEN=yes-i-want-to-rotate. This
+# path rotates the admin password; we don't run it on every smoke
+# cycle (the operator would lose the DER_ADMIN_PASSWORD they just
+# used to sign in).
+if [[ "${DER_BREAK_GLASS_TEST_TOKEN:-}" == "yes-i-want-to-rotate" ]]; then
+  say "step 6 — break-glass recovery wire-up (DESTRUCTIVE: rotates admin password)"
+  TOKEN_PATH="${DER_BREAK_GLASS_TOKEN_PATH:-/var/lib/der/break-glass.token}"
+  TOKEN="$(openssl rand -base64 32)"
+  echo "${TOKEN}" | sudo tee "${TOKEN_PATH}" >/dev/null \
+    || fail "could not write ${TOKEN_PATH} (need sudo)"
+  sudo chown der:der "${TOKEN_PATH}"
+  sudo chmod 600 "${TOKEN_PATH}"
+  BG_RESP="$(curl -fsS -X POST -H 'Content-Type: application/json' \
+    -d "{\"token\":\"${TOKEN}\"}" \
+    "${DER_BASE_URL}/edge-api/v1/break-glass/recover")"
+  echo "${BG_RESP}" | grep -q '"password"' \
+    || fail "break-glass did not return a rotated password"
+  [[ ! -f "${TOKEN_PATH}" ]] \
+    || fail "break-glass left the token file in place — one-use invariant broken"
+  NEW_PASSWORD="$(printf '%s' "${BG_RESP}" \
+    | python3 -c "import json,sys; print(json.load(sys.stdin)['password'])")"
+  say "   recovery returned new 24-char password; token file deleted"
+  # Verify new password actually works.
+  curl -fsS -c "${COOKIE_JAR}" -H 'Content-Type: application/json' \
+    -d "{\"username\":\"${DER_ADMIN_USERNAME}\",\"password\":\"${NEW_PASSWORD}\"}" \
+    "${DER_BASE_URL}/edge-api/v1/auth/sign-in" >/dev/null \
+    || fail "sign-in with rotated password failed — recovery didn't persist"
+  say "   signed in with rotated password — wire-up proven"
+  say "   REMEMBER to update DER_BOOTSTRAP_ADMIN_PASSWORD in /etc/der/pilot.env"
+  echo "[smoke] PASS — all 6 checks succeeded against ${DER_BASE_URL}"
+else
+  echo "[smoke] PASS — all 5 checks succeeded against ${DER_BASE_URL}"
+  echo "[smoke] step 6 (break-glass) skipped; opt in with DER_BREAK_GLASS_TEST_TOKEN=yes-i-want-to-rotate"
+fi

@@ -203,6 +203,70 @@ sudo tee /etc/logrotate.d/der >/dev/null <<'EOF'
 EOF
 ```
 
+### 7.4 Emergency admin access (break-glass)
+
+FR-02-09. When the bootstrap admin password is lost (or the sole
+admin account has been revoked from central), DER exposes a
+file-gated recovery path that physically-present operators can
+trigger. The gate requires `der.security.break-glass.enabled=true`
+AND a one-use token file on the host filesystem — nothing on
+the network alone can trigger it.
+
+**Enable in production:**
+
+```ini
+# /etc/der/pilot.env
+DER_SECURITY_BREAK_GLASS_ENABLED=true
+DER_SECURITY_BREAK_GLASS_TOKEN_PATH=/var/lib/der/break-glass.token
+# Optional — pins the recovery to one admin username.
+# Blank falls back to DER_BOOTSTRAP_ADMIN_USERNAME, then the
+# oldest ADMIN row in der.edge_user.
+DER_SECURITY_BREAK_GLASS_ADMIN_USERNAME=der-admin
+```
+
+Restart the service after editing: `sudo systemctl restart der-server`.
+
+**One-shot recovery procedure** (physical access to the host):
+
+```bash
+# 1. Generate a token on the host (24+ bytes of entropy).
+sudo install -o der -g der -m 600 /dev/stdin \
+    /var/lib/der/break-glass.token <<<"$(openssl rand -base64 32)"
+
+# 2. Hand that token to the operator who's on the network.
+#    The service reads the file at request time, so there's no
+#    need to restart.
+sudo cat /var/lib/der/break-glass.token
+
+# 3. Operator POSTs the token to /break-glass/recover.
+#    The response carries a new 24-character admin password.
+curl -s -X POST -H 'Content-Type: application/json' \
+  -d '{"token":"<the token above>"}' \
+  https://der.local/edge-api/v1/break-glass/recover
+
+# 4. The service deleted the token file as part of the response —
+#    the token is one-use by construction. Confirm:
+sudo ls /var/lib/der/break-glass.token    # should be absent
+```
+
+Every attempt (success / wrong token / disabled / no admin user)
+is audited with `BREAK_GLASS_*` events on the hash-chained
+security_audit stream. Successful rotations also write
+`ADMIN_PASSWORD_ROTATED` with the subject user id.
+
+**When the endpoint should return 404:** if
+`der.security.break-glass.enabled=false`, the controller returns
+404 (fingerprint-opaque — a probe can't distinguish "disabled"
+from "no such path"). Set the flag true before the operator
+calls.
+
+**After successful recovery:** the admin's old session (and every
+other active session for that user) is left alone — operators
+should sign out and sign back in with the new password. The
+`.env.local` on a dev box will be out of sync with the rotated
+password; update it or run the recovery again with a fresh
+token.
+
 ## 8. Troubleshooting
 
 | Symptom | Likely cause | Fix |
