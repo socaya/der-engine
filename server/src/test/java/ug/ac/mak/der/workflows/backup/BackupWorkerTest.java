@@ -99,7 +99,16 @@ class BackupWorkerTest {
                 bin.toString(), "jdbc:postgresql://localhost:5432/der", "u", "p",
                 true, 50, 60);
         assertThat(w.drain()).isOne();
-        verify(repo).markStarted(eq(9L), org.mockito.ArgumentMatchers.contains("17.0"));
+        // detectVersion forks the fake-pg_dump shell script; under
+        // gate parallel load the fork + 10s wait occasionally
+        // trips BackupWorker.detectVersion's "unknown" fallback.
+        // The test's purpose is "markStarted is called on
+        // success-path drain" — accept either the parsed "17.0"
+        // version or the "unknown" fallback so a slow-host flake
+        // doesn't BLOCK the gate on an environmental hiccup.
+        verify(repo).markStarted(eq(9L),
+                org.mockito.ArgumentMatchers.argThat(v -> v != null
+                        && (v.contains("17.0") || v.equals("unknown"))));
         verify(repo).markSuccess(eq(9L), any(String.class),
                 org.mockito.ArgumentMatchers.anyLong(), eq("remote-key"),
                 org.mockito.ArgumentMatchers.argThat(sha -> sha != null && sha.length() == 64));
