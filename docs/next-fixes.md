@@ -230,7 +230,7 @@ acknowledged when the disk fills.
 ~99%, POST to `/api/dataValueSets`, assert 507 + no row in
 `operation_journal`. Capture as `evidence/nfr-30-storage.json`.
 
-### NFR-31 — Synthetic data for experiments
+### ~~NFR-31~~ — Synthetic data for experiments ✅ DONE
 
 `scripts/evaluation/fixtures/` exists but doesn't ship a
 documented synthetic-data generator. Gap: statement of what's
