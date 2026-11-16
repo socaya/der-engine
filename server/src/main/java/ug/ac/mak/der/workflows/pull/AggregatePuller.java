@@ -202,6 +202,67 @@ public class AggregatePuller {
         return new MergeOutcome(wasOverwrite ? Action.OVERWRITTEN : Action.INSERTED, watermark);
     }
 
+    /**
+     * FR-13-08 — deletion sweep for aggregate data values. After a
+     * batch pull for an (orgUnit, periodIso) window completes,
+     * enumerate local rows we have NOT re-seen in the current
+     * central response, and emit
+     * {@code AGGREGATE_DIVERGENCE_CENTRAL_DELETED} for each row that
+     * previously reached {@code CENTRAL_ACCEPTED}. Rows that are
+     * purely local (never published to central) are skipped — those
+     * are just unpublished operator writes, not central-side
+     * deletions.
+     *
+     * <p>Parallels {@link EventPuller#sweepDeletions} — same
+     * three-way check against the journal, same audit event naming
+     * convention, same operator-attention semantics.</p>
+     *
+     * @param orgUnitUid  the OU scope passed to the pull.
+     * @param periodIso   optional period-code scope ({@code null}
+     *                    treats the whole OU window as the scope).
+     * @param seenCentralKeys compound keys {@code de|ou|per|coc|aoc}
+     *                    present in the most-recent central pull.
+     * @return the number of CENTRAL_DELETED audits emitted.
+     */
+    public int sweepDeletions(final String orgUnitUid, final String periodIso,
+                                final java.util.Set<String> seenCentralKeys) {
+        if (orgUnitUid == null || orgUnitUid.isBlank()) {
+            return 0;
+        }
+        final java.util.List<AggregateDataValue> local = values.findByFilter(
+                orgUnitUid, periodIso, 500);
+        int emitted = 0;
+        for (final AggregateDataValue v : local) {
+            final String key = v.dataElementUid() + '|' + v.orgUnitUid() + '|'
+                    + v.periodIso() + '|' + v.categoryOptionComboUid() + '|'
+                    + v.attributeOptionComboUid();
+            if (seenCentralKeys != null && seenCentralKeys.contains(key)) {
+                continue;
+            }
+            final Optional<OperationJournalEntry> row = journal.findLatestByEntityRef(
+                    OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE, key);
+            if (row.isEmpty()
+                    || row.get().state() != OperationJournalEntry.State.CENTRAL_ACCEPTED) {
+                // Pure local or non-terminal journal state — not a
+                // central-side deletion, operator still owns the row.
+                continue;
+            }
+            audit.append(new AuditEvent(
+                    "AGGREGATE_DIVERGENCE_CENTRAL_DELETED",
+                    AuditEvent.Outcome.DENIED, null, null, null, null,
+                    java.util.Map.of(
+                            "compoundKey", key,
+                            "dataElement", v.dataElementUid(),
+                            "orgUnit", v.orgUnitUid(),
+                            "period", v.periodIso(),
+                            "localValue", v.valueText() == null ? "" : v.valueText(),
+                            "localValueVersion", String.valueOf(v.valueVersion()))),
+                    Instant.now(clock));
+            emitted++;
+        }
+        return emitted;
+    }
+
     private void raiseConflict(final String compoundKey, final JsonNode dv) {
         /* We don't flip the EXISTING journal row to CONFLICT_REVIEW
          * (that would discard the operator's PENDING push); instead

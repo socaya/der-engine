@@ -2,8 +2,10 @@ package ug.ac.mak.der.workflows.pull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -229,5 +231,108 @@ class AggregatePullerTest {
                 OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE,
                 "de1|ou1|2026W44|coc1|aoc1", mapper.createObjectNode(),
                 state, 0, null, null, NOW, NOW, null, null);
+    }
+
+    // ---- FR-13-08 deletion sweep -----------------------------------
+
+    private static AggregateDataValue dv(final String de, final String ou,
+                                           final String per, final String coc,
+                                           final String aoc, final String value) {
+        return new AggregateDataValue(UUID.randomUUID(), de, ou, per, coc, aoc,
+                value, "", UUID.randomUUID(), NOW, 1, "DS1", null);
+    }
+
+    private OperationJournalEntry journalForKey(final String compoundKey,
+                                                  final OperationJournalEntry.State state) {
+        return new OperationJournalEntry(UUID.randomUUID(),
+                OperationJournalEntry.EntityType.AGGREGATE_DATA_VALUE,
+                compoundKey, mapper.createObjectNode(),
+                state, 0, null, null, NOW, NOW, null, null);
+    }
+
+    @org.junit.jupiter.api.Test
+    void sweepEmitsDeletionForCentralAcceptedRowAbsentFromCentral() {
+        final var values = mock(AggregateDataValueRepository.class);
+        final var journal = mock(OperationJournalRepository.class);
+        final var audit = mock(SecurityAuditRepository.class);
+        final var deleted = dv("de1", "ou1", "2026W44", "coc1", "aoc1", "42");
+        when(values.findByFilter(eq("ou1"), eq("2026W44"), anyInt()))
+                .thenReturn(java.util.List.of(deleted));
+        when(journal.findLatestByEntityRef(any(),
+                eq("de1|ou1|2026W44|coc1|aoc1"))).thenReturn(Optional.of(
+                        journalForKey("de1|ou1|2026W44|coc1|aoc1",
+                                OperationJournalEntry.State.CENTRAL_ACCEPTED)));
+        final int emitted = build(values, journal, audit, mapper.createObjectNode())
+                .sweepDeletions("ou1", "2026W44", java.util.Set.of());
+        assertThat(emitted).isEqualTo(1);
+        verify(audit).append(org.mockito.ArgumentMatchers.argThat(
+                (AuditEvent e) ->
+                        "AGGREGATE_DIVERGENCE_CENTRAL_DELETED".equals(e.eventType())
+                                && "de1|ou1|2026W44|coc1|aoc1"
+                                        .equals(e.detail().get("compoundKey"))
+                                && "42".equals(e.detail().get("localValue"))),
+                any());
+    }
+
+    @org.junit.jupiter.api.Test
+    void sweepSkipsRowStillPresentOnCentral() {
+        final var values = mock(AggregateDataValueRepository.class);
+        final var journal = mock(OperationJournalRepository.class);
+        final var audit = mock(SecurityAuditRepository.class);
+        final var present = dv("de1", "ou1", "2026W44", "coc1", "aoc1", "5");
+        when(values.findByFilter(any(), any(), anyInt()))
+                .thenReturn(java.util.List.of(present));
+        final int emitted = build(values, journal, audit, mapper.createObjectNode())
+                .sweepDeletions("ou1", "2026W44",
+                        java.util.Set.of("de1|ou1|2026W44|coc1|aoc1"));
+        assertThat(emitted).isZero();
+        verify(audit, never()).append(any(), any());
+    }
+
+    @org.junit.jupiter.api.Test
+    void sweepSkipsRowThatNeverReachedCentral() {
+        // A locally-written row that's still PENDING in the journal
+        // is not a central deletion — it's just unpublished local
+        // state. Must NOT emit AGGREGATE_DIVERGENCE_CENTRAL_DELETED.
+        final var values = mock(AggregateDataValueRepository.class);
+        final var journal = mock(OperationJournalRepository.class);
+        final var audit = mock(SecurityAuditRepository.class);
+        final var unpublished = dv("de2", "ou1", "2026W44", "coc1", "aoc1", "9");
+        when(values.findByFilter(any(), any(), anyInt()))
+                .thenReturn(java.util.List.of(unpublished));
+        when(journal.findLatestByEntityRef(any(),
+                eq("de2|ou1|2026W44|coc1|aoc1"))).thenReturn(Optional.of(
+                        journalForKey("de2|ou1|2026W44|coc1|aoc1",
+                                OperationJournalEntry.State.PENDING)));
+        final int emitted = build(values, journal, audit, mapper.createObjectNode())
+                .sweepDeletions("ou1", "2026W44", java.util.Set.of());
+        assertThat(emitted).isZero();
+        verify(audit, never()).append(any(), any());
+    }
+
+    @org.junit.jupiter.api.Test
+    void sweepSkipsRowWithNoJournalRow() {
+        final var values = mock(AggregateDataValueRepository.class);
+        final var journal = mock(OperationJournalRepository.class);
+        final var audit = mock(SecurityAuditRepository.class);
+        when(values.findByFilter(any(), any(), anyInt()))
+                .thenReturn(java.util.List.of(
+                        dv("de3", "ou1", "2026W44", "coc1", "aoc1", "x")));
+        when(journal.findLatestByEntityRef(any(), any()))
+                .thenReturn(Optional.empty());
+        final int emitted = build(values, journal, audit, mapper.createObjectNode())
+                .sweepDeletions("ou1", "2026W44", java.util.Set.of());
+        assertThat(emitted).isZero();
+    }
+
+    @org.junit.jupiter.api.Test
+    void sweepIgnoresNullOrEmptyOrgUnit() {
+        final var values = mock(AggregateDataValueRepository.class);
+        final var journal = mock(OperationJournalRepository.class);
+        final var audit = mock(SecurityAuditRepository.class);
+        final var p = build(values, journal, audit, mapper.createObjectNode());
+        assertThat(p.sweepDeletions(null, "2026W44", java.util.Set.of())).isZero();
+        assertThat(p.sweepDeletions("", "2026W44", java.util.Set.of())).isZero();
+        verify(values, never()).findByFilter(any(), any(), anyInt());
     }
 }
