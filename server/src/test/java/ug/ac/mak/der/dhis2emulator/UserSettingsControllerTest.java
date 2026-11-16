@@ -64,12 +64,32 @@ class UserSettingsControllerTest {
     }
 
     @Test
-    void readSingleReturns404WhenAbsent() {
+    void readSingleReturns200WithEmptyBodyForUnknownAbsentKey() {
+        // DHIS2 central returns 200 with the system-level default
+        // when a per-user key isn't set. Our emulator mirrors that
+        // contract — DHIS2 custom apps (eregisters, Capture) call
+        // GET /api/userSettings/<key> on bootstrap and treat a
+        // non-200 as "Failed to fetch user locale". Unknown keys
+        // fall through to empty body, 200.
         final UserSettingsRepository repo = mock(UserSettingsRepository.class);
         final var p = principal();
         when(repo.read(p.user().userId(), "absent")).thenReturn(null);
         final var res = new UserSettingsController(repo).read(p, "absent");
-        assertThat(res.getStatusCode().value()).isEqualTo(404);
+        assertThat(res.getStatusCode().value()).isEqualTo(200);
+        assertThat(res.getBody()).isEmpty();
+    }
+
+    @Test
+    void readSingleFallsBackToDhis2DefaultForKnownLocaleKeys() {
+        // The eregisters / Capture app-runtime treats a 404 on
+        // /api/userSettings/keyUiLocale as a hard "Failed to fetch
+        // user locale" error. Return DHIS2's documented default.
+        final UserSettingsRepository repo = mock(UserSettingsRepository.class);
+        final var p = principal();
+        when(repo.read(p.user().userId(), "keyUiLocale")).thenReturn(null);
+        final var res = new UserSettingsController(repo).read(p, "keyUiLocale");
+        assertThat(res.getStatusCode().value()).isEqualTo(200);
+        assertThat(res.getBody()).isEqualTo("en");
     }
 
     @Test

@@ -58,10 +58,34 @@ public class UserSettingsController {
             return ResponseEntity.status(401).build();
         }
         final String value = repo.read(principal.user().userId(), key);
-        if (value == null) {
-            return ResponseEntity.notFound().build();
+        if (value != null) {
+            return ResponseEntity.ok(value);
         }
-        return ResponseEntity.ok(value);
+        // DHIS2 central returns 200 + the system-level default when
+        // a per-user setting isn't set. Returning 404 here breaks
+        // stock DHIS2 custom apps (eregisters, Capture) — they call
+        // GET /api/userSettings/keyUiLocale on bootstrap and treat
+        // a non-200 as "Failed to fetch user locale". Mirror the
+        // central contract: 200 with a safe default for the handful
+        // of keys the app runtime cares about, empty 200 otherwise.
+        return ResponseEntity.ok(defaultFor(key));
+    }
+
+    /**
+     * DHIS2 app-runtime defaults for common user settings. Values
+     * match what a fresh DHIS2 2.44 install reports when no per-user
+     * row exists. Keep the map tight — missing keys fall through to
+     * empty string, which is also a legal DHIS2 response.
+     */
+    private static String defaultFor(final String key) {
+        return switch (key) {
+            case "keyUiLocale", "keyDbLocale" -> "en";
+            case "keyAnalysisDisplayProperty" -> "name";
+            case "keyMessageEmailNotification",
+                 "keyMessageSmsNotification" -> "false";
+            case "keyStyle" -> "light_blue/light_blue.css";
+            default -> "";
+        };
     }
 
     @PostMapping(path = "/{key}")

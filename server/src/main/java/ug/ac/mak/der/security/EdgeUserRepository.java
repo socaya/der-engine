@@ -132,6 +132,23 @@ public class EdgeUserRepository {
     }
 
     /**
+     * FR-02-02 — look up a DHIS2-mirrored user by their DHIS2 UID.
+     * Returns empty for bootstrap-origin users (external_uid is NULL)
+     * and when central has sent us a user we haven't mirrored yet.
+     */
+    public Optional<EdgeUser> findByExternalUid(final String externalUid) {
+        try {
+            final EdgeUser user = jdbc.queryForObject(
+                    "SELECT user_id, username, display_name, origin, external_uid, disabled, created_at, updated_at "
+                            + "FROM der.edge_user WHERE external_uid = ?",
+                    userMapper(), externalUid);
+            return Optional.ofNullable(user).map(this::withRoles);
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
+    /**
      * FR-02-06 — timestamp of the last positive central witness for
      * this user (sign-in while REACHABLE, or an explicit user-sync
      * pull). Returned as empty when NULL — bootstrap users and DHIS2

@@ -42,10 +42,25 @@ public class SystemSettingsController {
     @GetMapping(path = "/{key}", produces = MediaType.TEXT_PLAIN_VALUE)
     public ResponseEntity<String> read(@PathVariable("key") final String key) {
         final String value = repo.read(key);
-        if (value == null) {
-            return ResponseEntity.notFound().build();
+        if (value != null) {
+            return ResponseEntity.ok(value);
         }
-        return ResponseEntity.ok(value);
+        // Same contract as /api/userSettings/<key>: DHIS2 central
+        // returns 200 + the system default when the key isn't set.
+        // Returning 404 here breaks DHIS2 custom apps that call
+        // /api/systemSettings/<key> during bootstrap.
+        return ResponseEntity.ok(defaultFor(key));
+    }
+
+    private static String defaultFor(final String key) {
+        return switch (key) {
+            case "keyUiLocale", "keyDbLocale" -> "en";
+            case "keyAnalysisDisplayProperty" -> "name";
+            case "keyStyle" -> "light_blue/light_blue.css";
+            case "applicationTitle" -> "DHIS 2";
+            case "keyFlag" -> "dhis2";
+            default -> "";
+        };
     }
 
     @PostMapping(path = "/{key}")
