@@ -307,6 +307,39 @@ scope. Drop silently (no audit, no 401) after N consecutive
 failures from the same IP in a window. Needs a design call on
 window + N.
 
+### Admin UI doesn't expose the DHIS2 app installer (ADR-0005)
+
+**Symptom:** Operator opens `https://<host>/admin/apps`, chooses a
+standard DHIS2 `.zip` (manifest.webapp at root), hits Install, and
+gets a 400 — the endpoint it calls expects a signed DER bundle,
+not a DHIS2 custom app.
+
+**Root cause:** `AppCatalogue.tsx` wires only the ADR-0037 signed-
+bundle flow at `POST /edge-api/v1/admin/apps/install`. The legacy
+DHIS2 custom-app endpoint `POST /edge-api/v1/apps/install`
+(`AppsController` + `AppInstaller`, ADR-0005) has no UI surface.
+Operators can call it with `curl -F file=@app.zip` but that's not
+discoverable.
+
+**Shape of the fix:**
+
+1. Admin UI change: either a second button on `/admin/apps` ("Install
+   DHIS2 app (.zip)") or a sibling route under `/apps/dhis2` that
+   calls `/edge-api/v1/apps/install`. Keep the two flows visually
+   distinct so operators don't confuse signed-bundle semantics with
+   DHIS2 app semantics.
+2. Pre-upload detection: if the chosen zip has `manifest.webapp` at
+   root, route it to the DHIS2 installer; if it has `bundle.js` at
+   root, route it to the signed-bundle installer. The parser in
+   `AppCatalogue.tsx` already reads `manifest.webapp` to pre-fill
+   form fields — this is 30 lines of branching, not a new screen.
+3. Document both flows in the installer docs once UI lands.
+
+**Why it matters:** DHIS2 custom apps (Capture, Tracker Capture,
+Data Entry) are the most common thing an operator will try to
+install on an edge box. The gap makes DER look like it rejects
+DHIS2 apps when the capability is actually shipped — just unwired.
+
 ### Bundled app zip files are committed
 
 `apps/data-entry/dist/data-entry.zip` and
