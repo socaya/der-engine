@@ -19,6 +19,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
@@ -46,15 +47,31 @@ public class AppStaticHandler {
     private final InstalledAppRepository repository;
     private final AppCatalogueRepository catalogueRepo;
     private final boolean cspEnabled;
+    private final JdbcTemplate jdbc;
+    private final String eregistersProgramOverride;
     private final SecureRandom rand = new SecureRandom();
+
+    /** eregisters 1.1.12's hardcoded PROGRAM constant. If the
+     *  operator's facility is bound to a different WITH_REGISTRATION
+     *  program, this string is rewritten in the bundle on the fly. */
+    private static final String EREGISTERS_HARDCODED_PROGRAM_UID = "ueBhWkWll5v";
 
     @Autowired
     public AppStaticHandler(final InstalledAppRepository repository,
                               final AppCatalogueRepository catalogueRepo,
-                              @Value("${der.apps.csp.enabled:false}") final boolean cspEnabled) {
+                              @Value("${der.apps.csp.enabled:false}") final boolean cspEnabled,
+                              final JdbcTemplate jdbc,
+                              @Value("${der.apps.eregisters.program-uid:}")
+                                  final String eregistersProgramOverride) {
         this.repository = Objects.requireNonNull(repository, "repository");
         this.catalogueRepo = Objects.requireNonNull(catalogueRepo, "catalogueRepo");
         this.cspEnabled = cspEnabled;
+        // Nullable: the pre-slice-B test ctors above pass null;
+        // resolveEregistersProgramUid guards and returns the
+        // hardcoded UID unchanged in that path.
+        this.jdbc = jdbc;
+        this.eregistersProgramOverride = eregistersProgramOverride == null
+                ? "" : eregistersProgramOverride.trim();
     }
 
     /** Test-only convenience — DER_ESM-shape fixtures that don't go
@@ -63,6 +80,8 @@ public class AppStaticHandler {
         this.repository = Objects.requireNonNull(repository, "repository");
         this.catalogueRepo = null;
         this.cspEnabled = false;
+        this.jdbc = null;
+        this.eregistersProgramOverride = "";
     }
 
     /** Test-only convenience — toggle CSP without wiring the
@@ -72,11 +91,13 @@ public class AppStaticHandler {
         this.repository = Objects.requireNonNull(repository, "repository");
         this.catalogueRepo = null;
         this.cspEnabled = cspEnabled;
+        this.jdbc = null;
+        this.eregistersProgramOverride = "";
     }
 
     public AppStaticHandler(final InstalledAppRepository repository,
                               final AppCatalogueRepository catalogueRepo) {
-        this(repository, catalogueRepo, false);
+        this(repository, catalogueRepo, false, null, "");
     }
 
     @GetMapping("/dhis-web-{appKey}")
@@ -181,6 +202,26 @@ public class AppStaticHandler {
             }
             body = Files.readAllBytes(target);
         }
+        // DER-APPS-DHIS2-002 — eregisters 1.1.12 hardcodes the program
+        // UID "ueBhWkWll5v" as PROGRAM in metadata-resources.ts. When
+        // the operator's facility is bound to a different
+        // WITH_REGISTRATION program, the app's metadata sync 404s on
+        // every program-specific read. Rewriting the string literal
+        // at serve time in the two JS files that carry it
+        // (App-<hash>.js + the metadata-resources chunk) lets the
+        // same bundle work against any mirrored program. The
+        // substitution target is picked in this order:
+        //   1. der.apps.eregisters.program-uid override (operator-set
+        //      via /admin/ops/settings if the facility runs multiple
+        //      WITH_REGISTRATION programs and needs to pin one)
+        //   2. the first WITH_REGISTRATION program in the mirror (when
+        //      there's exactly one, this is the right answer)
+        //   3. leave the hardcoded UID alone (the mirror might
+        //      actually carry ueBhWkWll5v, in which case the app
+        //      works unchanged)
+        if ("eregisters".equals(app.appKey()) && relative.endsWith(".js")) {
+            body = rewriteEregistersProgramUid(body);
+        }
         final String contentType = guessContentType(relative);
         final HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType(contentType));
@@ -257,6 +298,73 @@ public class AppStaticHandler {
         final Authentication auth =
                 SecurityContextHolder.getContext().getAuthentication();
         return auth instanceof EdgeUserPrincipal;
+    }
+
+    /**
+     * Pick the program UID eregisters should actually bind to and
+     * replace every literal occurrence of the hardcoded
+     * {@code "ueBhWkWll5v"} in the served JS body with it. The
+     * substitution target is picked in this order:
+     * <ol>
+     *   <li>{@code der.apps.eregisters.program-uid} config override —
+     *       set by ops when the facility carries multiple
+     *       WITH_REGISTRATION programs and needs to pin one.</li>
+     *   <li>The sole WITH_REGISTRATION program in the mirror — the
+     *       typical single-program-facility case.</li>
+     *   <li>The hardcoded value itself (unchanged body) — the mirror
+     *       may actually carry {@code ueBhWkWll5v} or there may be
+     *       multiple registration programs and the operator hasn't
+     *       picked one yet.</li>
+     * </ol>
+     */
+    byte[] rewriteEregistersProgramUid(final byte[] body) {
+        final String target = resolveEregistersProgramUid();
+        if (target.equals(EREGISTERS_HARDCODED_PROGRAM_UID)) {
+            return body;
+        }
+        final String text = new String(body, StandardCharsets.UTF_8);
+        if (!text.contains(EREGISTERS_HARDCODED_PROGRAM_UID)) {
+            return body;
+        }
+        final String rewritten = text.replace(
+                EREGISTERS_HARDCODED_PROGRAM_UID, target);
+        return rewritten.getBytes(StandardCharsets.UTF_8);
+    }
+
+    private String resolveEregistersProgramUid() {
+        if (!eregistersProgramOverride.isEmpty()) {
+            return eregistersProgramOverride;
+        }
+        if (jdbc == null) {
+            return EREGISTERS_HARDCODED_PROGRAM_UID;
+        }
+        try {
+            final java.util.List<String> uids = jdbc.queryForList(
+                    "SELECT dhis2_uid FROM der.metadata_program "
+                            + "WHERE payload->>'programType' = 'WITH_REGISTRATION' "
+                            + "ORDER BY display_name LIMIT 2",
+                    String.class);
+            if (uids.size() == 1) {
+                return uids.get(0);
+            }
+            // Multiple WITH_REGISTRATION programs AND the hardcoded
+            // UID is one of them → leave the bundle alone (the
+            // intended program is already selected).
+            if (uids.contains(EREGISTERS_HARDCODED_PROGRAM_UID)) {
+                return EREGISTERS_HARDCODED_PROGRAM_UID;
+            }
+            // Multiple programs AND none is the hardcoded UID →
+            // pick the first; operator can pin a specific one via
+            // der.apps.eregisters.program-uid.
+            if (!uids.isEmpty()) {
+                return uids.get(0);
+            }
+        } catch (final RuntimeException ex) {
+            // Mirror unreachable at serve time → serve the bundle
+            // unchanged. The app will 404 on the first program read
+            // which the DER emulator's graceful-empty wraps.
+        }
+        return EREGISTERS_HARDCODED_PROGRAM_UID;
     }
 
     private String nextNonce() {
