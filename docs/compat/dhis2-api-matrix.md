@@ -6,6 +6,14 @@ _Generated 2026-11-17 against DER `main` (apps/analytics modified)._
 
 Incremental wave execution against the baseline below. Each entry shifts a set of endpoints from `STUB-EMPTY`/`MISSING` to `NATIVE`. The full register further down is point-in-time; the per-batch deltas are listed here until the register is regenerated in bulk.
 
+- **2026-11-17 — Wave 1 Batch 3** (38 endpoints — appliance configuration). Commit: pending.
+  - New `ConfigurationController` covers the full `/api/configuration/**` surface. All values persist in `der.system_setting` under the `configuration:` namespace (no new migration).
+  - Scalar text: `GET/POST /systemId`, `GET /systemReadOnlyMode`, `GET /appHubUrl`, `GET /remoteServerUrl`, `GET /remoteServerUsername`, `GET/POST /infrastructuralPeriodType`, `GET/POST /facilityOrgUnitLevel`, `GET/POST/DELETE /offlineOrganisationUnitLevel`.
+  - UID-reference (returns `{id, displayName}` or `null` when unset): `GET/POST /facilityOrgUnitGroupSet`, `GET/POST /infrastructuralDataElements`, `GET/POST /infrastructuralIndicators`, `GET/POST/DELETE /selfRegistrationOrgUnit`, `GET/POST/DELETE /selfRegistrationRole`, `GET/POST/DELETE /feedbackRecipients`, `GET/POST/DELETE /systemUpdateNotificationRecipients`.
+  - String list (comma-joined storage, JSON array on wire): `GET/POST /corsAllowlist`, `GET/POST /corsWhitelist` (pre-2.44 alias → same storage as `corsAllowlist`), `POST /dataOutputPeriodTypes` (2.43+).
+  - Fixed enum: `GET /twoFactorMethods` → `["TOTP","EMAIL"]`.
+  - Aggregate: `GET /api/configuration` returns the union shape the Settings app expects on bootstrap.
+  - All writes gated on `ROLE_ADMIN`; all reads require an authenticated session.
 - **2026-11-17 — Wave 1 Batch 2** (18 endpoints — identity + account management). Commit: pending.
   - `GET /api/account/username`, `GET /api/account/password` (policy), `POST /api/account/password` (change — verifies old pw, writes new hash via `EdgeUserRepository.upsert`), `POST /api/account/validatePassword`, `POST /api/account/validateUsername`, `GET /api/account/linkedAccounts` (empty by design — DER binds to one DHIS2 tenant), `GET /api/account/listSessions` (live rows from `der.edge_session`), `POST /api/account` (403 — self-registration disabled on edge), `POST /api/account/recovery`, `POST /api/account/restore`, `POST /api/account/sendEmailVerification`, `GET /api/account/verifyEmail` — new `AccountController`.
   - `POST /api/auth/login` (credential verify, directs client to `/edge-api/v1/auth/sign-in` for session), `POST /api/auth/updatePassword`, `POST /api/auth/invite` (ACCEPTED-no-central), `POST /api/auth/registration` (403), `POST /api/auth/forgotPassword` (ACCEPTED-no-central), `POST /api/auth/passwordReset` (ACCEPTED-no-central) — new `Dhis2AuthController`.
