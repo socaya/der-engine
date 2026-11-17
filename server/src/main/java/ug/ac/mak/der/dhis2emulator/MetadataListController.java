@@ -658,8 +658,12 @@ public class MetadataListController {
             "/organisationUnitGroups", "/organisationUnitGroupSets", "/organisationUnitLevels",
             "/userGroups", "/userRoles",
             "/attributes", "/documents",
-            "/sqlViews", "/dashboards", "/visualizations", "/reports", "/maps",
-            "/eventReports", "/eventCharts", "/dataEntryForms"
+            "/sqlViews", "/dataEntryForms"
+            // dashboards, visualizations, maps, reports, eventReports,
+            // eventCharts, charts moved to AnalyticsArtifactsController —
+            // those are operator-authored, not central-pulled, so they
+            // need a writable store (der.metadata_artifact, V131) that
+            // survives metadata sync overwrites.
     })
     public ResponseEntity<Map<String, Object>> catalogList(
             final Authentication auth,
@@ -694,9 +698,10 @@ public class MetadataListController {
             "/organisationUnitLevels/{uid}",
             "/userGroups/{uid}", "/userRoles/{uid}",
             "/attributes/{uid}", "/documents/{uid}",
-            "/sqlViews/{uid}", "/dashboards/{uid}", "/visualizations/{uid}",
-            "/reports/{uid}", "/maps/{uid}",
-            "/eventReports/{uid}", "/eventCharts/{uid}", "/dataEntryForms/{uid}"
+            "/sqlViews/{uid}", "/dataEntryForms/{uid}"
+            // dashboards/{uid}, visualizations/{uid}, maps/{uid},
+            // reports/{uid}, eventReports/{uid}, eventCharts/{uid},
+            // charts/{uid} moved to AnalyticsArtifactsController.
     })
     public ResponseEntity<JsonNode> catalogItem(final Authentication auth,
                                                  final HttpServletRequest request,
