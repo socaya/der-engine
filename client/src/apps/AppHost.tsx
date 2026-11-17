@@ -190,11 +190,39 @@ export function AppHost(): JSX.Element {
                   e.error instanceof Error ? e.error.stack ?? null : null);
         });
         win.addEventListener('unhandledrejection', (e) => {
+          // d2 app-runtime throws Response-like objects as rejection
+          // reasons for failed fetches — `e.reason` is a Response or
+          // plain object with {status, url, message, body, ...}, not
+          // an Error. Previously we fell to the generic "Unhandled
+          // rejection" + null stack on these; now we serialise the
+          // reason so operators and support get something actionable.
           const reason = e.reason;
-          const msg = reason instanceof Error ? reason.message
-                  : typeof reason === 'string' ? reason
-                  : 'Unhandled rejection';
-          const stack = reason instanceof Error ? reason.stack ?? null : null;
+          let msg: string;
+          let stack: string | null;
+          if (reason instanceof Error) {
+            msg = reason.message;
+            stack = reason.stack ?? null;
+          } else if (typeof reason === 'string') {
+            msg = reason;
+            stack = null;
+          } else if (reason && typeof reason === 'object') {
+            // Prefer `.message` / `.statusText` / `.url` fields when
+            // present — matches d2's RestAPILink error shape.
+            const r = reason as Record<string, unknown>;
+            const message = typeof r.message === 'string' ? r.message
+                    : typeof r.statusText === 'string' ? r.statusText
+                    : null;
+            const status = typeof r.status === 'number' ? r.status : null;
+            const url = typeof r.url === 'string' ? r.url : null;
+            msg = message
+                    ?? (status != null && url != null
+                            ? `HTTP ${status} on ${url}` : null)
+                    ?? safeJson(reason);
+            stack = typeof r.stack === 'string' ? r.stack : null;
+          } else {
+            msg = 'Unhandled rejection';
+            stack = null;
+          }
           trapCrash(msg, stack);
         });
       }
@@ -378,5 +406,22 @@ export function friendlyInstallError(
           'The server did not return the app bundle. Check your connection '
           + 'and try again, or ask an administrator to check the server.',
       };
+  }
+}
+
+/**
+ * Serialise an arbitrary rejection reason to a short, operator-
+ * readable string. Keeps the first 240 chars so a huge object
+ * payload doesn't blow up the crash card. Falls back to
+ * {@code [unserialisable: <typeof>]} when the value can't be
+ * stringified (circular refs, DOM nodes, …).
+ */
+function safeJson(value: unknown): string {
+  try {
+    const s = JSON.stringify(value);
+    return s && s !== '{}' ? s.slice(0, 240)
+            : `[non-Error rejection: ${typeof value}]`;
+  } catch {
+    return `[unserialisable: ${typeof value}]`;
   }
 }
