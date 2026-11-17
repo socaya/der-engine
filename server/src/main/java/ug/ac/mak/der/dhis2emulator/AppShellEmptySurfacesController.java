@@ -348,13 +348,10 @@ public class AppShellEmptySurfacesController {
         return listEmpty(auth, "messageConversations");
     }
 
-    @GetMapping("/api/configuration/dataOutputPeriodTypes")
-    public ResponseEntity<List<Object>> dataOutputPeriodTypes(final Authentication auth) {
-        if (!(auth instanceof EdgeUserPrincipal)) {
-            return ResponseEntity.status(401).build();
-        }
-        return ResponseEntity.ok(List.of());
-    }
+    // /api/configuration/dataOutputPeriodTypes moved to
+    // ConfigurationController which returns all 19 enabled period type
+    // ids by default (empty here crashes Data Visualizer's period
+    // picker with "No period types are enabled in the system").
 
     @GetMapping("/api/locales/db")
     public ResponseEntity<List<Object>> localesDb(final Authentication auth) {

@@ -299,6 +299,41 @@ public class ConfigurationController {
 
     // ---- 2.43+ dataOutputPeriodTypes ----
 
+    /**
+     * DHIS2 central semantics: this list is the set of period types
+     * <em>enabled for data output</em>. An empty list means "nothing
+     * enabled" and causes Data Visualizer to render "No period types
+     * are enabled in the system. Please contact your system
+     * administrator." and then crash downstream when the user opens
+     * the period picker.
+     *
+     * <p>On an edge appliance we default to <strong>all 19 DHIS2 period
+     * types enabled</strong> when the operator hasn't narrowed the set.
+     * Once an admin POSTs a narrower list it takes precedence. The
+     * response shape is a JSON array of period-type id strings — the
+     * exact format DV iterates.</p>
+     */
+    @GetMapping("/dataOutputPeriodTypes")
+    public ResponseEntity<List<String>> getDataOutputPeriodTypes(final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        final List<String> override = readList("dataOutputPeriodTypes");
+        if (!override.isEmpty()) {
+            return ResponseEntity.ok(override);
+        }
+        return ResponseEntity.ok(ALL_PERIOD_TYPE_IDS);
+    }
+
+    private static final List<String> ALL_PERIOD_TYPE_IDS = List.of(
+            "Daily", "Weekly", "WeeklyWednesday", "WeeklyThursday",
+            "WeeklySaturday", "WeeklySunday", "BiWeekly",
+            "Monthly", "BiMonthly",
+            "Quarterly", "QuarterlyNov",
+            "SixMonthly", "SixMonthlyApril", "SixMonthlyNov",
+            "Yearly", "FinancialApril", "FinancialJuly",
+            "FinancialOct", "FinancialNov");
+
     @PostMapping("/dataOutputPeriodTypes")
     public ResponseEntity<Map<String, Object>> setDataOutputPeriodTypes(
             final Authentication auth, @RequestBody(required = false) final Object body) {
