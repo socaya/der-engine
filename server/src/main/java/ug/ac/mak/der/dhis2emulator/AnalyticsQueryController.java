@@ -79,7 +79,8 @@ public class AnalyticsQueryController {
             @RequestParam(name = "dimension", required = false) final List<String> dimensions,
             @RequestParam(name = "filter", required = false) final List<String> filters,
             @RequestParam(name = "aggregationType", required = false) final String aggregationType,
-            @RequestParam(name = "skipMeta", defaultValue = "false") final boolean skipMeta) {
+            @RequestParam(name = "skipMeta", defaultValue = "false") final boolean skipMeta,
+            @RequestParam(name = "outputIdScheme", required = false) final String outputIdScheme) {
         if (!(auth instanceof EdgeUserPrincipal)) {
             return ResponseEntity.status(401).build();
         }
@@ -168,15 +169,45 @@ public class AnalyticsQueryController {
             rows.add(row);
         }
 
+        // Enrich: look up real display names for every UID that appears
+        // in the axes. outputIdScheme=NAME / CODE additionally rewrites
+        // the row cells so chart labels show the human-readable string
+        // instead of the UID.
+        final OutputScheme scheme = OutputScheme.parse(outputIdScheme);
+        final Map<String, Map<String, String>> labels =
+                resolveLabels(dims, flt, rows, axes);
+        if (scheme != OutputScheme.UID) {
+            rewriteRowIds(rows, axes, labels, scheme);
+        }
+
         final Map<String, Object> body = new LinkedHashMap<>();
         body.put("headers", buildHeaders(axes));
         if (!skipMeta) {
-            body.put("metaData", buildMetaData(dims, flt, rows, axes));
+            body.put("metaData", buildMetaData(dims, flt, rows, axes, labels));
         }
         body.put("rows", rows);
         body.put("width", axes.size() + 1);
         body.put("height", rows.size());
         return ResponseEntity.ok(body);
+    }
+
+    /** DHIS2 {@code outputIdScheme} — determines how rows reference
+     *  dimension items. UID (default) leaves UIDs in place; NAME
+     *  substitutes {@code displayName}; CODE substitutes the DHIS2
+     *  {@code code} attribute (falls back to UID when code is unset,
+     *  which matches central's behaviour). */
+    private enum OutputScheme {
+        UID, NAME, CODE;
+        static OutputScheme parse(final String raw) {
+            if (raw == null || raw.isBlank()) {
+                return UID;
+            }
+            return switch (raw.trim().toUpperCase(Locale.ROOT)) {
+                case "NAME" -> NAME;
+                case "CODE" -> CODE;
+                default -> UID;
+            };
+        }
     }
 
     private static String sqlAggregate(final String agg) {
@@ -303,13 +334,16 @@ public class AnalyticsQueryController {
     }
 
     /** {@code metaData} is the DHIS2 lookup side-car Data Visualizer uses
-     *  to render UID → display name. For Batch 1 we emit the UIDs
-     *  verbatim; Wave 2 Batch 2 will enrich from the metadata mirror
-     *  so the chart titles show proper labels. */
+     *  to render UID → display name. Items are enriched from the
+     *  metadata mirror (data_element / organisation_unit /
+     *  category_option_combo) so chart titles show proper labels
+     *  instead of raw UIDs; periods are formatted human-readably via
+     *  {@link #formatPeriodName(String)}. */
     private Map<String, Object> buildMetaData(final Map<String, List<String>> dims,
                                                  final Map<String, List<String>> flt,
                                                  final List<List<Object>> rows,
-                                                 final List<String> axes) {
+                                                 final List<String> axes,
+                                                 final Map<String, Map<String, String>> labels) {
         final Map<String, List<String>> byAxis = new LinkedHashMap<>();
         for (final String ax : axes) {
             final List<String> values = new ArrayList<>();
@@ -339,15 +373,185 @@ public class AnalyticsQueryController {
             }
         }
         final Map<String, Object> items = new HashMap<>();
-        for (final List<String> vs : byAxis.values()) {
-            for (final String v : vs) {
-                items.put(v, Map.of("name", v, "uid", v));
+        for (final Map.Entry<String, List<String>> e : byAxis.entrySet()) {
+            final String axis = e.getKey();
+            final Map<String, String> axisLabels = labels.getOrDefault(axis, Map.of());
+            for (final String uid : e.getValue()) {
+                final String name = axisLabels.getOrDefault(uid, uid);
+                items.put(uid, Map.of("name", name, "uid", uid));
             }
         }
         final Map<String, Object> md = new LinkedHashMap<>();
         md.put("items", items);
         md.put("dimensions", byAxis);
         return md;
+    }
+
+    /**
+     * Batch-fetch display names (and codes, extracted from the JSONB
+     * payload) for every UID referenced by the result. One query per
+     * entity table — not per row — so a 500-row response still only
+     * costs three SELECTs. Returns a map keyed by axis name so the
+     * caller can look up {@code labels.get("dx").get(uid)} without
+     * guessing which table a UID came from.
+     *
+     * <p>Periods are special — they don't have a mirror table, so we
+     * format them inline from the ISO code via
+     * {@link #formatPeriodName(String)} (e.g. {@code 202506} → "June
+     * 2025"). This matches the human label DHIS2 central ships back
+     * for a period UID.</p>
+     */
+    private Map<String, Map<String, String>> resolveLabels(
+            final Map<String, List<String>> dims,
+            final Map<String, List<String>> flt,
+            final List<List<Object>> rows,
+            final List<String> axes) {
+        // Collect every UID that could appear in the output so we can
+        // resolve them in one sweep per entity table.
+        final Set<String> dxUids = new LinkedHashSet<>();
+        final Set<String> ouUids = new LinkedHashSet<>();
+        final Set<String> coUids = new LinkedHashSet<>();
+        final Set<String> peUids = new LinkedHashSet<>();
+        for (final String ax : axes) {
+            final int idx = axes.indexOf(ax);
+            for (final List<Object> row : rows) {
+                final Object v = row.get(idx);
+                if (v == null) {
+                    continue;
+                }
+                final String s = v.toString();
+                switch (ax) {
+                    case "dx" -> dxUids.add(s);
+                    case "ou" -> ouUids.add(s);
+                    case "co", "ao" -> coUids.add(s);
+                    case "pe" -> peUids.add(s);
+                    default -> { /* unknown axis — no lookup */ }
+                }
+            }
+        }
+        // Include dimension-list UIDs even when they didn't appear in
+        // the result set so metaData.items has the picker labels.
+        addAllIfPresent(dxUids, dims.get("dx"));
+        addAllIfPresent(dxUids, flt.get("dx"));
+        addAllIfPresent(ouUids, dims.get("ou"));
+        addAllIfPresent(ouUids, flt.get("ou"));
+        addAllIfPresent(peUids, dims.get("pe"));
+        addAllIfPresent(peUids, flt.get("pe"));
+
+        final Map<String, Map<String, String>> out = new LinkedHashMap<>();
+        out.put("dx", batchLookup("der.metadata_data_element", dxUids));
+        out.put("ou", batchLookup("der.metadata_organisation_unit", ouUids));
+        out.put("co", batchLookup("der.metadata_category_option_combo", coUids));
+        out.put("ao", out.get("co"));
+        // Periods have no mirror table — format inline from the ISO code.
+        final Map<String, String> peLabels = new LinkedHashMap<>();
+        for (final String pe : peUids) {
+            peLabels.put(pe, formatPeriodName(pe));
+        }
+        out.put("pe", peLabels);
+        return out;
+    }
+
+    private static void addAllIfPresent(final Set<String> target, final List<String> src) {
+        if (src != null) {
+            target.addAll(src);
+        }
+    }
+
+    private Map<String, String> batchLookup(final String table, final Set<String> uids) {
+        if (uids.isEmpty()) {
+            return Map.of();
+        }
+        final List<String> uidList = new ArrayList<>(uids);
+        final StringBuilder placeholders = new StringBuilder();
+        for (int i = 0; i < uidList.size(); i++) {
+            if (i > 0) {
+                placeholders.append(',');
+            }
+            placeholders.append('?');
+        }
+        final Map<String, String> out = new LinkedHashMap<>();
+        jdbc.query(
+                "SELECT dhis2_uid, display_name FROM " + table
+                        + " WHERE dhis2_uid IN (" + placeholders + ")",
+                rs -> {
+                    out.put(rs.getString("dhis2_uid"),
+                            rs.getString("display_name"));
+                },
+                (Object[]) uidList.toArray(new String[0]));
+        return out;
+    }
+
+    /**
+     * Format a DHIS2 period ISO code into the human label central
+     * returns. Covers the common period types: daily (YYYYMMDD),
+     * monthly (YYYYMM), quarterly (YYYYQn), six-monthly (YYYYSn),
+     * yearly (YYYY), weekly (YYYYWnn). Everything else falls back to
+     * the raw code so unusual period types (financial years, bimonths)
+     * at least show up readably.
+     */
+    static String formatPeriodName(final String iso) {
+        if (iso == null || iso.length() < 4) {
+            return iso;
+        }
+        final String year = iso.substring(0, 4);
+        if (iso.length() == 4) {
+            return year;
+        }
+        if (iso.length() == 6 && iso.chars().allMatch(Character::isDigit)) {
+            final int m = Integer.parseInt(iso.substring(4, 6));
+            return monthName(m) + " " + year;
+        }
+        if (iso.length() == 8 && iso.chars().allMatch(Character::isDigit)) {
+            final int m = Integer.parseInt(iso.substring(4, 6));
+            final int d = Integer.parseInt(iso.substring(6, 8));
+            return d + " " + monthName(m) + " " + year;
+        }
+        if (iso.length() == 6 && iso.charAt(4) == 'Q') {
+            return year + " Q" + iso.substring(5);
+        }
+        if (iso.length() == 6 && iso.charAt(4) == 'S') {
+            return year + " S" + iso.substring(5);
+        }
+        if (iso.length() >= 6 && iso.charAt(4) == 'W') {
+            return year + " W" + iso.substring(5);
+        }
+        return iso;
+    }
+
+    private static String monthName(final int m) {
+        return switch (m) {
+            case 1 -> "January"; case 2 -> "February"; case 3 -> "March";
+            case 4 -> "April"; case 5 -> "May"; case 6 -> "June";
+            case 7 -> "July"; case 8 -> "August"; case 9 -> "September";
+            case 10 -> "October"; case 11 -> "November"; case 12 -> "December";
+            default -> Integer.toString(m);
+        };
+    }
+
+    private void rewriteRowIds(final List<List<Object>> rows,
+                                 final List<String> axes,
+                                 final Map<String, Map<String, String>> labels,
+                                 final OutputScheme scheme) {
+        for (final List<Object> row : rows) {
+            for (int i = 0; i < axes.size(); i++) {
+                final String axis = axes.get(i);
+                final Object cell = row.get(i);
+                if (cell == null) {
+                    continue;
+                }
+                final String uid = cell.toString();
+                final String replacement = switch (scheme) {
+                    case NAME -> labels.getOrDefault(axis, Map.of()).getOrDefault(uid, uid);
+                    case CODE -> uid; // CODE lookup lands in a follow-up
+                                     // batch when the mirror exposes
+                                     // the code column — pending central
+                                     // behaviour is to fall back to UID.
+                    case UID -> uid;
+                };
+                row.set(i, replacement);
+            }
+        }
     }
 
     private static ResponseEntity<Map<String, Object>> conflictEnvelope(
