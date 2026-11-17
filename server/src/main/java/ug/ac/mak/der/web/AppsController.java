@@ -13,6 +13,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -63,11 +65,73 @@ public class AppsController {
      * admin-ui's legacy "Apps" mockup screen (EAAppsList).
      */
     @GetMapping(path = "/installed")
-    public ResponseEntity<List<InstalledApp>> list(final Authentication authentication) {
+    public ResponseEntity<List<InstalledAppResponse>> list(final Authentication authentication) {
         if (!(authentication instanceof EdgeUserPrincipal)) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(repository.findAll());
+        return ResponseEntity.ok(repository.findAll().stream()
+                .map(InstalledAppResponse::from)
+                .toList());
+    }
+
+    /**
+     * Wire shape for {@code GET /edge-api/v1/apps/installed}. Mirrors
+     * {@link InstalledApp} but carries a derived {@code iconUrl} —
+     * resolved from the app's own {@code manifest.webapp icons} map
+     * so the launcher tile shows each DHIS2 app's native icon rather
+     * than a generic DER placeholder. Different apps declare the icon
+     * at different paths ({@code dhis2-app-icon.png}, {@code icon.png},
+     * {@code img/icons/app_logo_48x48.png}), so we read the manifest
+     * instead of hardcoding one filename.
+     */
+    public record InstalledAppResponse(
+            UUID appId,
+            String appKey,
+            String version,
+            String displayName,
+            String manifestJson,
+            String installPath,
+            UUID installedBy,
+            java.time.Instant installedAt,
+            boolean enabled,
+            InstalledApp.HostKind hostKind,
+            InstalledApp.Source source,
+            InstalledApp.TrustLevel trustLevel,
+            java.time.Instant lastOpenedAt,
+            String centralAppId,
+            String iconUrl
+    ) {
+        private static final ObjectMapper MAPPER = new ObjectMapper();
+        /** Pref-order for which icon size we surface to the launcher — 48 is
+         *  the DHIS2 default, 96/128 cover retina bundles, 16 is the final
+         *  fallback if an app only ships a favicon-size icon. */
+        private static final String[] SIZE_PREFERENCE = {"48", "96", "128", "16"};
+
+        static InstalledAppResponse from(final InstalledApp a) {
+            return new InstalledAppResponse(
+                    a.appId(), a.appKey(), a.version(), a.displayName(),
+                    a.manifestJson(), a.installPath(), a.installedBy(),
+                    a.installedAt(), a.enabled(), a.hostKind(), a.source(),
+                    a.trustLevel(), a.lastOpenedAt(), a.centralAppId(),
+                    iconUrlFrom(a.appKey(), a.manifestJson()));
+        }
+
+        private static String iconUrlFrom(final String appKey, final String manifestJson) {
+            try {
+                final JsonNode icons = MAPPER.readTree(manifestJson).path("icons");
+                for (final String size : SIZE_PREFERENCE) {
+                    final JsonNode n = icons.path(size);
+                    if (n.isTextual() && !n.asText().isBlank()) {
+                        return "/dhis-web-" + appKey + "/" + n.asText();
+                    }
+                }
+            } catch (IOException ex) {
+                // Malformed manifest — fall through to the generic default
+                // path. AppStaticHandler returns 404 if the file isn't
+                // present, and the launcher degrades to its placeholder.
+            }
+            return "/dhis-web-" + appKey + "/dhis2-app-icon.png";
+        }
     }
 
     @PostMapping(path = "/install", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

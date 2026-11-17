@@ -159,6 +159,16 @@ function sanitizeDhis2(raw: unknown): CatalogueApp[] {
     const displayName = typeof o.displayName === 'string'
       ? o.displayName : o.appKey;
     const deepLink = `/dhis-web-${o.appKey}/`;
+    // iconUrl is derived server-side from manifest.webapp (see
+    // AppsController.InstalledAppResponse.iconUrlFrom) — each DHIS2
+    // app declares its own icon path (`dhis2-app-icon.png`,
+    // `icon.png`, `img/icons/app_logo_48x48.png`, ...). Apps
+    // whose manifest has no `icons` entry fall through to the
+    // generic default; the launcher tile's <img> onError handler
+    // shows the placeholder if the file 404s.
+    const iconUrl = typeof o.iconUrl === 'string' && o.iconUrl
+      ? o.iconUrl
+      : null;
     return [{
       appId: o.appId,
       appKey: o.appKey,
@@ -169,7 +179,7 @@ function sanitizeDhis2(raw: unknown): CatalogueApp[] {
       bundleSha256: '',
       signatureB64: '',
       requiresDerApi: '',
-      iconUrl: null,
+      iconUrl,
       hostKind: 'DHIS2_IFRAME',
       source: 'MANUAL_UPLOAD',
       trustLevel: 'UNSIGNED',

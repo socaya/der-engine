@@ -155,6 +155,83 @@ public class AppShellEmptySurfacesController {
         return listEmpty(auth, "dimensions");
     }
 
+    /**
+     * {@code @dhis2/analytics}'s {@code apiFetchRecommendedIds}
+     * calls {@code dataEngine.query({recommendedDimensions: {...}})}
+     * and then destructures
+     * {@code recommendedDimensionsData.recommendedDimensions.dimensions
+     * .map(item => item.id)}. d2 app-runtime wraps the server body
+     * as {@code {<queryKey>: body}}, so the <em>server</em> body
+     * must be the inner {@code {dimensions: [...]}} shape — not the
+     * doubly-wrapped {@code {recommendedDimensions: {dimensions:
+     * [...]}}} that DHIS2 central serialises for its own REST
+     * wrapper (central strips the outer envelope via content
+     * negotiation before d2 sees it). Returning the bare
+     * {@code {dimensions: []}} here matches what d2 expects.
+     */
+    @GetMapping("/api/dimensions/recommendations")
+    public ResponseEntity<Map<String, Object>> dimensionsRecommendations(
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(Map.of("dimensions", List.of()));
+    }
+
+    /**
+     * DHIS2 period types are a fixed built-in set (not operator-defined),
+     * driven off the {@code PeriodType} enum in dhis2-core. The listing
+     * is what Data Visualizer / Maps / Event Reports call when the
+     * operator opens the Period dimension — an empty response makes
+     * {@code @dhis2/analytics} render "No period types enabled in the
+     * system. Please contact your system administrator." Returning
+     * the stock DHIS2 2.4x set lets Period selection, Relative Periods,
+     * and the "Update" action all work on-edge with no central round-
+     * trip. Enumeration + ISO durations mirror
+     * {@code dhis2-core/.../period/PeriodType.java}.
+     */
+    @GetMapping("/api/periodTypes")
+    public ResponseEntity<Map<String, Object>> periodTypes(final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(Map.of(
+                "periodTypes", DHIS2_PERIOD_TYPES,
+                "pager", pager(DHIS2_PERIOD_TYPES.size())));
+    }
+
+    private static Map<String, Object> pt(final String name, final String iso,
+                                            final String fmt, final int order) {
+        return Map.of("name", name, "isoDuration", iso,
+                "isoFormat", fmt, "frequencyOrder", order);
+    }
+
+    private static final List<Map<String, Object>> DHIS2_PERIOD_TYPES = List.of(
+            pt("Daily",             "P1D",  "yyyyMMdd",     1),
+            pt("Weekly",            "P7D",  "yyyyWn",       7),
+            pt("WeeklyWednesday",   "P7D",  "yyyyWedWn",    7),
+            pt("WeeklyThursday",    "P7D",  "yyyyThuWn",    7),
+            pt("WeeklySaturday",    "P7D",  "yyyySatWn",    7),
+            pt("WeeklySunday",      "P7D",  "yyyySunWn",    7),
+            pt("BiWeekly",          "P14D", "yyyyBiWn",    14),
+            pt("Monthly",           "P1M",  "yyyyMM",      30),
+            pt("BiMonthly",         "P2M",  "yyyyMMB",     61),
+            pt("Quarterly",         "P3M",  "yyyyQn",      91),
+            pt("QuarterlyNov",      "P3M",  "yyyyNovQn",   91),
+            pt("SixMonthly",        "P6M",  "yyyySn",     182),
+            pt("SixMonthlyApril",   "P6M",  "yyyyAprilSn", 182),
+            pt("SixMonthlyNov",     "P6M",  "yyyyNovSn",   182),
+            pt("Yearly",            "P1Y",  "yyyy",        365),
+            pt("FinancialApril",    "P1Y",  "yyyyApril",   365),
+            pt("FinancialJuly",     "P1Y",  "yyyyJuly",    365),
+            pt("FinancialOct",      "P1Y",  "yyyyOct",     365),
+            pt("FinancialNov",      "P1Y",  "yyyyNov",     365));
+
+    private static Map<String, Object> pager(final int total) {
+        return Map.of("page", 1, "pageSize", 50,
+                "pageCount", total == 0 ? 0 : 1, "total", total);
+    }
+
     @GetMapping("/api/interpretations")
     public ResponseEntity<Map<String, Object>> interpretations(final Authentication auth) {
         return listEmpty(auth, "interpretations");
