@@ -6,6 +6,10 @@ _Generated 2026-11-17 against DER `main` (apps/analytics modified)._
 
 Incremental wave execution against the baseline below. Each entry shifts a set of endpoints from `STUB-EMPTY`/`MISSING` to `NATIVE`. The full register further down is point-in-time; the per-batch deltas are listed here until the register is regenerated in bulk.
 
+- **2026-11-17 — Wave 2 Batch 3** (relative periods + OU expansion + hierarchy). Commit: pending.
+  - New `RelativePeriodResolver` covers the full DHIS2 relative-period catalogue (~45 tokens): days, weeks, bimonths, months, quarters, six-months, years, financial years. Literal ISO periods pass through unchanged so clients can mix `LAST_12_MONTHS` + `202501` in one `dimension=pe:` spec.
+  - `/api/analytics` now resolves `USER_ORGUNIT`, `USER_ORGUNIT_CHILDREN`, `USER_ORGUNIT_GRANDCHILDREN` against `OrgUnitBindingService.current()`. Unbound caller strips the placeholders cleanly (matches central's "unassigned user" behaviour).
+  - Hierarchy aggregation: querying a non-leaf OU (`ou:<district>`) now folds in every descendant facility via `path LIKE '%/<uid>/%'` so the SUM query rolls values up the tree. The parent UID itself stays in the IN clause so facilities that mistakenly report at the district level still contribute.
 - **2026-11-17 — Wave 2 Batch 2** (/api/analytics core aggregate). Commit: pending.
   - New `AnalyticsQueryController` serves `GET /api/analytics` NATIVE from `der.aggregate_data_value` (186 rows on this dev appliance). Shifts the single highest-traffic P1 endpoint from `PROXY` to `NATIVE` — Data Visualizer, Dashboard chart items, Maps aggregation layers, and custom apps calling `analytics.query()` now render real numbers without a central round-trip.
   - Query grammar: `dimension=<dim>:<v1>;<v2>` (ordered — first dim becomes first axis), `filter=<dim>:<v>` (WHERE-only, omitted from output axes), `aggregationType=SUM|AVG|COUNT|MIN|MAX` (default SUM). Literal UIDs for `dx`, `pe`, `ou`; relative periods + USER_ORGUNIT + hierarchy aggregation ship in Batch 3.

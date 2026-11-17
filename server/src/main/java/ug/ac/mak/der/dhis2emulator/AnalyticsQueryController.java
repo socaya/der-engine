@@ -1,19 +1,16 @@
 package ug.ac.mak.der.dhis2emulator;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -23,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import ug.ac.mak.der.orgunit.EdgeOrgUnitBinding;
+import ug.ac.mak.der.orgunit.OrgUnitBindingService;
 import ug.ac.mak.der.security.EdgeUserPrincipal;
 
 /**
@@ -66,9 +65,12 @@ public class AnalyticsQueryController {
             Set.of("SUM", "AVG", "COUNT", "MIN", "MAX");
 
     private final JdbcTemplate jdbc;
+    private final ObjectProvider<OrgUnitBindingService> bindingProvider;
 
-    public AnalyticsQueryController(final JdbcTemplate jdbc) {
+    public AnalyticsQueryController(final JdbcTemplate jdbc,
+                                      final ObjectProvider<OrgUnitBindingService> bindingProvider) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
+        this.bindingProvider = Objects.requireNonNull(bindingProvider, "bindingProvider");
     }
 
     @GetMapping
@@ -96,6 +98,22 @@ public class AnalyticsQueryController {
         final Map<String, List<String>> dims = parseDimensionList(dimensions);
         final Map<String, List<String>> flt = parseDimensionList(
                 filters == null ? List.of() : filters);
+
+        // Resolve relative periods (LAST_12_MONTHS -> list of ISO codes),
+        // USER_ORGUNIT placeholders, and OU hierarchy expansion. Each
+        // step mutates the dim/flt maps in place so the WHERE builder
+        // downstream sees only literal UIDs + ISO periods.
+        final EdgeUserPrincipal principal = (EdgeUserPrincipal) auth;
+        try {
+            resolveRelativePeriods(dims);
+            resolveRelativePeriods(flt);
+        } catch (final IllegalArgumentException ex) {
+            return conflictEnvelope("E7124", ex.getMessage());
+        }
+        resolveUserOrgUnits(dims, principal);
+        resolveUserOrgUnits(flt, principal);
+        expandOrgUnitHierarchy(dims);
+        expandOrgUnitHierarchy(flt);
 
         // DHIS2 requires `dx` on every aggregate query; without it the
         // response is "Dimension is present in query without any valid
@@ -342,21 +360,112 @@ public class AnalyticsQueryController {
                 "message", message));
     }
 
-    // Reserved for Wave 2 Batch 2: relative-period resolver backed by
-    // LocalDate arithmetic. Keeping the imports warm so adding
-    // THIS_YEAR / LAST_12_MONTHS / LAST_WEEK is a one-method edit.
-    @SuppressWarnings("unused")
-    private static LocalDate parseIsoOrNull(final String s) {
-        try {
-            return LocalDate.parse(s, DateTimeFormatter.ofPattern("yyyyMMdd"));
-        } catch (final Exception ex) {
-            return null;
+    /** Walks the {@code pe} dimension / filter values and expands any
+     *  relative-period token (LAST_12_MONTHS, THIS_YEAR, …) into its
+     *  literal ISO codes via {@link RelativePeriodResolver}. Literals
+     *  pass through unchanged. Ordering within the expanded list
+     *  matches the resolver's output so the oldest period comes first
+     *  (Data Visualizer renders charts left-to-right chronologically). */
+    private static void resolveRelativePeriods(final Map<String, List<String>> dims) {
+        final List<String> pe = dims.get("pe");
+        if (pe == null || pe.isEmpty()) {
+            return;
         }
+        final List<String> resolved = new ArrayList<>();
+        for (final String token : pe) {
+            resolved.addAll(RelativePeriodResolver.resolve(token));
+        }
+        dims.put("pe", resolved);
     }
 
-    @SuppressWarnings("unused")
-    private static final List<ChronoUnit> KEEP = Collections.singletonList(ChronoUnit.MONTHS);
+    /** DHIS2 analytics clients use three OU placeholders:
+     *  {@code USER_ORGUNIT} (the user's bound OU),
+     *  {@code USER_ORGUNIT_CHILDREN} (direct children),
+     *  {@code USER_ORGUNIT_GRANDCHILDREN} (grandchildren). We resolve
+     *  against {@link OrgUnitBindingService#current()} — when the
+     *  appliance isn't bound the placeholders collapse to empty, which
+     *  mirrors central's behaviour for an unassigned caller. */
+    private void resolveUserOrgUnits(final Map<String, List<String>> dims,
+                                       final EdgeUserPrincipal principal) {
+        final List<String> ou = dims.get("ou");
+        if (ou == null || ou.isEmpty()) {
+            return;
+        }
+        final OrgUnitBindingService svc = bindingProvider.getIfAvailable();
+        if (svc == null) {
+            return;
+        }
+        final EdgeOrgUnitBinding binding = svc.current();
+        final String bound = binding == null ? null : binding.orgUnitId();
+        if (bound == null) {
+            // Strip the placeholders — resolving them to nothing makes
+            // the query degenerate cleanly to "no matching OUs".
+            ou.removeIf(s -> s.startsWith("USER_ORGUNIT"));
+            return;
+        }
+        final List<String> resolved = new ArrayList<>();
+        for (final String token : ou) {
+            switch (token) {
+                case "USER_ORGUNIT" -> resolved.add(bound);
+                case "USER_ORGUNIT_CHILDREN" -> resolved.addAll(
+                        childrenOf(bound));
+                case "USER_ORGUNIT_GRANDCHILDREN" -> resolved.addAll(
+                        grandchildrenOf(bound));
+                default -> resolved.add(token);
+            }
+        }
+        dims.put("ou", resolved);
+    }
 
-    @SuppressWarnings("unused")
-    private static final List<Arrays> KEEP2 = List.of();
+    private List<String> childrenOf(final String parentUid) {
+        return jdbc.queryForList(
+                "SELECT dhis2_uid FROM der.metadata_organisation_unit "
+                        + "WHERE parent_uid = ? ORDER BY display_name",
+                String.class, parentUid);
+    }
+
+    private List<String> grandchildrenOf(final String parentUid) {
+        return jdbc.queryForList(
+                "SELECT c.dhis2_uid "
+                        + "FROM der.metadata_organisation_unit c "
+                        + "JOIN der.metadata_organisation_unit p "
+                        + "  ON c.parent_uid = p.dhis2_uid "
+                        + "WHERE p.parent_uid = ? ORDER BY c.display_name",
+                String.class, parentUid);
+    }
+
+    /**
+     * DHIS2 hierarchy semantics: when the caller asks for {@code ou:<parent>},
+     * the value returned is the sum of all leaf-facility values under
+     * that parent — the parent itself rarely carries values directly;
+     * values roll up from the facilities beneath. We implement this by
+     * appending every descendant UID to the {@code ou} list so the
+     * subsequent SUM query picks them up through the same IN clause.
+     *
+     * <p>The parent UID itself stays in the list so facilities that
+     * mistakenly carry values at the district level still contribute.
+     * De-duplicate via a LinkedHashSet to preserve the first-seen order
+     * (matters for output axis ordering).</p>
+     */
+    private void expandOrgUnitHierarchy(final Map<String, List<String>> dims) {
+        final List<String> ou = dims.get("ou");
+        if (ou == null || ou.isEmpty()) {
+            return;
+        }
+        final Set<String> expanded = new LinkedHashSet<>();
+        for (final String uid : ou) {
+            expanded.add(uid);
+            // path LIKE '%/<uid>/%' catches every OU with this UID as
+            // an ancestor segment (the trailing '/' forces exact-UID
+            // match — avoids matching UIDs that happen to be substrings
+            // of other UIDs). Fall through silently if the parent isn't
+            // in the mirror (query returns empty list).
+            final List<String> descendants = jdbc.queryForList(
+                    "SELECT dhis2_uid FROM der.metadata_organisation_unit "
+                            + "WHERE path LIKE ?",
+                    String.class, "%/" + uid + "/%");
+            expanded.addAll(descendants);
+        }
+        dims.put("ou", new ArrayList<>(expanded));
+    }
 }
