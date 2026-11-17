@@ -314,15 +314,22 @@ public class ConfigurationController {
      * exact format DV iterates.</p>
      */
     @GetMapping("/dataOutputPeriodTypes")
-    public ResponseEntity<List<String>> getDataOutputPeriodTypes(final Authentication auth) {
+    public ResponseEntity<List<Map<String, Object>>> getDataOutputPeriodTypes(final Authentication auth) {
         if (!(auth instanceof EdgeUserPrincipal)) {
             return ResponseEntity.status(401).build();
         }
         final List<String> override = readList("dataOutputPeriodTypes");
-        if (!override.isEmpty()) {
-            return ResponseEntity.ok(override);
+        final List<String> types = override.isEmpty() ? ALL_PERIOD_TYPE_IDS : override;
+        // DHIS2 central returns an array of OBJECTS (not plain strings)
+        // here — Data Visualizer does b.find(j => j.name === R) so every
+        // entry must carry a .name field. Returning ["Daily","Weekly"]
+        // leaves DV's find returning undefined for every lookup and the
+        // Period Type dropdown renders empty.
+        final List<Map<String, Object>> out = new java.util.ArrayList<>(types.size());
+        for (final String t : types) {
+            out.add(Map.of("name", t, "displayName", t));
         }
-        return ResponseEntity.ok(ALL_PERIOD_TYPE_IDS);
+        return ResponseEntity.ok(out);
     }
 
     private static final List<String> ALL_PERIOD_TYPE_IDS = List.of(

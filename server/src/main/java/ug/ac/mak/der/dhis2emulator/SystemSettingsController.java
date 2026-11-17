@@ -78,9 +78,19 @@ public class SystemSettingsController {
         }
         final boolean wantsJson = accept != null && accept.contains("application/json");
         if (wantsJson) {
+            // DHIS2 central returns {<key>: value} as the JSON body —
+            // the d2 app-runtime resource query unwraps that as
+            // data.<queryKey>.<key>, so Data Visualizer's period
+            // picker does e.g.
+            //   const anchor = data.financialYearStart.analyticsFinancialYearStart
+            // Returning a bare "value" leaves data.financialYearStart
+            // equal to the string "FINANCIAL_YEAR_JULY", and the
+            // nested property access evaluates to undefined — which
+            // leaves the Period Type dropdown empty + crashes
+            // downstream in hasLevelPrefix.
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body("\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"");
+                    .body(Map.of(key, value));
         }
         return ResponseEntity.ok()
                 .contentType(MediaType.TEXT_PLAIN)
@@ -94,6 +104,24 @@ public class SystemSettingsController {
             case "keyStyle" -> "light_blue/light_blue.css";
             case "applicationTitle" -> "DHIS 2";
             case "keyFlag" -> "dhis2";
+            // DHIS2 analytics defaults — returning empty strings here
+            // leaves Data Visualizer / Maps / Dashboard unable to render
+            // the period picker (it falls back to an undefined start
+            // anchor, then crashes downstream in hasLevelPrefix).
+            case "analyticsFinancialYearStart" -> "FINANCIAL_YEAR_JULY";
+            case "analyticsWeeklyStart" -> "MONDAY";
+            case "keyAnalysisRelativePeriod" -> "LAST_12_MONTHS";
+            case "keyHideDailyPeriods" -> "false";
+            case "keyHideWeeklyPeriods" -> "false";
+            case "keyHideBiWeeklyPeriods" -> "false";
+            case "keyHideMonthlyPeriods" -> "false";
+            case "keyHideBiMonthlyPeriods" -> "false";
+            case "keyDataImportStrictPeriods",
+                 "keyDataImportStrictDataElements",
+                 "keyDataImportStrictCategoryOptionCombos",
+                 "keyDataImportStrictOrganisationUnits",
+                 "keyDataImportRequireCategoryOptionCombo",
+                 "keyDataImportRequireAttributeOptionCombo" -> "false";
             default -> "";
         };
     }
