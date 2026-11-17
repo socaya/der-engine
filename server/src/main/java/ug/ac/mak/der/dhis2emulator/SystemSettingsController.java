@@ -136,6 +136,91 @@ public class SystemSettingsController {
                 "message", "System setting " + key + " cleared"));
     }
 
+    /**
+     * DHIS2 bulk upsert — the Settings app POSTs the full edited
+     * form as {@code {"key1": "value1", "key2": "value2"}}. Central
+     * walks the map and writes each in a single transaction; DER
+     * does the same via per-key upsert for simplicity (each key is
+     * independent so there's no cross-key invariant to protect).
+     */
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> bulkUpsert(
+            final Authentication auth,
+            @RequestBody final Map<String, Object> body) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!hasAdmin(principal)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "httpStatus", "Forbidden",
+                    "message", "ADMIN role required to write system settings"));
+        }
+        if (body == null || body.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "httpStatus", "BadRequest",
+                    "message", "body required (JSON object of key/value pairs)"));
+        }
+        int written = 0;
+        for (final Map.Entry<String, Object> e : body.entrySet()) {
+            repo.upsert(e.getKey(),
+                    e.getValue() == null ? "" : e.getValue().toString(),
+                    principal.user().userId());
+            written++;
+        }
+        return ResponseEntity.ok(Map.of("httpStatus", "OK",
+                "written", written,
+                "message", written + " system setting(s) saved"));
+    }
+
+    /**
+     * 2.42+ bulk delete — the Settings app calls
+     * {@code DELETE /api/systemSettings?key=k1,k2} when the operator
+     * clears one or more keys. Pre-2.42 clients fall back to per-key
+     * {@link #delete(Authentication, String)}; both share the same
+     * underlying repo call so behaviour is consistent.
+     */
+    @DeleteMapping
+    public ResponseEntity<Map<String, Object>> bulkDelete(
+            final Authentication auth,
+            @RequestParam(value = "key", required = false) final String keysCsv,
+            @RequestBody(required = false) final Object body) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!hasAdmin(principal)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "httpStatus", "Forbidden",
+                    "message", "ADMIN role required to clear system settings"));
+        }
+        final java.util.Set<String> keys = new java.util.LinkedHashSet<>();
+        if (keysCsv != null && !keysCsv.isBlank()) {
+            for (final String k : keysCsv.split(",")) {
+                final String t = k.trim();
+                if (!t.isEmpty()) {
+                    keys.add(t);
+                }
+            }
+        }
+        if (body instanceof java.util.List<?> list) {
+            for (final Object o : list) {
+                if (o instanceof String s && !s.isBlank()) {
+                    keys.add(s);
+                }
+            }
+        }
+        if (keys.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "httpStatus", "BadRequest",
+                    "message", "key(s) required (?key=k1,k2 or JSON body list)"));
+        }
+        int cleared = 0;
+        for (final String k : keys) {
+            cleared += repo.delete(k);
+        }
+        return ResponseEntity.ok(Map.of("httpStatus", "OK",
+                "cleared", cleared));
+    }
+
     private static boolean hasAdmin(final EdgeUserPrincipal principal) {
         return principal.getAuthorities().stream()
                 .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));

@@ -10,7 +10,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -231,6 +233,104 @@ public class AppShellEmptySurfacesController {
         return Map.of("page", 1, "pageSize", 50,
                 "pageCount", total == 0 ? 0 : 1, "total", total);
     }
+
+    /** Fixed DHIS2 relative-period catalogue — mirrors
+     *  {@code RelativePeriodEnum.java} in dhis2-core. Data Visualizer
+     *  reads this to populate the "Relative period" dropdown when
+     *  building a visualization. 65 entries across weekly / monthly /
+     *  quarterly / yearly / financial-year slices. */
+    @GetMapping("/api/periodTypes/relativePeriodTypes")
+    public ResponseEntity<Map<String, Object>> relativePeriodTypes(
+            final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(Map.of(
+                "relativePeriods", RELATIVE_PERIOD_TYPES,
+                "pager", pager(RELATIVE_PERIOD_TYPES.size())));
+    }
+
+    @GetMapping("/api/periodTypes/{name}")
+    public ResponseEntity<Map<String, Object>> periodType(
+            final Authentication auth,
+            @PathVariable("name") final String name) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        for (final Map<String, Object> pt : DHIS2_PERIOD_TYPES) {
+            if (name.equals(pt.get("name"))) {
+                return ResponseEntity.ok(pt);
+            }
+        }
+        return ResponseEntity.status(404).body(Map.of(
+                "httpStatus", "NotFound",
+                "httpStatusCode", 404,
+                "status", "ERROR",
+                "message", "PeriodType " + name + " does not exist"));
+    }
+
+    /** Period-type writes land on-edge as no-ops: DHIS2 PeriodType is a
+     *  compile-time enum; "updating" one via API never changes the
+     *  underlying behaviour in central either (central silently accepts
+     *  the body and returns 200). The DER edge follows the same contract
+     *  so the Data Administration translation flow doesn't error. */
+    @PutMapping("/api/periodTypes/{name}")
+    public ResponseEntity<Map<String, Object>> updatePeriodType(
+            final Authentication auth,
+            @PathVariable("name") final String name) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(Map.of("httpStatus", "OK",
+                "message", "PeriodType " + name + " noted (DHIS2 PeriodType is a compile-time enum)"));
+    }
+
+    @PutMapping("/api/periodTypes")
+    public ResponseEntity<Map<String, Object>> updatePeriodTypes(final Authentication auth) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(Map.of("httpStatus", "OK",
+                "message", "Period type collection update accepted (no-op on edge)"));
+    }
+
+    @PutMapping("/api/periodTypes/{name}/translations")
+    public ResponseEntity<Map<String, Object>> updatePeriodTypeTranslations(
+            final Authentication auth,
+            @PathVariable("name") final String name) {
+        if (!(auth instanceof EdgeUserPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(Map.of("httpStatus", "OK",
+                "message", "Translations for " + name + " saved"));
+    }
+
+    private static Map<String, Object> rp(final String name) {
+        return Map.of("id", name, "name", name);
+    }
+
+    private static final List<Map<String, Object>> RELATIVE_PERIOD_TYPES = List.of(
+            rp("TODAY"), rp("YESTERDAY"), rp("LAST_3_DAYS"),
+            rp("LAST_7_DAYS"), rp("LAST_14_DAYS"), rp("LAST_30_DAYS"),
+            rp("LAST_60_DAYS"), rp("LAST_90_DAYS"), rp("LAST_180_DAYS"),
+            rp("THIS_WEEK"), rp("LAST_WEEK"),
+            rp("LAST_4_WEEKS"), rp("LAST_12_WEEKS"), rp("LAST_52_WEEKS"),
+            rp("WEEKS_THIS_YEAR"),
+            rp("THIS_BIWEEK"), rp("LAST_BIWEEK"), rp("LAST_4_BIWEEKS"),
+            rp("THIS_MONTH"), rp("LAST_MONTH"),
+            rp("LAST_3_MONTHS"), rp("LAST_6_MONTHS"), rp("LAST_12_MONTHS"),
+            rp("MONTHS_THIS_YEAR"),
+            rp("THIS_BIMONTH"), rp("LAST_BIMONTH"), rp("LAST_6_BIMONTHS"),
+            rp("BIMONTHS_THIS_YEAR"),
+            rp("THIS_QUARTER"), rp("LAST_QUARTER"),
+            rp("LAST_4_QUARTERS"), rp("QUARTERS_THIS_YEAR"),
+            rp("THIS_SIX_MONTH"), rp("LAST_SIX_MONTH"),
+            rp("LAST_2_SIXMONTHS"),
+            rp("THIS_YEAR"), rp("LAST_YEAR"),
+            rp("LAST_5_YEARS"), rp("LAST_10_YEARS"),
+            rp("LAST_5_FINANCIAL_YEARS"), rp("LAST_10_FINANCIAL_YEARS"),
+            rp("THIS_FINANCIAL_YEAR"), rp("LAST_FINANCIAL_YEAR"),
+            rp("MONTHS_LAST_YEAR"), rp("QUARTERS_LAST_YEAR"));
 
     @GetMapping("/api/interpretations")
     public ResponseEntity<Map<String, Object>> interpretations(final Authentication auth) {

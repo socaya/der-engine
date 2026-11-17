@@ -126,6 +126,89 @@ public class AppShellStubsController {
     }
 
     /**
+     * General static-content fallback for keys outside the hardcoded
+     * sign-in logos (DHIS2 central uses this for e.g. {@code logo_sidebar},
+     * {@code logo_email}, operator uploads). Backed by
+     * {@code der.system_setting} under the {@code staticContent:} namespace
+     * where the value is the image's base64 payload with a {@code #mime}
+     * suffix (e.g. {@code iVBORw0KGgo...#image/png}). Returns 204 when
+     * the key isn't set, mirroring central's behaviour so the app's
+     * {@code <img onError>} fallback degrades cleanly.
+     */
+    @GetMapping(path = "/api/staticContent/{key}")
+    public ResponseEntity<byte[]> staticContent(
+            @org.springframework.web.bind.annotation.PathVariable("key") final String key) {
+        final String stored;
+        try {
+            stored = jdbc.queryForObject(
+                    "SELECT setting_value FROM der.system_setting WHERE setting_key = ?",
+                    String.class, "staticContent:" + key);
+        } catch (final RuntimeException ex) {
+            return ResponseEntity.noContent().build();
+        }
+        if (stored == null || stored.isBlank()) {
+            return ResponseEntity.noContent().build();
+        }
+        final int hash = stored.lastIndexOf('#');
+        final String b64 = hash < 0 ? stored : stored.substring(0, hash);
+        final String mime = hash < 0 ? "application/octet-stream"
+                : stored.substring(hash + 1);
+        try {
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(mime))
+                    .body(java.util.Base64.getDecoder().decode(b64));
+        } catch (final IllegalArgumentException ex) {
+            return ResponseEntity.noContent().build();
+        }
+    }
+
+    /**
+     * Persist a static-content upload. Admin-gated — same posture as
+     * {@link SystemSettingsController#upsert(Authentication, String,
+     * String, String)}. Body is raw bytes with the {@code Content-Type}
+     * header indicating the MIME; we store base64 + mime so a later GET
+     * round-trips cleanly through {@link #staticContent(String)}.
+     */
+    @org.springframework.web.bind.annotation.PostMapping(path = "/api/staticContent/{key}")
+    public ResponseEntity<Map<String, Object>> uploadStaticContent(
+            final Authentication auth,
+            @org.springframework.web.bind.annotation.PathVariable("key") final String key,
+            @org.springframework.web.bind.annotation.RequestHeader(
+                    value = "Content-Type", required = false) final String contentType,
+            @org.springframework.web.bind.annotation.RequestBody(required = false) final byte[] body) {
+        if (!(auth instanceof EdgeUserPrincipal principal)) {
+            return ResponseEntity.status(401).build();
+        }
+        if (!principal.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()))) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "httpStatus", "Forbidden",
+                    "message", "ADMIN role required to upload static content"));
+        }
+        if (body == null || body.length == 0) {
+            jdbc.update(
+                    "DELETE FROM der.system_setting WHERE setting_key = ?",
+                    "staticContent:" + key);
+            return ResponseEntity.ok(Map.of("httpStatus", "OK",
+                    "message", "Static content " + key + " cleared"));
+        }
+        final String mime = contentType != null && !contentType.isBlank()
+                ? contentType : "application/octet-stream";
+        final String stored = java.util.Base64.getEncoder().encodeToString(body)
+                + "#" + mime;
+        jdbc.update(
+                "INSERT INTO der.system_setting (setting_key, setting_value, updated_by) "
+                + "VALUES (?, ?, ?) "
+                + "ON CONFLICT (setting_key) DO UPDATE "
+                + "SET setting_value = EXCLUDED.setting_value, "
+                + "    updated_by = EXCLUDED.updated_by, "
+                + "    updated_at = now()",
+                "staticContent:" + key, stored, principal.user().userId());
+        return ResponseEntity.ok(Map.of("httpStatus", "OK",
+                "message", "Static content " + key + " saved"));
+    }
+
+    /**
      * Legacy Struts feature-detection probe used by very old DHIS2
      * app shells (eregisters ships one at bootstrap). Modern apps
      * swallow the 404, but returning an empty list here cleans up
