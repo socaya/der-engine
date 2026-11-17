@@ -14,8 +14,32 @@ const version = readFileSync(resolve(here, '..', 'VERSION'), 'utf-8').trim();
 // DHIS2's SAMEORIGIN iframe policy keeps working (ADR-0003, Phase 03).
 const DER_SERVER = process.env.DER_SERVER_URL ?? 'http://127.0.0.1:8085';
 
+/**
+ * DHIS2 custom apps mount in an iframe on `/apps/<key>` → iframe src
+ * resolves to `/dhis-web-<key>/`. When a hosted DHIS2 app
+ * (Dashboard, Capture, …) issues a top-window navigate to `/` on
+ * logout or on a cached-401 fallback, vite's dev server serves the
+ * DER shell index.html with no header. Chrome/Firefox default to
+ * {@code X-Frame-Options: DENY} in some redirect chains and refuse
+ * to render. Stamping {@code SAMEORIGIN} explicitly on every vite-
+ * served response makes the dev-server policy match the DER server
+ * (which also sets SAMEORIGIN via Spring Security) so any
+ * browser-side framing attempt works end-to-end.
+ */
+const samesiteFrameHeaders = () => ({
+  name: 'der-dev-frame-headers',
+  configureServer(s: { middlewares: { use: (fn: (req: unknown, res: {
+      setHeader: (k: string, v: string) => void;
+    }, next: () => void) => void) => void } }) {
+    s.middlewares.use((_req, res, next) => {
+      res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+      next();
+    });
+  },
+});
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), samesiteFrameHeaders()],
   define: {
     __DER_VERSION__: JSON.stringify(version),
     __DER_APP__: JSON.stringify('client'),
