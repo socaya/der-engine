@@ -10,6 +10,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -58,6 +61,81 @@ public class SchemasController {
                     "message", "Schema not mirrored by the DER emulator"));
         }
         return ResponseEntity.ok(toJson(match.get(), resolveBase(request)));
+    }
+
+    /**
+     * DHIS2 central's {@code POST /api/schemas/{type}} and
+     * {@code PUT /api/schemas/{type}} validate a candidate metadata
+     * payload against the schema without persisting it — the form
+     * builder in the Maintenance app calls these to surface validation
+     * errors inline before the real save. DER's schema registry is
+     * read-only (it describes DER's own mirror shape, not operator-
+     * editable schemas), so we return a 200 "valid" ack when the
+     * schema exists, or the standard EMULATOR_NOT_IMPLEMENTED 404 when
+     * the type is unknown. This is the same posture central takes when
+     * the payload parses cleanly.
+     */
+    @PostMapping("/{singular}")
+    public ResponseEntity<Map<String, Object>> validatePost(
+            @PathVariable("singular") final String singular,
+            @RequestBody(required = false) final Map<String, Object> body) {
+        return validateInternal(singular, body);
+    }
+
+    @PutMapping("/{singular}")
+    public ResponseEntity<Map<String, Object>> validatePut(
+            @PathVariable("singular") final String singular,
+            @RequestBody(required = false) final Map<String, Object> body) {
+        return validateInternal(singular, body);
+    }
+
+    private ResponseEntity<Map<String, Object>> validateInternal(
+            final String singular, final Map<String, Object> body) {
+        final Optional<SchemaDefinitions.Schema> match =
+                SchemaDefinitions.bySingular(singular);
+        if (match.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of(
+                    "httpStatus", "NotFound",
+                    "httpStatusCode", 404,
+                    "status", "ERROR",
+                    "code", "EMULATOR_NOT_IMPLEMENTED",
+                    "endpoint", "/api/schemas/" + singular,
+                    "message", "Schema not mirrored by the DER emulator"));
+        }
+        return ResponseEntity.ok(Map.of(
+                "httpStatus", "OK",
+                "status", "OK",
+                "message", "Schema " + singular + " accepted (validation passed)"));
+    }
+
+    /**
+     * Single-property introspection — the Maintenance app calls this
+     * when rendering the form field for one property in isolation
+     * (e.g. hovering the help tooltip). Returns the property's
+     * {@link SchemaDefinitions.Property} entry or 404 when either the
+     * schema or the named property doesn't exist in DER's registry.
+     */
+    @GetMapping("/{singular}/{property}")
+    public ResponseEntity<Map<String, Object>> property(
+            @PathVariable("singular") final String singular,
+            @PathVariable("property") final String property,
+            final HttpServletRequest request) {
+        final Optional<SchemaDefinitions.Schema> match =
+                SchemaDefinitions.bySingular(singular);
+        if (match.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of(
+                    "httpStatus", "NotFound",
+                    "message", "Schema " + singular + " not mirrored"));
+        }
+        return match.get().properties().stream()
+                .filter(p -> property.equals(p.name())
+                        || property.equals(p.fieldName()))
+                .findFirst()
+                .map(p -> ResponseEntity.ok(propertyJson(p, resolveBase(request))))
+                .orElseGet(() -> ResponseEntity.status(404).body(Map.of(
+                        "httpStatus", "NotFound",
+                        "message", "Property " + property + " not found on "
+                                + singular)));
     }
 
     private static Map<String, Object> toJson(final SchemaDefinitions.Schema s,
