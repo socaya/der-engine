@@ -204,8 +204,14 @@ public class AppShellEmptySurfacesController {
 
     private static Map<String, Object> pt(final String name, final String iso,
                                             final String fmt, final int order) {
-        return Map.of("name", name, "isoDuration", iso,
-                "isoFormat", fmt, "frequencyOrder", order);
+        // DHIS2 central returns both `id` and `name` on every period type
+        // (they're the same string — period types use their type-name as
+        // their identifier). Data Visualizer iterates the list and reads
+        // `.id` to render the picker chip; without it, DV flows undefined
+        // through its hasLevelPrefix check and crashes with
+        // "Cannot read properties of undefined (reading 'substr')".
+        return Map.of("id", name, "name", name, "displayName", name,
+                "isoDuration", iso, "isoFormat", fmt, "frequencyOrder", order);
     }
 
     private static final List<Map<String, Object>> DHIS2_PERIOD_TYPES = List.of(
