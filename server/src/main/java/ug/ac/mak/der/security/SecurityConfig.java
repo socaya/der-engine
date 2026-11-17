@@ -89,6 +89,18 @@ public class SecurityConfig {
                         // readiness check). Exposes zero secrets.
                         .requestMatchers("/edge-api/v1/system/preflight").permitAll()
                         .requestMatchers("/edge-api/v1/auth/sign-in").permitAll()
+                        // DHIS2 /api/auth/** pre-auth endpoints — login,
+                        // forgotPassword, passwordReset, registration,
+                        // invite land before the client holds a session.
+                        // Dhis2AuthController still does credential
+                        // verification where appropriate; these are
+                        // permitAll only to let the request reach the
+                        // controller (vs being 401'd at the filter).
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                                "/api/auth/login",
+                                "/api/auth/forgotPassword",
+                                "/api/auth/passwordReset",
+                                "/api/auth/registration").permitAll()
                         // FR-02-09 — break-glass recovery is unauth
                         // by design (the caller is locked out). The
                         // service itself enforces physical-presence
