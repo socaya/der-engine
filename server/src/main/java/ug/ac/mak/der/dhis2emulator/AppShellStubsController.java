@@ -138,6 +138,21 @@ public class AppShellStubsController {
         return ResponseEntity.ok(Map.of("modules", List.of()));
     }
 
+    /**
+     * DHIS2 apps-bundle discovery — Dashboard (and other React apps
+     * built with the DHIS2 PWA shell) read this at boot to render
+     * the "Open in other app" launcher dropdown. Empty bundle maps
+     * to "no sibling apps discoverable" — the DER app launcher
+     * surfaces the real app list via the native shell instead.
+     * Central returns the same {@code {apps: []}} shape on a
+     * fresh install with no custom apps.
+     */
+    @GetMapping(path = "/dhis-web-apps/apps-bundle.json",
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> appsBundle() {
+        return ResponseEntity.ok(Map.of("apps", List.of()));
+    }
+
     private ResponseEntity<byte[]> readSignInImage() {
         try {
             final Map<String, Object> row = jdbc.queryForMap(

@@ -59,6 +59,15 @@ public class ApiVersionPrefixFilter extends OncePerRequestFilter {
     private static final Pattern JSON_SUFFIX =
             Pattern.compile("^(/api/.+)\\.json$");
 
+    /** Pre-React DHIS2 apps (adex-flow, legacy Web API consumers)
+     *  were built with their own {@code /dhis-web-&lt;appKey&gt;/}
+     *  as the fetch base path. On central they rely on a Tomcat
+     *  filter that rewrites {@code /dhis-web-&lt;app&gt;/api/...}
+     *  back to {@code /api/...}. DER mirrors that rewrite so
+     *  legacy apps work unmodified. */
+    private static final Pattern APP_BASE_PREFIX =
+            Pattern.compile("^/dhis-web-[a-zA-Z0-9-]+/api/(.*)$");
+
     @Override
     protected void doFilterInternal(final HttpServletRequest request,
                                         final HttpServletResponse response,
@@ -66,13 +75,23 @@ public class ApiVersionPrefixFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String uri = request.getRequestURI();
         boolean rewrote = false;
-        // 1. Strip the DHIS2 API version prefix.
+        // 1. Strip pre-React DHIS2 apps' own base-path prefix on
+        //    api/* calls — adex-flow and other Web Component apps
+        //    were built with /dhis-web-<appKey>/ as their fetch
+        //    base. Applied first so the version+suffix passes
+        //    below see the canonical /api/* shape.
+        final Matcher appBase = APP_BASE_PREFIX.matcher(uri);
+        if (appBase.matches()) {
+            uri = "/api/" + appBase.group(1);
+            rewrote = true;
+        }
+        // 2. Strip the DHIS2 API version prefix.
         final Matcher ver = VERSION_PREFIX.matcher(uri);
         if (ver.matches()) {
             uri = "/api/" + ver.group(2);
             rewrote = true;
         }
-        // 2. Strip a trailing .json content-type sugar suffix. Applied
+        // 3. Strip a trailing .json content-type sugar suffix. Applied
         //    AFTER the version strip so the combined form works:
         //    `/api/44/programRules.json` → `/api/programRules`.
         final Matcher sfx = JSON_SUFFIX.matcher(uri);

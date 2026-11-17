@@ -79,10 +79,13 @@ function err(code: InstallError['code'], message: string): InstallError {
 }
 
 /** Decide whether a bundle may be returned from the installer. Returns
- *  true when the server is permissive, when the stored device status
- *  is APPROVED, or when the mode probe cannot reach the server (true
+ *  true when the server is permissive, when the admin session is
+ *  signed in (mirrors the server-side ADMIN bypass in
+ *  DeviceApprovalInterceptor), when the stored device status is
+ *  APPROVED, or when the mode probe cannot reach the server (true
  *  offline-first). Returns false only when the server was reached and
- *  reported strict mode on a non-APPROVED device. */
+ *  reported strict mode AND the current session is not an admin AND
+ *  the device isn't APPROVED. */
 async function isEligibleToRunApps(): Promise<boolean> {
   let mode;
   try {
@@ -93,7 +96,33 @@ async function isEligibleToRunApps(): Promise<boolean> {
   if (!mode || mode.required === false) {
     return true;
   }
+  if (await isAdminSession()) {
+    return true;
+  }
   return getStoredDeviceStatus() === 'APPROVED';
+}
+
+/**
+ * Probe {@code /edge-api/v1/auth/session} and return true when the
+ * current session carries the ADMIN role. Mirrors the server-side
+ * bypass in {@code DeviceApprovalInterceptor#isAuthenticatedAdmin()} —
+ * admins operate from the admin UI and routinely need to inspect
+ * installed apps on an un-enrolled device (NFR-05 audit still records
+ * the serve via DER_APP_OPENED). Any probe failure falls through to
+ * the stricter check below so an offline session doesn't silently
+ * grant access.
+ */
+async function isAdminSession(): Promise<boolean> {
+  try {
+    const r = await fetch('/edge-api/v1/auth/session',
+      { credentials: 'include', cache: 'no-store' });
+    if (!r.ok) return false;
+    const body = await r.json();
+    const roles = (body?.roles ?? []) as string[];
+    return Array.isArray(roles) && roles.includes('ADMIN');
+  } catch {
+    return false;
+  }
 }
 
 /**

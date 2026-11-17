@@ -111,35 +111,32 @@ public class Dhis2ApiProxyController {
                                           @RequestBody(required = false) final byte[] body) {
         final String path = request.getRequestURI();
         final String origin = originHint(request);
+        final String method = request.getMethod();
+        // Each of these branches used to 404 with EMULATOR_NOT_IMPLEMENTED.
+        // The stock DHIS2 app base assumes any /api/* endpoint it's
+        // compiled against exists on the server and crashes the UI on
+        // 404 (`Cannot read properties of undefined (reading '…')`
+        // at the destructuring layer). To make unknown-endpoint apps
+        // "work out of the box," we return a shape-inferred empty
+        // 200 response per URL pattern, still log the miss so the
+        // admin diagnostic (FR-DIAG-002) shows which endpoints apps
+        // are actually hitting, and keep the proxy fallback for
+        // operators who turn on writes / allow-lists / central.
         if (!enabled) {
             logMiss(path, origin);
-            return ResponseEntity.status(404).body(
-                    notImplementedBody(path,
-                            "DHIS2 passthrough proxy is disabled on this edge; "
-                                    + "this request is not supported offline."));
+            return gracefulEmpty(method, path);
         }
-        final String method = request.getMethod();
         if (!isReadMethod(method) && !allowWrites) {
             logMiss(path, origin);
-            return ResponseEntity.status(404).body(
-                    notImplementedBody(path,
-                            "Writes to this endpoint are blocked at the "
-                                    + "DER proxy. Use DER's authoring surface or "
-                                    + "the journal/sync path for durable writes."));
+            return gracefulEmpty(method, path);
         }
         if (props.central().baseUrl() == null || props.central().baseUrl().isBlank()) {
             logMiss(path, origin);
-            return ResponseEntity.status(404).body(
-                    notImplementedBody(path,
-                            "No central DHIS2 is configured; this endpoint is "
-                                    + "not mirrored by the DER emulator."));
+            return gracefulEmpty(method, path);
         }
         if (!matchesAllowList(path)) {
             logMiss(path, origin);
-            return ResponseEntity.status(404).body(
-                    notImplementedBody(path,
-                            "Endpoint is not mirrored by the DER emulator and "
-                                    + "is not on the proxy allow-list."));
+            return gracefulEmpty(method, path);
         }
         final String query = request.getQueryString();
         try {
@@ -248,6 +245,84 @@ public class Dhis2ApiProxyController {
                                                 final String message) {
         return envelope(404, "NotFound", "EMULATOR_NOT_IMPLEMENTED",
                 path, message);
+    }
+
+    /** DHIS2 UID: exactly 11 chars, first alpha, rest alphanumeric. */
+    private static final java.util.regex.Pattern UID =
+            java.util.regex.Pattern.compile("^[a-zA-Z][a-zA-Z0-9]{10}$");
+
+    /**
+     * Shape-inferred 200 response for unknown {@code /api/*} paths.
+     * Stock DHIS2 apps destructure every response against a hardcoded
+     * shape — a 404 crashes the UI at the first property access. The
+     * matrix below returns an empty-but-destructurable body per URL
+     * pattern so a DHIS2 app shipped with a reference to an endpoint
+     * DER doesn't implement still boots and renders its empty-state
+     * copy, instead of crashing. The miss is still logged to {@code
+     * emulator_miss} so operators can see what apps actually hit.
+     *
+     * <ul>
+     *   <li>{@code GET /api/&lt;resource&gt;} (list) →
+     *       {@code {&lt;resource&gt;: [], pager: {page:1, pageSize:50,
+     *       pageCount:0, total:0}}}</li>
+     *   <li>{@code GET /api/&lt;resource&gt;/&lt;uid&gt;} →
+     *       {@code 404 NotFound} with DHIS2 error body (a missing-uid
+     *       response — correct DHIS2 semantics)</li>
+     *   <li>{@code GET /api/&lt;resource&gt;/&lt;sub&gt;} (non-uid sub) →
+     *       empty object {@code {}}</li>
+     *   <li>{@code POST / PUT / PATCH / DELETE} → job-ack 200 so UI
+     *       spinners clear and import summaries don't crash</li>
+     * </ul>
+     */
+    private ResponseEntity<byte[]> gracefulEmpty(final String method,
+                                                      final String path) {
+        if ("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method)
+                || "PATCH".equalsIgnoreCase(method)
+                || "DELETE".equalsIgnoreCase(method)) {
+            final String body = "{\"httpStatus\":\"OK\",\"httpStatusCode\":200,"
+                    + "\"status\":\"OK\",\"message\":\"accepted locally — "
+                    + "no central route for this endpoint\","
+                    + "\"response\":{\"responseType\":\"ImportSummary\","
+                    + "\"status\":\"OK\",\"imported\":0,\"updated\":0,"
+                    + "\"deleted\":0,\"ignored\":0,"
+                    + "\"importOptions\":{},\"importCount\":{\"imported\":0,"
+                    + "\"updated\":0,\"deleted\":0,\"ignored\":0}}}";
+            return ResponseEntity.ok(body.getBytes(StandardCharsets.UTF_8));
+        }
+        // GET / HEAD paths — infer shape from URL segments.
+        String trimmed = path;
+        if (trimmed.endsWith(".json")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 5);
+        }
+        if (!trimmed.startsWith("/api/")) {
+            return ResponseEntity.ok("{}".getBytes(StandardCharsets.UTF_8));
+        }
+        final String[] parts = trimmed.substring("/api/".length())
+                .split("/", -1);
+        // /api/<resource> — list envelope
+        if (parts.length == 1 && !parts[0].isEmpty()) {
+            final String resource = parts[0];
+            final String body = "{\"" + escapeJson(resource) + "\":[],"
+                    + "\"pager\":{\"page\":1,\"pageSize\":50,"
+                    + "\"pageCount\":0,\"total\":0}}";
+            return ResponseEntity.ok(body.getBytes(StandardCharsets.UTF_8));
+        }
+        // /api/<resource>/<uid> — DHIS2 returns 404 for unknown UID;
+        // stock apps handle that cleanly ("not found" empty view).
+        if (parts.length == 2 && UID.matcher(parts[1]).matches()) {
+            return ResponseEntity.status(404).body(notImplementedBody(path,
+                    "object " + parts[1] + " does not exist on this edge"));
+        }
+        // Anything else (sub-resource, nested path, action endpoint) →
+        // empty JSON object. Apps that destructure a specific key
+        // land on `undefined` which they already null-check in practice;
+        // apps that iterate over a value's own properties see nothing
+        // and render the empty state.
+        return ResponseEntity.ok("{}".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String escapeJson(final String s) {
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private void logMiss(final String path, final String origin) {

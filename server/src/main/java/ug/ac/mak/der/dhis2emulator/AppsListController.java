@@ -30,8 +30,14 @@ import ug.ac.mak.der.security.EdgeUserPrincipal;
  * clients can discover apps without special-casing DER. Only enabled
  * apps are returned.</p>
  */
+/*
+ * Both {@code /api/apps} and {@code /api/apps/} map here — pre-React
+ * DHIS2 apps like adex-flow issue the trailing-slash form, and Spring
+ * does not alias one to the other by default.
+ */
 @RestController
-@RequestMapping(path = "/api/apps", produces = MediaType.APPLICATION_JSON_VALUE)
+@RequestMapping(path = { "/api/apps", "/api/apps/" },
+        produces = MediaType.APPLICATION_JSON_VALUE)
 public class AppsListController {
 
     private final InstalledAppRepository repository;

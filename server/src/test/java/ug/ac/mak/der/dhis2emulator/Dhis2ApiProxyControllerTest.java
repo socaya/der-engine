@@ -49,40 +49,54 @@ class Dhis2ApiProxyControllerTest {
     }
 
     @Test
-    void returnsEmulatorNotImplementedWhenDisabled() {
+    void gracefulEmptyListShapeWhenDisabled() {
+        // Previously 404 EMULATOR_NOT_IMPLEMENTED; now returns a
+        // DHIS2-shape empty list so apps don't crash on destructure.
+        // The miss is still logged for the admin diagnostic.
         final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
         final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
                 mock(HttpClient.class), props(), false, false, "", missProvider(miss));
         final MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/analytics");
         final ResponseEntity<byte[]> res = p.proxy(req, null);
-        assertThat(res.getStatusCode().value()).isEqualTo(404);
-        assertThat(new String(res.getBody())).contains("EMULATOR_NOT_IMPLEMENTED");
+        assertThat(res.getStatusCode().value()).isEqualTo(200);
+        final String body = new String(res.getBody());
+        assertThat(body).contains("\"analytics\":[]")
+                .contains("\"pager\":")
+                .contains("\"total\":0");
         verify(miss).record(eq("/api/analytics"), eq(""));
     }
 
     @Test
-    void returnsEmulatorNotImplementedOnWriteWhenNotAllowed() {
+    void gracefulJobAckOnWriteWhenNotAllowed() {
+        // POST under the "not allowed" branch previously 404'd;
+        // now returns a DHIS2 ImportSummary job-ack so UI spinners
+        // clear instead of surfacing an opaque failure.
         final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
         final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
                 mock(HttpClient.class), props(), true, false, "", missProvider(miss));
         final MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/analytics");
         final ResponseEntity<byte[]> res = p.proxy(req, null);
-        assertThat(res.getStatusCode().value()).isEqualTo(404);
-        assertThat(new String(res.getBody())).contains("EMULATOR_NOT_IMPLEMENTED");
-        assertThat(new String(res.getBody())).contains("Writes to this endpoint are blocked");
+        assertThat(res.getStatusCode().value()).isEqualTo(200);
+        final String body = new String(res.getBody());
+        assertThat(body).contains("\"httpStatus\":\"OK\"")
+                .contains("\"responseType\":\"ImportSummary\"")
+                .contains("\"imported\":0");
         verify(miss).record(eq("/api/analytics"), eq(""));
     }
 
     @Test
-    void returnsEmulatorNotImplementedWhenPathNotOnAllowList() {
+    void gracefulEmptyListShapeWhenPathNotOnAllowList() {
+        // Previously 404 "not on the proxy allow-list"; now returns
+        // a DHIS2-shape empty list. Miss still logged.
         final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
         final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
                 mock(HttpClient.class), props(), true, false, "", missProvider(miss));
         final MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/users");
         final ResponseEntity<byte[]> res = p.proxy(req, null);
-        assertThat(res.getStatusCode().value()).isEqualTo(404);
-        assertThat(new String(res.getBody())).contains("EMULATOR_NOT_IMPLEMENTED");
-        assertThat(new String(res.getBody())).contains("not on the proxy allow-list");
+        assertThat(res.getStatusCode().value()).isEqualTo(200);
+        final String body = new String(res.getBody());
+        assertThat(body).contains("\"users\":[]")
+                .contains("\"pager\":");
         verify(miss).record(eq("/api/users"), eq(""));
     }
 
@@ -130,7 +144,10 @@ class Dhis2ApiProxyControllerTest {
     }
 
     @Test
-    void returnsEmulatorNotImplementedWhenCentralNotConfigured() {
+    void gracefulEmptyListShapeWhenCentralNotConfigured() {
+        // No central + proxy enabled → previously 404; now graceful
+        // empty-list so apps that happen to call analytics endpoints
+        // on an offline-only appliance don't crash.
         final Dhis2Properties noCentral = new Dhis2Properties(
                 new Dhis2Properties.Central("", "", "", 1000),
                 new Dhis2Properties.Compatibility(
@@ -140,8 +157,8 @@ class Dhis2ApiProxyControllerTest {
                 mock(HttpClient.class), noCentral, true, false, "", missProvider(miss));
         final MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/analytics");
         final ResponseEntity<byte[]> res = p.proxy(req, null);
-        assertThat(res.getStatusCode().value()).isEqualTo(404);
-        assertThat(new String(res.getBody())).contains("EMULATOR_NOT_IMPLEMENTED");
+        assertThat(res.getStatusCode().value()).isEqualTo(200);
+        assertThat(new String(res.getBody())).contains("\"analytics\":[]");
         verify(miss).record(eq("/api/analytics"), eq(""));
     }
 
@@ -224,17 +241,54 @@ class Dhis2ApiProxyControllerTest {
     }
 
     @Test
-    void allTaxonomyBodiesCarryCodeField() {
-        // Unified envelope invariant: every non-passthrough response
-        // must carry a `code` field. Covers the EMULATOR_NOT_IMPL path
-        // + the three temporary/invalid branches.
+    void taxonomyEnvelopesStillCarryCodeFieldForRealErrors() {
+        // Unified envelope invariant for the ACTUAL error branches
+        // (INVALID_REQUEST / UPSTREAM_UNAVAILABLE / UPSTREAM_INTERRUPTED):
+        // every real-failure body still carries a `code` field so DER
+        // tooling can distinguish them. The graceful-empty path now
+        // bypasses this envelope entirely (200 shape-inferred body,
+        // no code field — that's the whole point).
         final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
         final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
                 mock(HttpClient.class), props(), false, false, "",
                 missProvider(miss));
+        // UID segment forces the single-entity 404 path which still
+        // uses notImplementedBody with the code field.
         final ResponseEntity<byte[]> res = p.proxy(
-                new MockHttpServletRequest("GET", "/api/analytics"), null);
+                new MockHttpServletRequest("GET", "/api/widgets/ABCdef12345"), null);
+        assertThat(res.getStatusCode().value()).isEqualTo(404);
         final String body = new String(res.getBody());
-        assertThat(body).contains("\"code\":");
+        assertThat(body).contains("\"code\":\"EMULATOR_NOT_IMPLEMENTED\"");
+    }
+
+    @Test
+    void gracefulEmptyReturnsUidNotFoundFor404Semantics() {
+        // Unknown UID under a list resource → 404 (DHIS2's own
+        // semantics). Apps destructure this cleanly ("object does
+        // not exist").
+        final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
+        final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
+                mock(HttpClient.class), props(), true, false, "",
+                missProvider(miss));
+        final ResponseEntity<byte[]> res = p.proxy(
+                new MockHttpServletRequest("GET", "/api/widgets/ABCdef12345"), null);
+        assertThat(res.getStatusCode().value()).isEqualTo(404);
+        assertThat(new String(res.getBody()))
+                .contains("ABCdef12345")
+                .contains("does not exist");
+    }
+
+    @Test
+    void gracefulEmptyReturnsEmptyObjectForNestedPaths() {
+        // Deep sub-resource path (not a UID) → empty object.
+        final EmulatorMissRepository miss = mock(EmulatorMissRepository.class);
+        final Dhis2ApiProxyController p = new Dhis2ApiProxyController(
+                mock(HttpClient.class), props(), true, false, "",
+                missProvider(miss));
+        final ResponseEntity<byte[]> res = p.proxy(
+                new MockHttpServletRequest("GET",
+                        "/api/organisationUnits/level/stats"), null);
+        assertThat(res.getStatusCode().value()).isEqualTo(200);
+        assertThat(new String(res.getBody())).isEqualTo("{}");
     }
 }
