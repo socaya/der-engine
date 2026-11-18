@@ -6,11 +6,14 @@ import type { EnrolledDevice } from '../api/edgeApi';
 import { listDevices, listCaptureWorkflows } from '../api/edgeApi';
 import { count as countQueue } from '../offline/queue';
 import {
+  DerPeerProtocol,
   JournalReplicator,
   MetadataSyncReplicator,
   WorkflowReplicator,
   useP2PMesh,
   usePendingOffers,
+  type DppCapabilities,
+  type DppRouteTable,
   type MetadataSyncResult,
   type P2PConnectionStatus,
   type P2PSession,
@@ -58,36 +61,47 @@ export function DevicePeers(): JSX.Element {
   // receives it so handlers register on the same envelope decoder).
   // Torn down implicitly when PeerMeshManager.close() drops the
   // manager.
+  // One DerPeerProtocol per session, shared across all three
+  // replicators so the HELLO/WELCOME handshake only runs once per
+  // channel. Local capabilities list every resource this client can
+  // receive; ownsSteps is left empty for now — DPP.3 will populate it
+  // from GET /edge-api/v1/workflows/steps/owned-by-me.
+  const dppRef = useRef<Map<string, DerPeerProtocol>>(new Map());
   const journalRef = useRef<Map<string, JournalReplicator>>(new Map());
   const workflowRef = useRef<Map<string, WorkflowReplicator>>(new Map());
   const metadataRef = useRef<Map<string, MetadataSyncReplicator>>(new Map());
+  // A single mesh-wide route table instance — handshakes populate it
+  // so workflow handoff relays can find next-step owners across
+  // channels.
+  const routeTableRef = useRef<DppRouteTable>(new Map());
+
   useEffect(() => {
-    if (!mesh) return;
+    if (!mesh || !localDevice) return;
+    const local: DppCapabilities = {
+      deviceId: localDevice,
+      capabilities: ['journal', 'workflow', 'metadata', 'control'],
+      ownsSteps: [],
+    };
     for (const s of sessions) {
-      if (journalRef.current.has(s.sessionId)) continue;
+      if (dppRef.current.has(s.sessionId)) continue;
       const m = mesh.manager(s.sessionId);
-      if (m) {
-        const journal = new JournalReplicator(m);
-        journalRef.current.set(s.sessionId, journal);
-        workflowRef.current.set(
-          s.sessionId,
-          new WorkflowReplicator(m, journal.protocol()),
-        );
-        metadataRef.current.set(
-          s.sessionId,
-          new MetadataSyncReplicator(m, journal.protocol()),
-        );
-      }
+      if (!m) continue;
+      const dpp = new DerPeerProtocol(m, local, routeTableRef.current);
+      dppRef.current.set(s.sessionId, dpp);
+      journalRef.current.set(s.sessionId, new JournalReplicator(m, dpp));
+      workflowRef.current.set(s.sessionId, new WorkflowReplicator(m, dpp));
+      metadataRef.current.set(s.sessionId, new MetadataSyncReplicator(m, dpp));
     }
     // GC dropped sessions out of every map.
-    for (const [id] of journalRef.current) {
+    for (const [id] of dppRef.current) {
       if (!sessions.some((s) => s.sessionId === id)) {
+        dppRef.current.delete(id);
         journalRef.current.delete(id);
         workflowRef.current.delete(id);
         metadataRef.current.delete(id);
       }
     }
-  }, [sessions, mesh]);
+  }, [sessions, mesh, localDevice]);
 
   const [metadataResults, setMetadataResults] =
     useState<Record<string, MetadataSyncResult>>({});

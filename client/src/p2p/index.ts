@@ -4,28 +4,6 @@
 
 export { SignalingClient } from './signaling';
 export { PeerConnectionManager } from './peerConnection';
-export { P2PProtocol } from './protocol';
-export { JournalReplicator } from './journalReplicator';
-export type { ReplicateOutcome } from './journalReplicator';
-export { WorkflowReplicator } from './workflowReplicator';
-export type { PushWorkflowResult } from './workflowReplicator';
-export { MetadataSyncReplicator } from './metadataSyncReplicator';
-export type { MetadataSyncResult } from './metadataSyncReplicator';
-export {
-  DerPeerProtocol, DppError, DPP_VERSION, RELAY_DEFAULT_TTL,
-} from './derPeerProtocol';
-export type {
-  DppCapabilities, DppFrame, DppFrameType, DppHandler,
-  DppHandlerContext, DppResource, DppRouteTable,
-} from './derPeerProtocol';
-export { WorkflowHandoff } from './workflowHandoff';
-export type { RunAdvancePayload, HandoffResult } from './workflowHandoff';
-export { PeerMeshManager } from './mesh';
-export type {
-  MeshMessageListener, MeshStatusListener, MeshErrorListener,
-} from './mesh';
-export { useP2PMesh } from './useP2PMesh';
-export type { UseP2PMeshResult } from './useP2PMesh';
 export type { P2POptions, P2PStatusListener, P2PMessageListener, P2PErrorListener }
   from './peerConnection';
 export { useP2P, usePendingOffers } from './useP2P';
@@ -41,3 +19,30 @@ export type {
   PendingOffer,
   RemoteIceCandidate,
 } from './types';
+
+// Replicators — all use DPP/1 (ADR-0038).
+export { JournalReplicator } from './journalReplicator';
+export type { ReplicateOutcome } from './journalReplicator';
+export { WorkflowReplicator } from './workflowReplicator';
+export type { PushWorkflowResult } from './workflowReplicator';
+export { MetadataSyncReplicator } from './metadataSyncReplicator';
+export type { MetadataSyncResult } from './metadataSyncReplicator';
+
+// Mesh (multi-session composition).
+export { PeerMeshManager } from './mesh';
+export type {
+  MeshMessageListener, MeshStatusListener, MeshErrorListener,
+} from './mesh';
+export { useP2PMesh } from './useP2PMesh';
+export type { UseP2PMeshResult } from './useP2PMesh';
+
+// DPP/1 — DER Peer Protocol.
+export {
+  DerPeerProtocol, DppError, DPP_VERSION, RELAY_DEFAULT_TTL,
+} from './derPeerProtocol';
+export type {
+  DppCapabilities, DppFrame, DppFrameType, DppHandler,
+  DppHandlerContext, DppResource, DppRouteTable,
+} from './derPeerProtocol';
+export { WorkflowHandoff } from './workflowHandoff';
+export type { RunAdvancePayload, HandoffResult } from './workflowHandoff';
