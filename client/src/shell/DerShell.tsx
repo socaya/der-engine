@@ -5,9 +5,8 @@ import { DerTopbar } from './DerTopbar';
 import { useOnlineStatus } from '../offline/useOnlineStatus';
 import { count as queueCount } from '../offline/queue';
 import { drainOfflineQueue } from '../offline/replay';
-import { DegradedStorageBanner } from '../dbe/DegradedStorageBanner';
 import { RecoveryBanner } from '../dbe/RecoveryBanner';
-import { ContinuityBadge } from '../dbe/ContinuityBadge';
+import { InstallBlocker } from '../dbe/InstallBlocker';
 
 export interface DerShellProps {
   readonly children: ReactNode;
@@ -77,14 +76,11 @@ export function DerShell({ children }: DerShellProps): JSX.Element {
                   queuedCount={queued}
                   online={online} />
       <DerBreadcrumb />
-      <div className="der-continuity-slot" data-test="der-continuity-slot">
-        <ContinuityBadge />
-      </div>
-      <DegradedStorageBanner />
       <RecoveryBanner />
       <main className="der-shell__main" data-test="der-shell-main">
         {children}
       </main>
+      <InstallBlocker />
       <DerAppLauncher open={launcherOpen} onClose={closeLauncher} />
     </div>
   );

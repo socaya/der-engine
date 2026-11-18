@@ -131,6 +131,85 @@ body {
 .der-degraded-feedback { font-size:13px; color:#166534; margin:8px 0 0; }
 .der-degraded-usage { font-size:12px; color:#666; margin:8px 0 0; }
 
+/* ─── Install blocker modal (DBE / ADR-0040) ───────────────── */
+.der-install-scrim {
+  position:fixed; inset:0; z-index:1000;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(13,46,92,0.72);
+  backdrop-filter: blur(4px);
+  padding:24px;
+  animation:der-install-fade-in 180ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .der-install-scrim { animation:none; }
+}
+@keyframes der-install-fade-in {
+  from { opacity:0; }
+  to   { opacity:1; }
+}
+.der-install-modal {
+  width:100%; max-width:560px;
+  background:var(--der-surface, #fff);
+  border-radius:16px;
+  box-shadow:0 24px 56px rgba(13,46,92,0.32), 0 2px 8px rgba(13,46,92,0.16);
+  padding:36px 36px 28px;
+  display:flex; flex-direction:column; gap:20px;
+  max-height:92vh; overflow-y:auto;
+}
+.der-install-hero { display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; }
+.der-install-icon { width:72px; height:72px; }
+.der-install-title {
+  font-size:22px; line-height:1.3; margin:0;
+  color:var(--der-ink-900, #0f1c2e);
+  font-weight:600;
+}
+.der-install-subtitle {
+  font-size:14px; line-height:1.55; margin:0;
+  color:var(--der-ink-500, #5a6a85);
+  max-width:440px;
+}
+.der-install-steps {
+  list-style:none; margin:0; padding:0;
+  display:flex; flex-direction:column; gap:12px;
+}
+.der-install-steps li {
+  display:flex; gap:14px; align-items:flex-start;
+  padding:12px 14px;
+  background:var(--der-surface-tinted, #f2f5f9);
+  border-radius:8px;
+  font-size:14px; line-height:1.5;
+  color:var(--der-ink-800, #1b2b4a);
+}
+.der-install-step-num {
+  flex-shrink:0;
+  width:26px; height:26px; border-radius:50%;
+  background:var(--der-brand-500, #0d2e5c); color:#fff;
+  font-size:13px; font-weight:600;
+  display:flex; align-items:center; justify-content:center;
+}
+.der-install-fallback {
+  font-size:14px; color:var(--der-ink-700, #2d3f5f);
+  margin:0; padding:12px 14px;
+  background:var(--der-surface-tinted, #f2f5f9);
+  border-radius:8px;
+}
+.der-install-feedback {
+  padding:10px 14px;
+  background:#dcfce7; color:#166534;
+  border-radius:6px; font-size:13px;
+}
+.der-install-actions {
+  display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
+}
+.der-install-ack {
+  margin:4px 0 0;
+  background:none; border:none; padding:0;
+  font-size:12px; color:var(--der-ink-400, #7585a0);
+  text-align:center; cursor:pointer;
+  text-decoration:underline;
+}
+.der-install-ack:hover { color:var(--der-ink-700, #2d3f5f); }
+
 /* ─── Run validation banner (2.3.30) ──────────────────── */
 .run-validation-banner{
   display:flex;flex-direction:column;gap:6px;
