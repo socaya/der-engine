@@ -209,6 +209,42 @@ body {
   text-decoration:underline;
 }
 .der-install-ack:hover { color:var(--der-ink-700, #2d3f5f); }
+.der-install-stage-title {
+  font-size:13px; font-weight:600;
+  color:var(--der-ink-500, #5a6a85);
+  text-transform:uppercase; letter-spacing:0.5px;
+  text-align:center;
+}
+.der-install-explain {
+  font-size:14px; line-height:1.55;
+  color:var(--der-ink-700, #2d3f5f);
+  margin:0;
+  padding:12px 14px;
+  background:var(--der-surface-tinted, #f2f5f9);
+  border-radius:8px;
+}
+.der-install-explain-muted {
+  font-size:12px; color:var(--der-ink-400, #7585a0);
+  margin:0; text-align:center;
+}
+.der-install-diagnose {
+  border-top:1px solid var(--der-ink-100, #e3e8ef);
+  padding-top:12px; font-size:12px;
+  color:var(--der-ink-500, #5a6a85);
+}
+.der-install-diagnose summary {
+  cursor:pointer; user-select:none;
+  padding:4px 0;
+  color:var(--der-ink-700, #2d3f5f);
+  font-weight:500;
+}
+.der-install-diagnose summary:hover { color:var(--der-brand-700, #082148); }
+.der-install-diagnose dl {
+  display:grid; grid-template-columns:auto 1fr;
+  gap:4px 12px; margin:8px 0 0;
+}
+.der-install-diagnose dt { font-weight:500; }
+.der-install-diagnose dd { margin:0; font-family:monospace; }
 
 /* ─── Run validation banner (2.3.30) ──────────────────── */
 .run-validation-banner{

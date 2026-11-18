@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@dhis2/ui';
 
 import {
@@ -7,6 +7,8 @@ import {
   promptInstall,
 } from './pwaInstall';
 import {
+  isStandalone,
+  requestNotifications,
   requestPersistentStorage,
   storageStatus,
   type StorageStatus,
@@ -14,56 +16,45 @@ import {
 
 /**
  * Full-screen blocking modal that gates the DER client until the
- * operator either (a) installs the PWA / gets persistent storage,
- * or (b) explicitly accepts the risk that queued submissions may be
- * evicted.
+ * operator has a storage path the browser will honour under memory
+ * pressure + "clear browsing data". Walks through three concrete
+ * recovery steps (install → open from app → grant notifications)
+ * tailored to the actual browser state, since persistence is a
+ * multi-signal heuristic on Chrome/Edge — install alone often isn't
+ * enough.
  *
- * <p>Design intent: a clinic tablet on first launch MUST make a
- * deliberate decision about storage durability before any work
- * starts — otherwise the operator fills in forms, queues them
- * offline, then loses them when the browser clears its cache. The
- * modal replaces the old topbar chip + banner-above-app, both of
- * which were easy to ignore.</p>
+ * <p>Decision tree the modal walks:
+ * <pre>
+ *   persistent granted ────────────────► unmount (modal hidden)
+ *   acknowledged dismissal ────────────► unmount
+ *   NOT standalone ───► Step A: install PWA + open from installed icon
+ *   standalone + no notifications ───► Step B: grant notifications so
+ *                                       Chrome/Edge trip the persistence
+ *                                       heuristic.
+ *   standalone + notifications + still denied ───► Step C: diagnose +
+ *                                                   operator override
+ * </pre></p>
  *
- * <p>Platform-aware install path:
- * <ul>
- *   <li>Chrome / Edge (any OS) — one-click "Install DER" button
- *       backed by the captured {@code beforeinstallprompt} event.
- *       Native browser install dialog fires immediately.</li>
- *   <li>Safari iOS / iPadOS — visual guide for Share → Add to
- *       Home Screen. Operator confirms via "I've installed" button
- *       which re-probes persistence on next launch.</li>
- *   <li>Safari macOS 17+ — Dock install via menu bar; guide + same
- *       confirm pattern.</li>
- *   <li>Firefox — "Request persistence" button triggers the
- *       browser's native persistent-storage dialog (Firefox's
- *       equivalent of PWA install for grant purposes).</li>
- *   <li>Fallback — operator-chosen folder backup instructions via
- *       File System Access (Chrome/Edge) or OS file manager
- *       (Safari/Firefox).</li>
- * </ul></p>
- *
- * <p>Styled with DER tokens from app-sdk/tokens.css — brand palette,
- * surface + ink levels, motion curves. Full-screen scrim covers the
- * app behind; modal centers with elevation shadow. Reduced-motion
- * safe (the backdrop fade honours prefers-reduced-motion).</p>
+ * <p>Styled with DER tokens (brand palette + surface + ink +
+ * motion). Full-screen scrim covers the app behind; modal centers
+ * with elevation shadow. Reduced-motion safe.</p>
  */
 export function InstallBlocker(): JSX.Element | null {
   const [status, setStatus] = useState<StorageStatus | null>(null);
   const [canPrompt, setCanPrompt] = useState<boolean>(installPromptReady());
-  const [installing, setInstalling] = useState(false);
-  const [requesting, setRequesting] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [acknowledged, setAcknowledged] = useState<boolean>(() =>
-    readAcknowledged());
+  const [acknowledged, setAcknowledged] = useState<boolean>(readAcknowledged());
+
+  const refresh = useCallback(async () => {
+    const s = await storageStatus();
+    setStatus(s);
+    return s;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    const tick = async (): Promise<void> => {
-      const s = await storageStatus();
-      if (!cancelled) setStatus(s);
-    };
-    void tick();
+    void storageStatus().then((s) => { if (!cancelled) setStatus(s); });
     const off = onInstallPromptChange(setCanPrompt);
     return () => { cancelled = true; off(); };
   }, []);
@@ -71,55 +62,83 @@ export function InstallBlocker(): JSX.Element | null {
   const platform = useMemo(() => detectPlatform(), []);
 
   if (!status) return null;
-  // Persistent-storage granted → never block.
   if (status.persistent) return null;
-  // Browser can't do persistence at all (ancient browser) → show a
-  // warning but don't block (user can't do anything about it).
   if (!status.browserSupported) return null;
-  // Operator explicitly accepted the risk → honour until they clear
-  // storage (the acknowledgment lives in localStorage).
   if (acknowledged) return null;
 
+  const stage = decideStage(status, canPrompt);
+
   const handleInstall = async (): Promise<void> => {
-    setInstalling(true);
+    setBusy('install');
     setFeedback(null);
     try {
       const outcome = await promptInstall();
       if (outcome === 'accepted') {
-        // Browser will fire 'appinstalled' + eventually grant
-        // persistence on next load. Re-poll storage to pick up the
-        // change if it happens immediately.
-        const s = await storageStatus();
-        setStatus(s);
-        setFeedback('Installed. Persistent storage will activate shortly.');
+        setFeedback('Installed. Close this tab, then open DER from your '
+          + platformAppsLocation(platform) + ' to activate persistence.');
       } else {
-        setFeedback('Install dismissed. Try "Request persistence" or '
-          + 'the manual steps for your device.');
+        setFeedback('Install dismissed. Follow the manual steps below.');
       }
     } catch (ex) {
       setFeedback(`Install failed: ${(ex as Error).message}`);
     } finally {
-      setInstalling(false);
+      setBusy(null);
+    }
+  };
+
+  const handleNotifications = async (): Promise<void> => {
+    setBusy('notifications');
+    setFeedback(null);
+    try {
+      const result = await requestNotifications();
+      if (result === 'granted') {
+        // Chrome/Edge trip the persistence grant on the next persist()
+        // call after notifications are granted — re-request immediately.
+        const granted = await requestPersistentStorage();
+        const s = await refresh();
+        if (granted || s.persistent) {
+          setFeedback('Persistence granted — you are protected.');
+        } else {
+          setFeedback('Notifications granted but persistence still '
+            + 'declined. Try the Diagnose panel below.');
+        }
+      } else {
+        setFeedback(`Notifications ${result}. Some browsers require them `
+          + 'to grant persistence.');
+      }
+    } catch (ex) {
+      setFeedback(`Notifications request failed: ${(ex as Error).message}`);
+    } finally {
+      setBusy(null);
     }
   };
 
   const handleRequest = async (): Promise<void> => {
-    setRequesting(true);
+    setBusy('request');
     setFeedback(null);
     try {
       const granted = await requestPersistentStorage();
-      if (granted) {
-        const s = await storageStatus();
-        setStatus(s);
-        setFeedback('Persistent storage granted.');
+      const s = await refresh();
+      if (granted || s.persistent) {
+        setFeedback('Persistence granted.');
       } else {
-        setFeedback('Browser declined. Install via the steps below '
-          + 'and try again.');
+        setFeedback('Browser declined. Follow the next step below.');
       }
     } catch (ex) {
       setFeedback(`Request failed: ${(ex as Error).message}`);
     } finally {
-      setRequesting(false);
+      setBusy(null);
+    }
+  };
+
+  const handleRecheck = async (): Promise<void> => {
+    setBusy('recheck');
+    const s = await refresh();
+    setBusy(null);
+    if (s.persistent) {
+      setFeedback('Confirmed — you are protected.');
+    } else {
+      setFeedback('Still no persistence. Try the next step.');
     }
   };
 
@@ -128,76 +147,66 @@ export function InstallBlocker(): JSX.Element | null {
     setAcknowledged(true);
   };
 
-  const handleIveInstalled = async (): Promise<void> => {
-    // User says they've installed via the manual steps — re-probe
-    // persistence. Browsers auto-grant on next PWA-origin load, so
-    // this is a hint for them to refresh.
-    const s = await storageStatus();
-    setStatus(s);
-    if (!s.persistent) {
-      setFeedback('Still no persistence — try reloading the page '
-        + 'from the installed app (home-screen icon).');
-    }
-  };
-
   return (
     <div className="der-install-scrim" role="dialog"
       aria-modal="true" aria-labelledby="der-install-title">
       <div className="der-install-modal">
         <div className="der-install-hero">
-          <svg className="der-install-icon" viewBox="0 0 48 48" aria-hidden="true">
-            <defs>
-              <linearGradient id="derInstallGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="var(--der-brand-500)" />
-                <stop offset="100%" stopColor="var(--der-brand-700)" />
-              </linearGradient>
-            </defs>
-            <circle cx="24" cy="24" r="22" fill="url(#derInstallGrad)" />
-            <path d="M24 12 L24 30 M16 22 L24 30 L32 22"
-              fill="none" stroke="white" strokeWidth="3"
-              strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M12 36 L36 36" fill="none" stroke="white"
-              strokeWidth="3" strokeLinecap="round" />
-          </svg>
+          <InstallIcon />
           <h1 id="der-install-title" className="der-install-title">
-            Install DER for offline-safe clinic use
+            Protect your offline data
           </h1>
           <p className="der-install-subtitle">
-            Installing DER on this device guarantees your queued
-            submissions survive browser restarts, cache clears, and
-            storage pressure. Without install, the browser may evict
-            offline data at any time.
+            Without persistent storage, DER's queued submissions can
+            be erased by the browser at any time. Finish one of the
+            steps below to secure your clinic data.
           </p>
         </div>
 
-        <PlatformGuide platform={platform} canPrompt={canPrompt} />
+        <StageContent stage={stage} platform={platform}
+          canPrompt={canPrompt} status={status} />
 
         {feedback && (
           <div className="der-install-feedback">{feedback}</div>
         )}
 
         <div className="der-install-actions">
-          {canPrompt && (
-            <Button primary large loading={installing}
+          {stage === 'install' && canPrompt && (
+            <Button primary large loading={busy === 'install'}
               onClick={handleInstall}>
               Install DER
             </Button>
           )}
-          {!canPrompt && platform.kind !== 'ios' && (
-            <Button primary large loading={requesting}
+          {stage === 'install' && !canPrompt && (
+            <Button primary large loading={busy === 'request'}
               onClick={handleRequest}>
               Request persistence
             </Button>
           )}
-          {!canPrompt && (
-            <Button large secondary onClick={handleIveInstalled}>
-              I’ve installed — re-check
+          {stage === 'open-installed' && (
+            <Button large secondary loading={busy === 'recheck'}
+              onClick={handleRecheck}>
+              I’m in the installed app — re-check
+            </Button>
+          )}
+          {stage === 'notifications' && (
+            <Button primary large loading={busy === 'notifications'}
+              onClick={handleNotifications}>
+              Enable notifications &amp; grant persistence
+            </Button>
+          )}
+          {stage === 'diagnose' && (
+            <Button primary large loading={busy === 'request'}
+              onClick={handleRequest}>
+              Request persistence again
             </Button>
           )}
         </div>
 
-        <button type="button"
-          className="der-install-ack"
+        <DiagnosePanel status={status} platform={platform}
+          canPrompt={canPrompt} />
+
+        <button type="button" className="der-install-ack"
           onClick={handleAcknowledge}>
           Continue without installing — I understand my offline work
           may be lost if the browser clears its storage.
@@ -207,18 +216,39 @@ export function InstallBlocker(): JSX.Element | null {
   );
 }
 
-// ---- helpers ----
+// ─── Helpers ────────────────────────────────────────────────────
 
-const ACK_KEY = 'der.install.ack';
+type Stage = 'install' | 'open-installed' | 'notifications' | 'diagnose';
 
-function readAcknowledged(): boolean {
-  try {
-    return window.localStorage.getItem(ACK_KEY) === '1';
-  } catch { return false; }
+function decideStage(status: StorageStatus, canPrompt: boolean): Stage {
+  // iOS Safari + Firefox all skip directly to the install path —
+  // they don't have Chrome's notification-based heuristic.
+  if (!status.standalone) {
+    // Still in a browser tab. Install (if not already) + open from
+    // the installed app icon.
+    if (canPrompt) return 'install';
+    return 'install';
+  }
+  // We're in standalone mode but persistence still denied. On
+  // Chrome/Edge, notifications-granted is the most reliable
+  // side-signal.
+  if (status.notificationsPermission !== 'granted'
+      && status.notificationsPermission !== 'unsupported') {
+    return 'notifications';
+  }
+  // Last-resort — just ask again with a diagnose panel so the
+  // operator can see the full state.
+  return 'diagnose';
 }
 
+const ACK_KEY = 'der.install.ack';
+function readAcknowledged(): boolean {
+  try { return window.localStorage.getItem(ACK_KEY) === '1'; }
+  catch { return false; }
+}
 function writeAcknowledged(): void {
-  try { window.localStorage.setItem(ACK_KEY, '1'); } catch { /* ignore */ }
+  try { window.localStorage.setItem(ACK_KEY, '1'); }
+  catch { /* ignore */ }
 }
 
 interface Platform {
@@ -249,38 +279,115 @@ function detectPlatform(): Platform {
   return { kind, browser, label: labels[kind] };
 }
 
-interface PlatformGuideProps {
-  readonly platform: Platform;
-  readonly canPrompt: boolean;
+function platformAppsLocation(platform: Platform): string {
+  switch (platform.kind) {
+    case 'android': return 'app drawer';
+    case 'ios': return 'home screen';
+    case 'windows': return 'Start menu';
+    case 'macos': return 'Launchpad';
+    case 'linux': return 'Applications menu';
+    default: return 'app list';
+  }
 }
 
-/** Visual, step-by-step guide per OS + browser. Keeps the copy
- *  short + concrete so a nurse can follow it without help. */
-function PlatformGuide({ platform, canPrompt }: PlatformGuideProps): JSX.Element {
+interface StageContentProps {
+  stage: Stage;
+  platform: Platform;
+  canPrompt: boolean;
+  status: StorageStatus;
+}
+
+function StageContent({ stage, platform, canPrompt, status }: StageContentProps): JSX.Element {
+  if (stage === 'install') {
+    return (
+      <>
+        <StepHeader
+          title={canPrompt ? 'Step 1 of 2 — Install DER'
+            : 'Step 1 of 2 — Install DER from your browser menu'} />
+        <PlatformInstallSteps platform={platform} canPrompt={canPrompt} />
+      </>
+    );
+  }
+  if (stage === 'open-installed') {
+    return (
+      <>
+        <StepHeader title="Step 2 of 2 — Open DER from the installed app" />
+        <ol className="der-install-steps">
+          <li>
+            <span className="der-install-step-num">1</span>
+            <div>Close this browser tab.</div>
+          </li>
+          <li>
+            <span className="der-install-step-num">2</span>
+            <div>Open DER from your <strong>{platformAppsLocation(platform)}</strong>.</div>
+          </li>
+          <li>
+            <span className="der-install-step-num">3</span>
+            <div>Sign in again if prompted. Persistent storage
+              activates automatically in the installed app.</div>
+          </li>
+        </ol>
+      </>
+    );
+  }
+  if (stage === 'notifications') {
+    return (
+      <>
+        <StepHeader title="Almost there — grant notifications to activate persistence" />
+        <p className="der-install-explain">
+          You're running the installed app ✓ but {platform.browser === 'chrome' || platform.browser === 'edge' ? 'Chrome' : 'your browser'} needs
+          one more signal before it grants persistent storage.
+          Granting notifications permission (used only for critical
+          sync alerts) satisfies the check.
+        </p>
+        <p className="der-install-explain-muted">
+          DER only uses notifications for sync failures and peer
+          reconnection prompts — never for marketing.
+        </p>
+      </>
+    );
+  }
+  return (
+    <>
+      <StepHeader title="Persistence still declined — diagnose below" />
+      <p className="der-install-explain">
+        Your browser is refusing persistent storage despite the
+        installed app running. Check the diagnostic panel below;
+        the engagement score typically builds over a few sessions
+        and persistence grants automatically. For now you can
+        continue — queued data is still safe for the current
+        browser session.
+      </p>
+      <p className="der-install-explain-muted">
+        Running in standalone: {status.standalone ? 'yes' : 'no'} ·
+        Notifications: {status.notificationsPermission} ·
+        Browser: {navigator.userAgent.includes('Chrome') ? 'Chrome' : 'other'}
+      </p>
+    </>
+  );
+}
+
+function StepHeader({ title }: { title: string }): JSX.Element {
+  return <div className="der-install-stage-title">{title}</div>;
+}
+
+function PlatformInstallSteps({ platform, canPrompt }: { platform: Platform; canPrompt: boolean }): JSX.Element {
   if (canPrompt) {
     return (
       <ol className="der-install-steps">
         <li>
           <span className="der-install-step-num">1</span>
-          <div>
-            <strong>Click “Install DER” below.</strong>{' '}
-            Your browser will show its own install dialog.
-          </div>
+          <div>Click <strong>Install DER</strong> below. Your
+            browser will show its own install dialog.</div>
         </li>
         <li>
           <span className="der-install-step-num">2</span>
-          <div>
-            <strong>Confirm the install.</strong>{' '}
-            DER will add itself to your {platform.label} apps.
-          </div>
+          <div>Confirm. DER adds itself to your
+            {' '}<strong>{platformAppsLocation(platform)}</strong>.</div>
         </li>
         <li>
           <span className="der-install-step-num">3</span>
-          <div>
-            <strong>Reopen from your {platform.label} apps list.</strong>{' '}
-            That grants persistent storage automatically — this
-            screen won’t show again.
-          </div>
+          <div>Close this tab and reopen DER from the installed icon.</div>
         </li>
       </ol>
     );
@@ -289,72 +396,98 @@ function PlatformGuide({ platform, canPrompt }: PlatformGuideProps): JSX.Element
     case 'ios':
       return (
         <ol className="der-install-steps">
-          <li>
-            <span className="der-install-step-num">1</span>
+          <li><span className="der-install-step-num">1</span>
             <div>Tap the <strong>Share</strong> button at the bottom
-              of Safari (square with the arrow pointing up).</div>
-          </li>
-          <li>
-            <span className="der-install-step-num">2</span>
-            <div>Scroll down and tap <strong>Add to Home Screen</strong>.</div>
-          </li>
-          <li>
-            <span className="der-install-step-num">3</span>
-            <div>Tap <strong>Add</strong>. Then open DER from your
-              home-screen icon — this screen won’t show again.</div>
-          </li>
+              of Safari.</div></li>
+          <li><span className="der-install-step-num">2</span>
+            <div>Scroll down and tap
+              <strong> Add to Home Screen</strong>.</div></li>
+          <li><span className="der-install-step-num">3</span>
+            <div>Tap <strong>Add</strong>, then open DER from the
+              new home-screen icon.</div></li>
         </ol>
       );
     case 'android':
       return (
         <ol className="der-install-steps">
-          <li>
-            <span className="der-install-step-num">1</span>
-            <div>Open your browser’s menu (three dots, top-right).</div>
-          </li>
-          <li>
-            <span className="der-install-step-num">2</span>
-            <div>Tap <strong>Install app</strong> (or “Add to Home
-              screen”).</div>
-          </li>
-          <li>
-            <span className="der-install-step-num">3</span>
-            <div>Confirm. DER appears in your app drawer —
-              reopen from there.</div>
-          </li>
-        </ol>
-      );
-    case 'windows':
-    case 'macos':
-    case 'linux':
-      return (
-        <ol className="der-install-steps">
-          <li>
-            <span className="der-install-step-num">1</span>
-            <div>Look for the install icon in your address bar
-              (a small computer with a down-arrow), or open the
-              three-dot browser menu.</div>
-          </li>
-          <li>
-            <span className="der-install-step-num">2</span>
-            <div>Choose <strong>Install DER</strong>.</div>
-          </li>
-          <li>
-            <span className="der-install-step-num">3</span>
-            <div>Reopen DER from{' '}
-              {platform.kind === 'windows' ? 'Start menu'
-                : platform.kind === 'macos' ? 'Launchpad'
-                : 'Applications'}.</div>
-          </li>
+          <li><span className="der-install-step-num">1</span>
+            <div>Open your browser's menu (three dots, top-right).</div></li>
+          <li><span className="der-install-step-num">2</span>
+            <div>Tap <strong>Install app</strong> (or "Add to Home
+              screen").</div></li>
+          <li><span className="der-install-step-num">3</span>
+            <div>Confirm. Reopen DER from your app drawer.</div></li>
         </ol>
       );
     default:
       return (
-        <p className="der-install-fallback">
-          Use your browser’s <strong>Install app</strong> option
-          (usually in the main menu). After install, reopen from
-          your apps list.
-        </p>
+        <ol className="der-install-steps">
+          <li><span className="der-install-step-num">1</span>
+            <div>Look for the install icon in your address bar OR
+              open the three-dot browser menu.</div></li>
+          <li><span className="der-install-step-num">2</span>
+            <div>Choose <strong>Install DER</strong>.</div></li>
+          <li><span className="der-install-step-num">3</span>
+            <div>Reopen DER from{' '}
+              <strong>{platformAppsLocation(platform)}</strong>.</div></li>
+        </ol>
       );
   }
+}
+
+interface DiagnosePanelProps {
+  status: StorageStatus;
+  platform: Platform;
+  canPrompt: boolean;
+}
+
+/** Collapsible diagnostic surface — operators can expand to see the
+ *  exact state of every signal that feeds persistence. Mostly for
+ *  debugging in the field without opening devtools. */
+function DiagnosePanel({ status, platform, canPrompt }: DiagnosePanelProps): JSX.Element {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="der-install-diagnose"
+      open={open} onToggle={(ev) =>
+        setOpen((ev.target as HTMLDetailsElement).open)}>
+      <summary>Diagnose storage state</summary>
+      <dl>
+        <dt>Persistent storage</dt>
+        <dd>{status.persistent ? 'granted' : 'not granted'}</dd>
+        <dt>Running as installed app</dt>
+        <dd>{isStandalone() ? 'yes (standalone)' : 'no (browser tab)'}</dd>
+        <dt>Install prompt captured</dt>
+        <dd>{canPrompt ? 'yes' : 'no — use manual steps'}</dd>
+        <dt>Notifications permission</dt>
+        <dd>{status.notificationsPermission}</dd>
+        <dt>Platform</dt>
+        <dd>{platform.label} · {platform.browser}</dd>
+        <dt>Storage quota</dt>
+        <dd>
+          {status.quota > 0
+            ? `${Math.round(status.usage / 1024)} KB of ${Math.round(status.quota / 1_048_576)} MB`
+            : 'not reported'}
+        </dd>
+      </dl>
+    </details>
+  );
+}
+
+function InstallIcon(): JSX.Element {
+  return (
+    <svg className="der-install-icon" viewBox="0 0 48 48" aria-hidden="true">
+      <defs>
+        <linearGradient id="derInstallGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="var(--der-brand-500, #0d2e5c)" />
+          <stop offset="100%" stopColor="var(--der-brand-700, #082148)" />
+        </linearGradient>
+      </defs>
+      <circle cx="24" cy="24" r="22" fill="url(#derInstallGrad)" />
+      <path d="M24 12 L24 30 M16 22 L24 30 L32 22"
+        fill="none" stroke="white" strokeWidth="3"
+        strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 36 L36 36" fill="none" stroke="white"
+        strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
 }

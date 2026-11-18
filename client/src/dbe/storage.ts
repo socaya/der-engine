@@ -29,6 +29,17 @@ export interface StorageStatus {
    *  (Chrome/Edge/Firefox). Safari + legacy browsers need extra
    *  care; UI shows a different message for those. */
   readonly browserSupported: boolean;
+  /** Whether we're running inside the installed PWA window (CSS
+   *  display-mode: standalone) or still in a browser tab. Chrome +
+   *  Edge only grant persistence when the user is accessing from
+   *  the installed app — a new install viewed in the original
+   *  browser tab still fails {@link StorageStatus#persistent}. */
+  readonly standalone: boolean;
+  /** Status of the Notifications permission. On Chrome/Edge a
+   *  granted notifications permission is one of the side-channel
+   *  signals that trips persistence-eligibility. We offer it as a
+   *  fallback path when install alone isn't enough to grant. */
+  readonly notificationsPermission: NotificationPermission | 'unsupported';
 }
 
 /**
@@ -91,7 +102,56 @@ export async function storageStatus(): Promise<StorageStatus> {
     quota,
     pressureRatio: quota > 0 ? usage / quota : 0,
     browserSupported: supported,
+    standalone: isStandalone(),
+    notificationsPermission: notificationsPermission(),
   };
+}
+
+/** True when the page is running in the installed PWA shell —
+ *  display-mode:standalone on Chrome/Edge/Android, or the iOS
+ *  navigator.standalone flag. Chrome's persistence heuristic
+ *  requires standalone before it'll grant. */
+export function isStandalone(): boolean {
+  try {
+    if (window.matchMedia?.('(display-mode: standalone)').matches) {
+      return true;
+    }
+    if (window.matchMedia?.('(display-mode: fullscreen)').matches) {
+      return true;
+    }
+    // iOS doesn't implement display-mode; falls back to a vendor
+    // flag on the navigator.
+    if ((navigator as unknown as { standalone?: boolean }).standalone) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function notificationsPermission(): NotificationPermission | 'unsupported' {
+  try {
+    if (typeof Notification === 'undefined') return 'unsupported';
+    return Notification.permission;
+  } catch {
+    return 'unsupported';
+  }
+}
+
+/** Ask the user for Notifications permission. On Chrome + Edge a
+ *  granted Notifications permission is one of the side-channels
+ *  that trips persistence-eligibility — a useful fallback when
+ *  install alone isn't enough. Returns the final permission state
+ *  regardless of whether it was already granted. */
+export async function requestNotifications(): Promise<NotificationPermission | 'unsupported'> {
+  if (typeof Notification === 'undefined') return 'unsupported';
+  try {
+    if (Notification.permission === 'granted') return 'granted';
+    return await Notification.requestPermission();
+  } catch {
+    return 'denied';
+  }
 }
 
 const CHANNEL_NAME = 'der-dbe';
