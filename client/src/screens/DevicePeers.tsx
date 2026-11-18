@@ -9,6 +9,7 @@ import {
   DerPeerProtocol,
   JournalReplicator,
   MetadataSyncReplicator,
+  PeerSignalingRelay,
   WorkflowReplicator,
   setActiveMesh,
   useP2PMesh,
@@ -88,18 +89,36 @@ export function DevicePeers(): JSX.Element {
       .catch(() => setOwnsSteps([]));
   }, [localDevice]);
 
+  // DBE.3a — mesh-wide signaling relay. One instance per mounted
+  // Peers screen; attaches a control.signal-relay handler to every
+  // DPP so SDP + ICE frames forward through the mesh when the HTTP
+  // broker is unreachable.
+  const signalRelayRef = useRef<PeerSignalingRelay | null>(null);
+  useEffect(() => {
+    if (!mesh || !localDevice) return;
+    signalRelayRef.current = new PeerSignalingRelay(
+      mesh, localDevice, () => dppRef.current);
+  }, [mesh, localDevice]);
+
   useEffect(() => {
     if (!mesh || !localDevice) return;
     const local: DppCapabilities = {
       deviceId: localDevice,
       capabilities: ['journal', 'workflow', 'metadata', 'control'],
       ownsSteps,
+      // DBE.3a — advertise our current session peers so other
+      // devices can use us as a signaling relay when the HTTP
+      // broker is down. Updated whenever sessions change.
+      connectedPeers: sessions.map((s) => s.remoteDevice),
     };
     for (const s of sessions) {
       if (dppRef.current.has(s.sessionId)) continue;
       const m = mesh.manager(s.sessionId);
       if (!m) continue;
       const dpp = new DerPeerProtocol(m, local, routeTableRef.current);
+      // DBE.3a — attach the signaling-relay handler so this DPP
+      // can forward control.signal-relay frames through the mesh.
+      signalRelayRef.current?.attachTo(dpp);
       // DPP.3 multi-hop: when a RELAY frame lands with a route this
       // peer doesn't own, look up whichever session's peer IS the
       // target and forward through that session's protocol. Silent

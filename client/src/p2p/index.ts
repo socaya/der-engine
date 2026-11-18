@@ -46,6 +46,10 @@ export type {
 } from './derPeerProtocol';
 export { WorkflowHandoff } from './workflowHandoff';
 export type { RunAdvancePayload, HandoffResult } from './workflowHandoff';
+export { PeerSignalingRelay } from './peerSignaling';
+export type {
+  SignalRelayKind, SignalRelayPayload, SignalRelayLocalHandler,
+} from './peerSignaling';
 
 // DPP.4 process-wide bus + SSE subscriber for auto-fire run-advance.
 export { setActiveMesh, activeMesh, broadcastRunAdvance } from './bus';

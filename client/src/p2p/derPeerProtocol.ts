@@ -49,6 +49,12 @@ export interface DppCapabilities {
    *  .owner_device_id). The remote caches this so later
    *  workflow.run-advance frames can be routed. */
   readonly ownsSteps: string[];
+  /** DBE.3a — device IDs this peer currently holds open mesh
+   *  sessions to. Lets other peers use this device as an
+   *  intermediary signaling relay (control.signal-relay) when the
+   *  HTTP broker is unreachable but a transitive path through the
+   *  mesh exists. Empty when the sender has no peers. */
+  readonly connectedPeers?: string[];
 }
 
 export type DppHandler = (
@@ -100,6 +106,13 @@ export class DerPeerProtocol {
 
   /** Peer's step-ownership map — fed from the peer's HELLO frame. */
   private peerOwnedSteps: Set<string> = new Set();
+
+  /** DBE.3a — peers the remote side told us it's directly connected
+   *  to (via HELLO.connectedPeers). Lets us reach a target device
+   *  via this session as a one-hop signaling relay when the HTTP
+   *  broker is down but the remote still has a session with the
+   *  target. */
+  private peerConnectedPeers: Set<string> = new Set();
 
   /** Global route table — step_id → deviceId. Populated as we see
    *  HELLO frames across the mesh. Shared with the mesh manager so
@@ -200,6 +213,19 @@ export class DerPeerProtocol {
    *  "this peer owns N of your workflow's steps". */
   peerStepsOwned(): readonly string[] {
     return [...this.peerOwnedSteps];
+  }
+
+  /** DBE.3a — peers the remote side is currently connected to.
+   *  Returns true when the remote claims a direct session with
+   *  {@code deviceId}, meaning we can use this session as a
+   *  signaling relay to reach that device. */
+  peerCanReach(deviceId: string): boolean {
+    return this.peerConnectedPeers.has(deviceId);
+  }
+
+  /** All peers advertised reachable via this session's remote. */
+  peerReachableSet(): readonly string[] {
+    return [...this.peerConnectedPeers];
   }
 
   /** Route table — shared across all protocol instances in a mesh
@@ -343,6 +369,7 @@ export class DerPeerProtocol {
     }
     this.negotiated = intersection;
     this.peerOwnedSteps = new Set(remote.ownsSteps ?? []);
+    this.peerConnectedPeers = new Set(remote.connectedPeers ?? []);
     // Populate the shared route table so other open channels can
     // forward frames to steps this peer owns.
     for (const stepId of this.peerOwnedSteps) {
@@ -371,6 +398,7 @@ export class DerPeerProtocol {
     if (peer) {
       this.negotiated = new Set(peer.capabilities);
       this.peerOwnedSteps = new Set(peer.ownsSteps ?? []);
+      this.peerConnectedPeers = new Set(peer.connectedPeers ?? []);
       for (const stepId of this.peerOwnedSteps) {
         this.routes.set(stepId, peer.deviceId);
       }
