@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { DataProvider } from '@dhis2/app-runtime';
 import App from './App';
 import { installSdkRuntime } from './apps/sdk-runtime';
+import { startContributionSubscriber } from './p2p';
 import './styles/tokens.css';
 import './styles/shell.css';
 import './styles.css';
@@ -27,6 +28,13 @@ import './styles.css';
 // happen before React renders so the bridge resolves on first
 // use.
 installSdkRuntime();
+
+// DPP.4 — long-lived SSE subscriber that converts server-side
+// contribution-completed events into workflow.run-advance DPP/1
+// broadcasts over the active mesh. Fire-and-forget; the subscriber
+// reconnects with exponential backoff on error and is a no-op
+// when the browser hasn't signed in yet (401s silently reconnect).
+startContributionSubscriber();
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

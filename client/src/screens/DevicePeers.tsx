@@ -10,6 +10,7 @@ import {
   JournalReplicator,
   MetadataSyncReplicator,
   WorkflowReplicator,
+  setActiveMesh,
   useP2PMesh,
   usePendingOffers,
   type DppCapabilities,
@@ -130,7 +131,19 @@ export function DevicePeers(): JSX.Element {
         metadataRef.current.delete(id);
       }
     }
+
+    // DPP.4 — register this mesh with the process-wide bus so the
+    // contribution SSE subscriber (and any other callers) can
+    // broadcast run-advance frames without reaching into React
+    // component state. Unregister on unmount.
+    setActiveMesh({
+      mesh,
+      localDeviceId: localDevice,
+      protocolBySession: dppRef.current,
+      routeTable: routeTableRef.current,
+    });
   }, [sessions, mesh, localDevice, ownsSteps]);
+  useEffect(() => () => setActiveMesh(null), []);
 
   const [metadataResults, setMetadataResults] =
     useState<Record<string, MetadataSyncResult>>({});

@@ -46,3 +46,9 @@ export type {
 } from './derPeerProtocol';
 export { WorkflowHandoff } from './workflowHandoff';
 export type { RunAdvancePayload, HandoffResult } from './workflowHandoff';
+
+// DPP.4 process-wide bus + SSE subscriber for auto-fire run-advance.
+export { setActiveMesh, activeMesh, broadcastRunAdvance } from './bus';
+export type { MeshRegistration } from './bus';
+export { startContributionSubscriber, stopContributionSubscriber }
+  from './contributionSseSubscriber';

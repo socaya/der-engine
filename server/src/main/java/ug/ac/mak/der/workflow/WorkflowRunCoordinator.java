@@ -261,6 +261,31 @@ public class WorkflowRunCoordinator {
                 .forEach((e) -> events.publishEvent(new WorkflowStepReadyEvent(
                         run.workflowId(), runId, e.getKey())));
 
+        // DPP.4 — publish the contribution-completed event so the SSE
+        // subscriber on the browser side can fire a workflow.run-advance
+        // DPP/1 frame to the next-step owner's device over the mesh.
+        // Picks the next step as the lowest-ordinal step whose
+        // readiness is READY after this contribution — matches the UI's
+        // "what the operator would open next" semantic.
+        final UUID nextStepId = w.steps().stream()
+                .filter((s) -> readiness.get(s.stepId()) == Readiness.READY)
+                .filter((s) -> !s.stepId().equals(stepId))
+                .sorted((a, b) -> Integer.compare(a.ordinal(), b.ordinal()))
+                .findFirst()
+                .map(CaptureWorkflowStep::stepId)
+                .orElse(null);
+        final UUID nextOwner = nextStepId == null ? null
+                : w.steps().stream()
+                        .filter((s) -> s.stepId().equals(nextStepId))
+                        .findFirst()
+                        .map(CaptureWorkflowStep::ownerDeviceId)
+                        .orElse(null);
+        events.publishEvent(new ContributionCompletedEvent(
+                runId, run.workflowId(), stepId,
+                nextStepId, nextOwner,
+                run.businessKey(),
+                submittedBy, submittedDeviceId));
+
         final CaptureWorkflowRun refreshed = repo.findRun(runId).orElse(run);
         return new ContributionResult(refreshed, readiness, completed);
     }
