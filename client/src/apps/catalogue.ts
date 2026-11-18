@@ -42,6 +42,16 @@ export interface CatalogueApp {
   /** DHIS2_IFRAME only — `'DEEPLINK'` (new-tab default) or `'IFRAME'`
    *  (in-shell sandbox). Null for DER_ESM apps. */
   readonly launchMode: LaunchMode | null;
+  /** True when the app depends on a cross-origin-isolated context
+   *  (OPFS synchronous access, SharedArrayBuffer, Atomics). Detected
+   *  server-side by the presence of coi-serviceworker.js in the app
+   *  bundle. The dispatcher opens such apps via a top-level
+   *  navigation to /dhis-web-&lt;key&gt;/ instead of iframe-wrapping
+   *  — an iframe parent without COOP/COEP makes the child
+   *  non-isolated regardless of the response headers.
+   *  Optional for backward-compat with older server responses that
+   *  don't emit the field; absent treated as false. */
+  readonly needsCrossOriginIsolation?: boolean;
 }
 
 export interface CatalogueResult {
@@ -79,6 +89,7 @@ function sanitize(raw: unknown): CatalogueApp[] {
       trustLevel: parseTrustLevel(o.trustLevel),
       launchUrl: typeof o.launchUrl === 'string' ? o.launchUrl : null,
       launchMode: parseLaunchMode(o.hostKind, o.launchMode),
+      needsCrossOriginIsolation: o.needsCrossOriginIsolation === true,
     }];
   });
 }
@@ -185,6 +196,7 @@ function sanitizeDhis2(raw: unknown): CatalogueApp[] {
       trustLevel: 'UNSIGNED',
       launchUrl: deepLink,
       launchMode: 'DEEPLINK',
+      needsCrossOriginIsolation: o.needsCrossOriginIsolation === true,
     }];
   });
 }

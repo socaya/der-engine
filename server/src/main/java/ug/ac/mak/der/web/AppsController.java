@@ -99,7 +99,8 @@ public class AppsController {
             InstalledApp.TrustLevel trustLevel,
             java.time.Instant lastOpenedAt,
             String centralAppId,
-            String iconUrl
+            String iconUrl,
+            boolean needsCrossOriginIsolation
     ) {
         private static final ObjectMapper MAPPER = new ObjectMapper();
         /** Pref-order for which icon size we surface to the launcher — 48 is
@@ -113,7 +114,31 @@ public class AppsController {
                     a.manifestJson(), a.installPath(), a.installedBy(),
                     a.installedAt(), a.enabled(), a.hostKind(), a.source(),
                     a.trustLevel(), a.lastOpenedAt(), a.centralAppId(),
-                    iconUrlFrom(a.appKey(), a.manifestJson()));
+                    iconUrlFrom(a.appKey(), a.manifestJson()),
+                    needsCrossOriginIsolation(a.installPath()));
+        }
+
+        /** Auto-detect whether this app requires a cross-origin-isolated
+         *  context (OPFS synchronous access, SharedArrayBuffer,
+         *  Atomics). The signal: a bundled {@code coi-serviceworker.js}
+         *  file in the app's install path — a convention DHIS2 custom
+         *  apps use for this exact purpose. When true, the launcher
+         *  opens the app as a top-level navigation to
+         *  /dhis-web-&lt;key&gt;/ rather than iframe-wrapping (an iframe
+         *  parent without COOP/COEP makes the child non-isolated no
+         *  matter how the server responds). */
+        private static boolean needsCrossOriginIsolation(final String installPath) {
+            if (installPath == null || installPath.startsWith("db://")
+                    || installPath.startsWith("zip://")) {
+                return false;
+            }
+            try {
+                return java.nio.file.Files.isRegularFile(
+                        java.nio.file.Paths.get(installPath)
+                                .resolve("coi-serviceworker.js"));
+            } catch (final RuntimeException ex) {
+                return false;
+            }
         }
 
         private static String iconUrlFrom(final String appKey, final String manifestJson) {

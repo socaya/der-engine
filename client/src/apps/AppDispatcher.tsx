@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAppCatalogue, type CatalogueApp } from './catalogue';
 import { AppHost } from './AppHost';
@@ -53,8 +54,34 @@ export function AppDispatcher(): JSX.Element {
     return <IframeHost app={entry} />;
   }
 
+  // DBE-COI — apps that need cross-origin isolation (OPFS sync,
+  // SharedArrayBuffer) only get it when the DHIS2 app bundle is the
+  // top-level document. Iframe-wrapping defeats the COOP/COEP
+  // headers the server stamps on /dhis-web-<key>/** because
+  // isolation propagates from parent to child. Redirect the browser
+  // to the direct path so the app loads as its own window.
+  if (entry.needsCrossOriginIsolation) {
+    return <CoiRedirect app={entry} />;
+  }
+
   // Default — DER_ESM and DHIS2_IFRAME both render through AppHost.
   // AppHost reads useParams itself and picks ESM-vs-iframe based on
   // the catalogue entry's hostKind.
   return <AppHost />;
+}
+
+/** Full-page redirect to /dhis-web-&lt;key&gt;/ for COI-dependent
+ *  apps. window.location.replace keeps the operator from hitting
+ *  Back and landing on the non-isolated wrapper (which would then
+ *  redirect again, breaking the back button). */
+function CoiRedirect({ app }: { app: CatalogueApp }): JSX.Element {
+  useEffect(() => {
+    window.location.replace(`/dhis-web-${app.appKey}/`);
+  }, [app.appKey]);
+  return (
+    <div className="der-apphost der-apphost--loading"
+         data-test="der-coi-redirect">
+      Opening {app.displayName} in isolated mode…
+    </div>
+  );
 }

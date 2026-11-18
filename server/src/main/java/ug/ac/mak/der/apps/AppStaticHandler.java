@@ -245,7 +245,52 @@ public class AppStaticHandler {
         // DER client shell itself is same-origin so the SAMEORIGIN token
         // still lets the hybrid dispatcher mount it.
         headers.add("X-Frame-Options", "SAMEORIGIN");
+
+        // Cross-origin-isolation (COOP + COEP + CORP) for apps that
+        // need OPFS synchronous access / SharedArrayBuffer / Atomics.
+        // Auto-detected by the presence of coi-serviceworker.js in the
+        // app's install directory — a common library DHIS2 custom apps
+        // bundle specifically because they depend on an isolated
+        // context (e.g. mu-hiv-tracker 1.0.2 ships one, uses OPFS for
+        // its LibSQL store, and fails silently without this header set
+        // because crossOriginIsolated stays false on first load).
+        //
+        // credentialless COEP (over require-corp) because our DHIS2
+        // custom apps load cross-origin fonts + images that don't
+        // carry CORP headers; require-corp would block them. The
+        // credentialless variant still provides the isolated context
+        // but strips credentials from cross-origin requests rather
+        // than requiring CORP opt-in.
+        if (isCoiEnabled(app)) {
+            headers.add("Cross-Origin-Opener-Policy", "same-origin");
+            headers.add("Cross-Origin-Embedder-Policy", "credentialless");
+            headers.add("Cross-Origin-Resource-Policy", "same-origin");
+        }
         return ResponseEntity.ok().headers(headers).body(body);
+    }
+
+    /** Cache of install-paths that we've confirmed ship a
+     *  coi-serviceworker.js helper. First serve per app pays the
+     *  file-exists probe; every subsequent serve is a hashmap hit. */
+    private final java.util.concurrent.ConcurrentMap<String, Boolean> coiCache
+            = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private boolean isCoiEnabled(final InstalledApp app) {
+        final String path = app.installPath();
+        if (path == null || path.startsWith("db://") || path.startsWith("zip://")) {
+            // Zip-backed apps would need us to peek into the archive.
+            // Deferred — on-disk extraction covers the real-world case
+            // (AppInstaller unpacks every upload; signed-bundle apps
+            // ship their own SW scope and don't need our header).
+            return false;
+        }
+        return coiCache.computeIfAbsent(path, (p) -> {
+            try {
+                return Files.isRegularFile(Paths.get(p).resolve("coi-serviceworker.js"));
+            } catch (RuntimeException ex) {
+                return false;
+            }
+        });
     }
 
     /**
