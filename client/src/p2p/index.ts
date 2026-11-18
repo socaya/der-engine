@@ -9,6 +9,8 @@ export { JournalReplicator } from './journalReplicator';
 export type { ReplicateOutcome } from './journalReplicator';
 export { WorkflowReplicator } from './workflowReplicator';
 export type { PushWorkflowResult } from './workflowReplicator';
+export { MetadataSyncReplicator } from './metadataSyncReplicator';
+export type { MetadataSyncResult } from './metadataSyncReplicator';
 export { PeerMeshManager } from './mesh';
 export type {
   MeshMessageListener, MeshStatusListener, MeshErrorListener,

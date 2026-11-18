@@ -7,9 +7,11 @@ import { listDevices, listCaptureWorkflows } from '../api/edgeApi';
 import { count as countQueue } from '../offline/queue';
 import {
   JournalReplicator,
+  MetadataSyncReplicator,
   WorkflowReplicator,
   useP2PMesh,
   usePendingOffers,
+  type MetadataSyncResult,
   type P2PConnectionStatus,
   type P2PSession,
   type PendingOffer,
@@ -58,6 +60,7 @@ export function DevicePeers(): JSX.Element {
   // manager.
   const journalRef = useRef<Map<string, JournalReplicator>>(new Map());
   const workflowRef = useRef<Map<string, WorkflowReplicator>>(new Map());
+  const metadataRef = useRef<Map<string, MetadataSyncReplicator>>(new Map());
   useEffect(() => {
     if (!mesh) return;
     for (const s of sessions) {
@@ -70,16 +73,48 @@ export function DevicePeers(): JSX.Element {
           s.sessionId,
           new WorkflowReplicator(m, journal.protocol()),
         );
+        metadataRef.current.set(
+          s.sessionId,
+          new MetadataSyncReplicator(m, journal.protocol()),
+        );
       }
     }
-    // GC dropped sessions out of both maps.
+    // GC dropped sessions out of every map.
     for (const [id] of journalRef.current) {
       if (!sessions.some((s) => s.sessionId === id)) {
         journalRef.current.delete(id);
         workflowRef.current.delete(id);
+        metadataRef.current.delete(id);
       }
     }
   }, [sessions, mesh]);
+
+  const [metadataResults, setMetadataResults] =
+    useState<Record<string, MetadataSyncResult>>({});
+  const [syncingMeta, setSyncingMeta] = useState<Set<string>>(new Set());
+
+  const handleSyncMetadata = async (sessionId: string): Promise<void> => {
+    const replicator = metadataRef.current.get(sessionId);
+    if (!replicator) {
+      setActionError('Metadata sync not ready for this session');
+      return;
+    }
+    setActionError(null);
+    setSyncingMeta((prev) => {
+      const next = new Set(prev); next.add(sessionId); return next;
+    });
+    try {
+      const result = await replicator.push();
+      setMetadataResults((prev) => ({ ...prev, [sessionId]: result }));
+    } catch (ex) {
+      setActionError(
+        `Metadata sync ${sessionId.slice(0, 8)}… failed: ${(ex as Error).message}`);
+    } finally {
+      setSyncingMeta((prev) => {
+        const next = new Set(prev); next.delete(sessionId); return next;
+      });
+    }
+  };
 
   // Local workflows the operator can push to a peer. Loaded once on
   // mount; refresh is cheap but we leave manual-only for now.
@@ -304,6 +339,12 @@ export function DevicePeers(): JSX.Element {
                       onClick={() => runFlush(s.sessionId)}>
                       Flush {queueCount}
                     </Button>
+                    <Button small secondary
+                      loading={syncingMeta.has(s.sessionId)}
+                      disabled={s.status !== 'connected'}
+                      onClick={() => handleSyncMetadata(s.sessionId)}>
+                      Sync metadata
+                    </Button>
                     {workflows.length > 0 && (
                       <select
                         className="der-peer-workflow-picker"
@@ -335,6 +376,16 @@ export function DevicePeers(): JSX.Element {
                         {r.error && <span>: {r.error}</span>}
                       </div>
                     ))}
+                  {metadataResults[s.sessionId] && (
+                    <div className="der-peer-push-summary">
+                      metadata → {metadataResults[s.sessionId].status}
+                      {' '}({metadataResults[s.sessionId].resources} resources,{' '}
+                      {metadataResults[s.sessionId].items} items)
+                      {metadataResults[s.sessionId].error && (
+                        <span>: {metadataResults[s.sessionId].error}</span>
+                      )}
+                    </div>
+                  )}
                 </li>
               );
             })}
