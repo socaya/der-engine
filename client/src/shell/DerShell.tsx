@@ -5,6 +5,7 @@ import { DerTopbar } from './DerTopbar';
 import { useOnlineStatus } from '../offline/useOnlineStatus';
 import { count as queueCount } from '../offline/queue';
 import { drainOfflineQueue } from '../offline/replay';
+import { DegradedStorageBanner } from '../dbe/DegradedStorageBanner';
 
 export interface DerShellProps {
   readonly children: ReactNode;
@@ -74,6 +75,7 @@ export function DerShell({ children }: DerShellProps): JSX.Element {
                   queuedCount={queued}
                   online={online} />
       <DerBreadcrumb />
+      <DegradedStorageBanner />
       <main className="der-shell__main" data-test="der-shell-main">
         {children}
       </main>

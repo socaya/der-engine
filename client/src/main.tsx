@@ -5,6 +5,7 @@ import { DataProvider } from '@dhis2/app-runtime';
 import App from './App';
 import { installSdkRuntime } from './apps/sdk-runtime';
 import { startContributionSubscriber } from './p2p';
+import { requestPersistentStorage } from './dbe/storage';
 import './styles/tokens.css';
 import './styles/shell.css';
 import './styles.css';
@@ -35,6 +36,21 @@ installSdkRuntime();
 // reconnects with exponential backoff on error and is a no-op
 // when the browser hasn't signed in yet (401s silently reconnect).
 startContributionSubscriber();
+
+// ADR-0040 DBE Tier-2 — request persistent-storage grant so a user
+// clearing browser cache doesn't silently wipe queued submissions.
+// Chrome/Edge auto-grant for PWA-installed origins; Firefox prompts
+// the user; Safari grants post-Add-to-Home-Screen. Idempotent +
+// cheap; call every boot so a newly-installed PWA upgrades its
+// grant automatically on next launch.
+requestPersistentStorage().then((granted) => {
+  if (granted) {
+    console.info('[der] persistent storage granted');
+  } else {
+    console.warn('[der] persistent storage NOT granted —'
+      + ' queued submissions may be evicted. Install the PWA to fix.');
+  }
+});
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
