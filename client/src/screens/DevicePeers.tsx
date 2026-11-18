@@ -3,15 +3,17 @@ import { Button, Card, NoticeBox, Tag } from '@dhis2/ui';
 
 import { getStoredDeviceId } from '../device/DeviceEnrollment';
 import type { EnrolledDevice } from '../api/edgeApi';
-import { listDevices } from '../api/edgeApi';
+import { listDevices, listCaptureWorkflows } from '../api/edgeApi';
 import { count as countQueue } from '../offline/queue';
 import {
   JournalReplicator,
+  WorkflowReplicator,
   useP2PMesh,
   usePendingOffers,
   type P2PConnectionStatus,
   type P2PSession,
   type PendingOffer,
+  type PushWorkflowResult,
   type ReplicateOutcome,
 } from '../p2p';
 
@@ -48,24 +50,52 @@ export function DevicePeers(): JSX.Element {
     useState<Record<string, ReplicateOutcome[]>>({});
   const [flushingIds, setFlushingIds] = useState<Set<string>>(new Set());
 
-  // One JournalReplicator per session, lazily created on-demand.
-  // Receiver handler registers once per manager; we tear them down
-  // implicitly when PeerMeshManager.close() drops the manager.
-  const replicatorRef = useRef<Map<string, JournalReplicator>>(new Map());
+  // One JournalReplicator + WorkflowReplicator per session, lazily
+  // created on-demand. Both share the same underlying P2PProtocol
+  // (constructed inside JournalReplicator; WorkflowReplicator
+  // receives it so handlers register on the same envelope decoder).
+  // Torn down implicitly when PeerMeshManager.close() drops the
+  // manager.
+  const journalRef = useRef<Map<string, JournalReplicator>>(new Map());
+  const workflowRef = useRef<Map<string, WorkflowReplicator>>(new Map());
   useEffect(() => {
     if (!mesh) return;
     for (const s of sessions) {
-      if (replicatorRef.current.has(s.sessionId)) continue;
+      if (journalRef.current.has(s.sessionId)) continue;
       const m = mesh.manager(s.sessionId);
-      if (m) replicatorRef.current.set(s.sessionId, new JournalReplicator(m));
+      if (m) {
+        const journal = new JournalReplicator(m);
+        journalRef.current.set(s.sessionId, journal);
+        workflowRef.current.set(
+          s.sessionId,
+          new WorkflowReplicator(m, journal.protocol()),
+        );
+      }
     }
-    // GC dropped sessions out of the map.
-    for (const [id] of replicatorRef.current) {
+    // GC dropped sessions out of both maps.
+    for (const [id] of journalRef.current) {
       if (!sessions.some((s) => s.sessionId === id)) {
-        replicatorRef.current.delete(id);
+        journalRef.current.delete(id);
+        workflowRef.current.delete(id);
       }
     }
   }, [sessions, mesh]);
+
+  // Local workflows the operator can push to a peer. Loaded once on
+  // mount; refresh is cheap but we leave manual-only for now.
+  const [workflows, setWorkflows] = useState<
+    { workflowId: string; displayName: string }[]
+  >([]);
+  useEffect(() => {
+    listCaptureWorkflows()
+      .then((r) => setWorkflows(r.workflows.map((w) => ({
+        workflowId: w.workflowId,
+        displayName: w.displayName ?? w.workflowId,
+      }))))
+      .catch(() => setWorkflows([]));
+  }, []);
+  const [pushResults, setPushResults] =
+    useState<Record<string, PushWorkflowResult>>({});
 
   const loadDevices = useCallback(async () => {
     setLoading(true);
@@ -106,7 +136,7 @@ export function DevicePeers(): JSX.Element {
   }, [sessions]);
 
   const runFlush = async (sessionId: string): Promise<void> => {
-    const replicator = replicatorRef.current.get(sessionId);
+    const replicator = journalRef.current.get(sessionId);
     if (!replicator) return;
     setFlushingIds((prev) => {
       const next = new Set(prev);
@@ -169,6 +199,29 @@ export function DevicePeers(): JSX.Element {
       });
     } catch (ex) {
       setActionError(`Ping failed: ${(ex as Error).message}`);
+    }
+  };
+
+  const handlePushWorkflow = async (
+    sessionId: string,
+    workflowId: string,
+  ): Promise<void> => {
+    const replicator = workflowRef.current.get(sessionId);
+    if (!replicator) {
+      setActionError('Workflow replicator not ready for this session');
+      return;
+    }
+    setActionError(null);
+    try {
+      const fromLabel = `device-${(localDevice ?? '').slice(0, 8)}`;
+      const result = await replicator.push(workflowId, fromLabel);
+      setPushResults((prev) => ({
+        ...prev,
+        [`${sessionId}:${workflowId}`]: result,
+      }));
+    } catch (ex) {
+      setActionError(
+        `Push workflow ${workflowId.slice(0, 8)}… failed: ${(ex as Error).message}`);
     }
   };
 
@@ -251,10 +304,37 @@ export function DevicePeers(): JSX.Element {
                       onClick={() => runFlush(s.sessionId)}>
                       Flush {queueCount}
                     </Button>
+                    {workflows.length > 0 && (
+                      <select
+                        className="der-peer-workflow-picker"
+                        disabled={s.status !== 'connected'}
+                        value=""
+                        onChange={(ev) => {
+                          const workflowId = ev.target.value;
+                          if (!workflowId) return;
+                          handlePushWorkflow(s.sessionId, workflowId);
+                          ev.target.value = '';
+                        }}>
+                        <option value="">Push workflow…</option>
+                        {workflows.map((w) => (
+                          <option key={w.workflowId} value={w.workflowId}>
+                            {w.displayName}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     <Button small destructive onClick={() => close(s.sessionId)}>
                       Close
                     </Button>
                   </div>
+                  {Object.entries(pushResults)
+                    .filter(([k]) => k.startsWith(`${s.sessionId}:`))
+                    .map(([k, r]) => (
+                      <div key={k} className="der-peer-push-summary">
+                        workflow {r.workflowId.slice(0, 8)}… → {r.status}
+                        {r.error && <span>: {r.error}</span>}
+                      </div>
+                    ))}
                 </li>
               );
             })}

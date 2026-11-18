@@ -86,6 +86,8 @@ body {
 .der-peer-session-head { display:flex; gap:10px; align-items:center; margin-bottom:8px; }
 .der-peer-session-role, .der-peer-session-kind { font-size:11px; color:#666; text-transform:uppercase; letter-spacing:0.5px; }
 .der-peer-flush-summary { font-size:12px; color:#444; margin:4px 0 8px; }
+.der-peer-workflow-picker { font-size:12px; padding:4px 6px; border:1px solid #ccc; border-radius:3px; background:#fff; }
+.der-peer-push-summary { font-size:11px; color:#444; margin-top:4px; padding:4px 8px; background:#fff; border-left:3px solid #22c55e; }
 
 /* ─── Run validation banner (2.3.30) ──────────────────── */
 .run-validation-banner{

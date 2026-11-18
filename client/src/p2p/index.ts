@@ -7,6 +7,8 @@ export { PeerConnectionManager } from './peerConnection';
 export { P2PProtocol } from './protocol';
 export { JournalReplicator } from './journalReplicator';
 export type { ReplicateOutcome } from './journalReplicator';
+export { WorkflowReplicator } from './workflowReplicator';
+export type { PushWorkflowResult } from './workflowReplicator';
 export { PeerMeshManager } from './mesh';
 export type {
   MeshMessageListener, MeshStatusListener, MeshErrorListener,
