@@ -233,12 +233,42 @@ public class AppStaticHandler {
         // Host header) so the app's new URL() gets a valid absolute
         // URL that same-origin's back to DER for every /api call.
         if (contentType.startsWith("text/html")) {
-            final String origin = request.getScheme() + "://"
-                    + request.getHeader("Host");
             String html = new String(body, StandardCharsets.UTF_8);
             // DHIS2 __DHIS2_BASE_URL__ placeholder substitution.
+            //
+            // We used to substitute with the server's own Host header,
+            // but in dev the client talks to Vite at :5174 while DER
+            // listens on :8085, and in production a reverse proxy
+            // means the client's real origin diverges from what the
+            // server sees. Either way the app ends up making cross-
+            // origin fetches, cookies get stripped, and /api/me 401s
+            // → the app shows its own login screen even though the
+            // operator is signed into DER.
+            //
+            // Fix: emit a tiny boot script that resets the meta
+            // content to window.location.origin at the browser side.
+            // Runs synchronously before the app's main bundle so the
+            // app's new URL(base) sees the browser's real origin.
+            // Placeholder stays in the meta tag as a readable default
+            // in case the script fails.
             if (html.contains("__DHIS2_BASE_URL__")) {
-                html = html.replace("__DHIS2_BASE_URL__", origin);
+                // Leave the placeholder in the meta; the bootstrap
+                // script below rewrites it on load.
+                final String baseScript = "<script>(function(){var m="
+                        + "document.querySelector('meta[name=\"dhis2-base-url\"]');"
+                        + "if(m)m.content=window.location.origin;})();</script>";
+                final int headEnd = html.toLowerCase(java.util.Locale.ROOT)
+                        .indexOf("</head>");
+                if (headEnd >= 0) {
+                    html = html.substring(0, headEnd) + baseScript
+                            + html.substring(headEnd);
+                } else {
+                    // No </head> — fall back to replacing with the
+                    // request Host and hope it matches (legacy path).
+                    final String origin = request.getScheme() + "://"
+                            + request.getHeader("Host");
+                    html = html.replace("__DHIS2_BASE_URL__", origin);
+                }
             }
             // Inject a minimal DER top-bar for COI apps — they lose
             // the SPA chrome because they're a top-level navigation
