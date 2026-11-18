@@ -81,6 +81,31 @@ export function DevicePeers(): JSX.Element {
   }, []);
   useEffect(() => { refreshQueue(); }, [refreshQueue]);
 
+  // Auto-flush on connect: as soon as the channel reaches `connected`,
+  // push every queued entry. Operator doesn't need to click Flush in
+  // the common case; the manual button stays available for retries.
+  // Guarded by a ref so we don't re-flush on every status change —
+  // only the transition INTO `connected` fires the push.
+  const autoFlushedForSession = useRef<string | null>(null);
+  useEffect(() => {
+    if (!session || !replicatorRef.current) return;
+    if (session.status !== 'connected') return;
+    if (autoFlushedForSession.current === session.sessionId) return;
+    autoFlushedForSession.current = session.sessionId;
+    (async () => {
+      setFlushing(true);
+      try {
+        const results = await replicatorRef.current!.flushAll();
+        setFlushResult(results);
+        await refreshQueue();
+      } catch (ex) {
+        setActionError(`Auto-flush failed: ${(ex as Error).message}`);
+      } finally {
+        setFlushing(false);
+      }
+    })();
+  }, [session, refreshQueue]);
+
   const loadDevices = useCallback(async () => {
     setLoading(true);
     try {

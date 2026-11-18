@@ -40,6 +40,15 @@ public class DeviceApprovalInterceptor implements HandlerInterceptor {
     private static final Logger LOG =
             LoggerFactory.getLogger(DeviceApprovalInterceptor.class);
     static final String DEVICE_HEADER = "X-DER-Device-Id";
+    /** Relay header set by {@code JournalReplicator} on the receiver
+     *  side when it POSTs a journal entry on behalf of a source
+     *  device. When present the request is treated as an authenticated
+     *  relay: both the device header (receiver) AND the on-behalf-of
+     *  header (source) must point at APPROVED devices before the
+     *  request is admitted. Attribution-aware controllers prefer the
+     *  on-behalf-of value for journal writes so the original device's
+     *  identity is preserved end-to-end. */
+    public static final String ON_BEHALF_HEADER = "X-DER-On-Behalf-Of";
 
     private final NetworkRepository networkRepo;
     private final DeviceApprovalPolicy policy;
@@ -98,6 +107,47 @@ public class DeviceApprovalInterceptor implements HandlerInterceptor {
                     .orElse("UNENROLLED");
             return reject(response, request, "DEVICE_NOT_APPROVED",
                     "device " + rawHeader.trim() + " trust=" + trustName);
+        }
+        // Relay request: receiver is the approved device above;
+        // on-behalf-of must also be an approved device. Audit the
+        // relay so a journal row attributed to the source device can
+        // be traced back to the relay that actually posted it.
+        final String onBehalfOf = request.getHeader(ON_BEHALF_HEADER);
+        if (onBehalfOf != null && !onBehalfOf.isBlank()) {
+            final String sourceDevice = onBehalfOf.trim();
+            final Optional<NetworkClient> source =
+                    networkRepo.findClient(sourceDevice);
+            if (source.isEmpty()
+                    || source.get().trust() == null
+                    || source.get().trust() != NetworkEntities.ClientTrust.APPROVED) {
+                final String trustName = source
+                        .map(NetworkClient::trust)
+                        .map(Enum::name)
+                        .orElse("UNENROLLED");
+                return reject(response, request, "ON_BEHALF_NOT_APPROVED",
+                        "on-behalf device " + sourceDevice + " trust=" + trustName);
+            }
+            // Record the relay so operators can trace an attributed
+            // journal row back to the device that actually POSTed it.
+            // Non-blocking — if audit append fails we still admit the
+            // request (the relay is still legitimate).
+            try {
+                audit.append(new AuditEvent(
+                        "P2P_RELAY_ADMITTED",
+                        AuditEvent.Outcome.SUCCESS,
+                        null, null,
+                        request.getRemoteAddr(),
+                        request.getHeader("User-Agent"),
+                        Map.of(
+                                "path", request.getRequestURI(),
+                                "method", request.getMethod(),
+                                "relayDevice", rawHeader.trim(),
+                                "sourceDevice", sourceDevice)),
+                        Instant.now(clock));
+            } catch (final RuntimeException ex) {
+                LOG.debug("audit append for P2P_RELAY_ADMITTED failed: {}",
+                        ex.getMessage());
+            }
         }
         return true;
     }

@@ -107,18 +107,23 @@ export class JournalReplicator {
     this.seen.add(dedupKey);
 
     // Submit on behalf of the source device. The POST uses the
-    // receiver's own DER_SESSION cookie — the source device's write
-    // is attributed to the receiver's user, and the submission body
-    // is the exact JSON the source would have sent itself. Future
-    // enhancement: add a X-DER-On-Behalf-Of header so the server
-    // can preserve the source device's identity in its journal.
+    // receiver's own DER_SESSION cookie + X-DER-Device-Id (the actual
+    // relay device) + X-DER-On-Behalf-Of (the original source). The
+    // server's DeviceApprovalInterceptor validates BOTH are approved
+    // and records a P2P_RELAY_ADMITTED audit row so the journal can
+    // be traced back to the relay. Attribution-aware controllers use
+    // DeviceAttribution.attributionDeviceId to prefer the on-behalf
+    // header for journal writes — the original source's identity is
+    // preserved end-to-end.
+    const receiverDevice = this.mgr.session()?.localDevice ?? '';
     const resp = await fetch(entry.url, {
       method: entry.method,
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
-        'X-DER-Device-Id': entry.sourceDevice,
+        'X-DER-Device-Id': receiverDevice,
+        'X-DER-On-Behalf-Of': entry.sourceDevice,
       },
       body: JSON.stringify(entry.body),
     });
