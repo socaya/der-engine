@@ -270,11 +270,16 @@ public class AppStaticHandler {
                     html = html.replace("__DHIS2_BASE_URL__", origin);
                 }
             }
-            // Inject a minimal DER top-bar for COI apps — they lose
-            // the SPA chrome because they're a top-level navigation
-            // (iframe wrapping would defeat COOP/COEP isolation).
-            // Gives operators a Back-to-DER link + app label so the
-            // handoff feels intentional rather than "I lost my shell".
+            // Every DHIS2 app serve gets the HeaderBar-hide CSS so
+            // only DER chrome shows at the top (iframe-wrapped apps
+            // sit inside the DER shell; COI apps get the injected
+            // DER top-bar below). Operators asked for consistent
+            // app chrome regardless of mount mode.
+            html = injectHideHeaderBar(html);
+            // COI apps additionally get the injected DER top-bar —
+            // they're top-level navigations (iframe wrapping would
+            // defeat COOP/COEP isolation) so we replace the shell
+            // chrome with a minimal Back-to-DER bar.
             if (isCoiEnabled(app)) {
                 html = injectDerTopbar(html, app);
             }
@@ -344,26 +349,37 @@ public class AppStaticHandler {
      *  rather than "I lost my shell". No DER session queries happen
      *  here — this is pure markup, served alongside the HTML; the
      *  app's own bootstrap handles live state.</p> */
+    /** Inject a tiny CSS block at the end of &lt;head&gt; that hides
+     *  the DHIS2 HeaderBar component (data-test^='headerbar-') on
+     *  every DHIS2 app serve. Operators get consistent DER chrome
+     *  across every DHIS2 app regardless of whether it mounts as an
+     *  iframe (inside the DER shell) or as a top-level navigation
+     *  (COI apps). Uses :has() — baseline 2024 across every browser
+     *  DER targets — so the rule stays scoped to the real HeaderBar
+     *  and doesn't collateral every &lt;header&gt; in the app. */
+    private static String injectHideHeaderBar(final String html) {
+        final String css = "<style id=\"__der_hide_dhis2_headerbar__\">"
+                + "header:has([data-test^='headerbar-']),"
+                + "div:has(> header [data-test='headerbar-logo']){"
+                + "display:none !important;"
+                + "}"
+                + "</style>";
+        final int headEnd = html.toLowerCase(java.util.Locale.ROOT)
+                .indexOf("</head>");
+        if (headEnd < 0) {
+            return css + html;
+        }
+        return html.substring(0, headEnd) + css + html.substring(headEnd);
+    }
+
     private static String injectDerTopbar(final String html, final InstalledApp app) {
         final String displayName = app.displayName()
                 .replace("\"", "&quot;")
                 .replace("<", "&lt;").replace(">", "&gt;");
         final String bar = "<style>"
-            // Hide DHIS2's own HeaderBar component so only the DER
-            // chrome shows at the top. Covers @dhis2/ui HeaderBar
-            // (data-test^='headerbar-') in both direct render and
-            // dir-wrapper variants, plus the sidebar-app-launcher
-            // some custom apps also render alongside. We use :has()
-            // (baseline 2024 across Chrome/Edge/Safari/Firefox) so
-            // the rule stays scoped to the real HeaderBar instead
-            // of hiding every <header> in the app.
-            + "header:has([data-test^='headerbar-']),"
-            + "div:has(> header [data-test='headerbar-logo']){"
-            + "display:none !important;"
-            + "}"
-            // Reset any body padding the DHIS2 app shell added for
-            // its own HeaderBar height — we're replacing it with the
-            // DER bar at the same 44px height below.
+            // Push the app body down 44px to leave room for the fixed
+            // DER top-bar below. HeaderBar hiding already lands via
+            // injectHideHeaderBar on every serve.
             + "body{padding-top:44px !important;margin-top:0 !important;}"
             + "#__der_bar__{"
             + "position:fixed;top:0;left:0;right:0;height:44px;z-index:2147483647;"
