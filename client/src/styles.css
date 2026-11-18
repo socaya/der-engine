@@ -89,6 +89,44 @@ body {
 .der-peer-workflow-picker { font-size:12px; padding:4px 6px; border:1px solid #ccc; border-radius:3px; background:#fff; }
 .der-peer-push-summary { font-size:11px; color:#444; margin-top:4px; padding:4px 8px; background:#fff; border-left:3px solid #22c55e; }
 
+/* ─── DBE.4 continuity UI ─────────────────────────────────── */
+.der-continuity-slot { padding:4px 16px; display:flex; justify-content:flex-end; }
+.der-continuity-badge {
+  display:inline-flex; gap:8px; align-items:center;
+  padding:4px 10px; border-radius:14px;
+  font-size:12px; text-decoration:none;
+  border:1px solid #d1d5db; background:#fff; color:#333;
+}
+.der-continuity-badge:hover { background:#f6f7f9; }
+.der-continuity-dot { width:8px; height:8px; border-radius:50%; background:#ccc; }
+.der-continuity-dot-healthy { background:#22c55e; }
+.der-continuity-dot-degraded { background:#f0ad4e; }
+.der-continuity-dot-offline { background:#dc3545; }
+.der-continuity-pill {
+  font-size:11px; padding:1px 7px; border-radius:10px;
+  background:#f6f7f9; color:#444;
+}
+.der-continuity-pill.der-continuity-warn { background:#fef3c7; color:#8a6007; }
+
+.der-continuity-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.der-continuity-level {
+  text-transform:uppercase; font-size:11px; letter-spacing:0.5px;
+  padding:3px 10px; border-radius:10px;
+}
+.der-continuity-healthy { background:#dcfce7; color:#166534; }
+.der-continuity-degraded { background:#fef3c7; color:#8a6007; }
+.der-continuity-offline { background:#fee2e2; color:#991b1b; }
+.der-continuity-ok { background:#22c55e; color:#fff; }
+.der-continuity-warn { background:#f0ad4e; color:#fff; }
+.der-continuity-grid { display:grid; grid-template-columns:auto 1fr; gap:6px 16px; margin:0; }
+.der-continuity-grid dt { font-weight:500; color:#555; }
+.der-continuity-grid dd { margin:0; display:flex; align-items:center; gap:4px; }
+.der-continuity-muted { color:#888; font-size:12px; }
+.der-continuity-footer { margin-top:12px; font-size:13px; color:#555; }
+
+.der-recovery-actions { display:flex; gap:8px; margin-top:8px; }
+.der-recovery-error { color:#b02a37; font-size:12px; margin:6px 0; }
+
 /* ─── Run validation banner (2.3.30) ──────────────────── */
 .run-validation-banner{
   display:flex;flex-direction:column;gap:6px;

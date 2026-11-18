@@ -4,6 +4,7 @@ import { Button, Card, NoticeBox, Tag } from '@dhis2/ui';
 import { getStoredDeviceId } from '../device/DeviceEnrollment';
 import type { EnrolledDevice } from '../api/edgeApi';
 import { listDevices, listCaptureWorkflows, listOwnedStepIds } from '../api/edgeApi';
+import { ContinuityCard } from '../dbe/ContinuityCard';
 import { count as countQueue } from '../offline/queue';
 import {
   DerPeerProtocol,
@@ -373,6 +374,8 @@ export function DevicePeers(): JSX.Element {
           {sessions.length} live, {queueCount} queued
         </span>
       </div>
+
+      <ContinuityCard />
 
       {actionError && (
         <NoticeBox error title="Action failed">{actionError}</NoticeBox>
