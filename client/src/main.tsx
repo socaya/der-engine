@@ -6,6 +6,7 @@ import App from './App';
 import { installSdkRuntime } from './apps/sdk-runtime';
 import { startContributionSubscriber } from './p2p';
 import { requestPersistentStorage } from './dbe/storage';
+import { startPrefetchLoop } from './dbe/prefetch';
 import './styles/tokens.css';
 import './styles/shell.css';
 import './styles.css';
@@ -51,6 +52,13 @@ requestPersistentStorage().then((granted) => {
       + ' queued submissions may be evicted. Install the PWA to fix.');
   }
 });
+
+// DBE.2b — proactive prefetch loop. Primes the DBE IndexedDB
+// mirror with the handful of /api endpoints every DHIS2 app probes
+// at boot (me, systemSettings, periodTypes, orgUnits, configuration)
+// so DBE.2a's SW interceptor has fresh content when the server
+// drops. Idempotent; no-op when offline or the tab is hidden.
+startPrefetchLoop();
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
