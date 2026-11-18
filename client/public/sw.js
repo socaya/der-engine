@@ -220,7 +220,16 @@ async function serveApi(event, request, url) {
       // delay the caller. Fire-and-forget via waitUntil.
       event.waitUntil(cacheApiResponse(url.pathname + url.search, network.clone()));
     }
-    return network;
+    // Diagnostic: stamp a marker on the network response so devtools
+    // + the verify-dbe-storage probe can confirm the SW saw this
+    // request (vs the browser's HTTP cache serving it directly).
+    const headers = new Headers(network.headers);
+    headers.set('X-DER-SW-Seen', '1');
+    return new Response(await network.clone().blob(), {
+      status: network.status,
+      statusText: network.statusText,
+      headers,
+    });
   } catch {
     // Network failed — try the IDB mirror.
     const cached = await readApiResponse(url.pathname + url.search);

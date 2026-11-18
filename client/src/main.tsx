@@ -7,6 +7,7 @@ import { installSdkRuntime } from './apps/sdk-runtime';
 import { startContributionSubscriber } from './p2p';
 import { requestPersistentStorage } from './dbe/storage';
 import { startPrefetchLoop } from './dbe/prefetch';
+import { captureInstallPrompt } from './dbe/pwaInstall';
 import './styles/tokens.css';
 import './styles/shell.css';
 import './styles.css';
@@ -59,6 +60,12 @@ requestPersistentStorage().then((granted) => {
 // so DBE.2a's SW interceptor has fresh content when the server
 // drops. Idempotent; no-op when offline or the tab is hidden.
 startPrefetchLoop();
+
+// ADR-0040 — capture the beforeinstallprompt event (Chrome/Edge only)
+// so the DegradedStorageBanner can offer an in-page Install button
+// instead of just text instructions. Must register the listener
+// before the browser fires it; module-load guarantees that.
+captureInstallPrompt();
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

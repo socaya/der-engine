@@ -126,6 +126,10 @@ body {
 
 .der-recovery-actions { display:flex; gap:8px; margin-top:8px; }
 .der-recovery-error { color:#b02a37; font-size:12px; margin:6px 0; }
+.der-degraded-actions { display:flex; gap:8px; margin:8px 0; }
+.der-degraded-hint { font-size:13px; color:#555; margin:8px 0 4px; }
+.der-degraded-feedback { font-size:13px; color:#166534; margin:8px 0 0; }
+.der-degraded-usage { font-size:12px; color:#666; margin:8px 0 0; }
 
 /* ─── Run validation banner (2.3.30) ──────────────────── */
 .run-validation-banner{

@@ -148,11 +148,23 @@ async function collectCacheStats(): Promise<CacheStats> {
   return { shellEntries, apiMirrorEntries };
 }
 
-/** Count entries in the der-dbe-v1.api_responses store. Opens the DB
- *  in read-only mode + tears down immediately. */
+/** Count entries in the der-dbe-v1.api_responses store. Opens with
+ *  the full upgrade hook so a page-side read that beats the SW to
+ *  the DB doesn't create an empty v1 that blocks the SW's own store
+ *  creation (observed race during verify-dbe-storage.mjs probe —
+ *  SW would intercept /api/me, call cacheApiResponse → openDbe, find
+ *  v1 already present with no stores, skip onupgradeneeded, and
+ *  silently fail every write). Both the SW and this reader MUST
+ *  create the store if missing. */
 async function countApiMirror(): Promise<number> {
   return new Promise((resolve) => {
-    const req = indexedDB.open('der-dbe-v1');
+    const req = indexedDB.open('der-dbe-v1', 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('api_responses')) {
+        db.createObjectStore('api_responses', { keyPath: 'key' });
+      }
+    };
     req.onsuccess = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains('api_responses')) {
