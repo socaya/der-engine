@@ -50,6 +50,8 @@ export { PeerSignalingRelay } from './peerSignaling';
 export type {
   SignalRelayKind, SignalRelayPayload, SignalRelayLocalHandler,
 } from './peerSignaling';
+export type { SignalingBackend, SignalingBackendKind } from './signalingBackend';
+export { RelaySignalingBackend } from './relaySignalingBackend';
 
 // DPP.4 process-wide bus + SSE subscriber for auto-fire run-advance.
 export { setActiveMesh, activeMesh, broadcastRunAdvance } from './bus';

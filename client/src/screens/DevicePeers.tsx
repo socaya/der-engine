@@ -284,9 +284,26 @@ export function DevicePeers(): JSX.Element {
     setActionError(null);
     try {
       await connect(peer.deviceId, 'data');
+      return;
     } catch (ex) {
-      setActionError(
-        `Connect to ${peer.deviceId.slice(0, 8)}… failed: ${(ex as Error).message}`);
+      // DBE.3b — HTTP broker unreachable. Try P-sig: look for a
+      // mesh peer that claims a direct session with the target
+      // and open a new WebRTC connection through that intermediary.
+      const relay = signalRelayRef.current;
+      const intermediary = relay?.findIntermediaryFor(
+        peer.deviceId, dppRef.current);
+      if (!mesh || !relay || !intermediary) {
+        setActionError(
+          `Connect to ${peer.deviceId.slice(0, 8)}… failed: ${(ex as Error).message}`
+          + ' (no mesh relay available)');
+        return;
+      }
+      try {
+        await mesh.connectToViaRelay(peer.deviceId, intermediary, relay, 'data');
+      } catch (relayEx) {
+        setActionError(
+          `P-sig connect to ${peer.deviceId.slice(0, 8)}… failed: ${(relayEx as Error).message}`);
+      }
     }
   };
 

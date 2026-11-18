@@ -6,6 +6,7 @@ import type {
   RemoteIceCandidate,
 } from './types';
 import { SignalingClient } from './signaling';
+import type { SignalingBackend } from './signalingBackend';
 
 /**
  * Lifecycle manager for a single WebRTC peer connection.
@@ -32,22 +33,27 @@ export interface P2POptions {
   readonly pollIntervalMs?: number;
   /** Data-channel label — purely diagnostic. Default `der`. */
   readonly channelLabel?: string;
+  /** DBE.3b — SDP/ICE transport. Default is the HTTP broker at
+   *  /edge-api/v1/webrtc/*; pass a {@link RelaySignalingBackend}
+   *  to route signaling through a DPP mesh intermediary when the
+   *  server-side broker is unreachable. */
+  readonly signaling?: SignalingBackend;
 }
 
 export type P2PStatusListener = (session: P2PSession) => void;
 export type P2PMessageListener = (msg: P2PMessage) => void;
 export type P2PErrorListener = (err: Error, phase: string) => void;
 
-const DEFAULT_OPTS: Required<P2POptions> = {
+const DEFAULT_OPTS: Required<Omit<P2POptions, 'signaling'>> = {
   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
   pollIntervalMs: 500,
   channelLabel: 'der',
 };
 
 export class PeerConnectionManager {
-  private readonly signaling: SignalingClient;
+  private readonly signaling: SignalingBackend;
   private readonly localDevice: string;
-  private readonly opts: Required<P2POptions>;
+  private readonly opts: Required<Omit<P2POptions, 'signaling'>>;
 
   private pc: RTCPeerConnection | null = null;
   private channel: RTCDataChannel | null = null;
@@ -67,8 +73,9 @@ export class PeerConnectionManager {
 
   constructor(localDevice: string, opts: P2POptions = {}) {
     this.localDevice = localDevice;
-    this.opts = { ...DEFAULT_OPTS, ...opts };
-    this.signaling = new SignalingClient(localDevice);
+    const { signaling, ...rest } = opts;
+    this.opts = { ...DEFAULT_OPTS, ...rest };
+    this.signaling = signaling ?? new SignalingClient(localDevice);
   }
 
   /** Initiator path — create offer, post it, start polling for answer + ICE. */

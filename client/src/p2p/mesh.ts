@@ -1,4 +1,7 @@
 import { PeerConnectionManager, type P2POptions } from './peerConnection';
+import { RelaySignalingBackend } from './relaySignalingBackend';
+import type { DerPeerProtocol } from './derPeerProtocol';
+import type { PeerSignalingRelay } from './peerSignaling';
 import type {
   P2PMessage,
   P2PSession,
@@ -67,6 +70,39 @@ export class PeerMeshManager {
       }
     }
     const mgr = new PeerConnectionManager(this.localDevice, this.opts);
+    await mgr.connectTo(remoteDevice, kind);
+    const sessionId = mgr.session()!.sessionId;
+    this.register(sessionId, remoteDevice, mgr);
+    return sessionId;
+  }
+
+  /** DBE.3b — initiator path when the HTTP broker is unreachable.
+   *  Opens a new WebRTC session to {@code remoteDevice} using a
+   *  DPP mesh intermediary for signaling (via
+   *  {@link RelaySignalingBackend}). Returns the sessionId.
+   *
+   *  Caller picks the intermediary: walk {@link #sessions} for one
+   *  whose DPP {@link DerPeerProtocol#peerCanReach} the target
+   *  then pass the matching protocol here. */
+  async connectToViaRelay(
+    remoteDevice: string,
+    intermediary: DerPeerProtocol,
+    relay: PeerSignalingRelay,
+    kind: PeerChannelKind = 'data',
+  ): Promise<string> {
+    const existing = this.byRemote.get(remoteDevice);
+    if (existing) {
+      const mgr = this.byId.get(existing);
+      if (mgr && mgr.session()?.status !== 'closed') {
+        return existing;
+      }
+    }
+    const backend = new RelaySignalingBackend(
+      this.localDevice, remoteDevice, intermediary, relay);
+    const mgr = new PeerConnectionManager(this.localDevice, {
+      ...this.opts,
+      signaling: backend,
+    });
     await mgr.connectTo(remoteDevice, kind);
     const sessionId = mgr.session()!.sessionId;
     this.register(sessionId, remoteDevice, mgr);

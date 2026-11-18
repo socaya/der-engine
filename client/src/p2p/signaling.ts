@@ -5,6 +5,7 @@ import type {
   RemoteIceCandidate,
 } from './types';
 import { SignalingError } from './types';
+import type { SignalingBackend } from './signalingBackend';
 
 /**
  * Thin wrapper over the DER WebRTC signaling broker at
@@ -25,7 +26,9 @@ import { SignalingError } from './types';
  *       connected.</li>
  * </ul>
  */
-export class SignalingClient {
+export class SignalingClient implements SignalingBackend {
+  readonly kind = 'http' as const;
+
   private readonly deviceId: string;
 
   constructor(deviceId: string) {
