@@ -223,6 +223,33 @@ public class AppStaticHandler {
             body = rewriteEregistersProgramUid(body);
         }
         final String contentType = guessContentType(relative);
+        // DHIS2 app shells embed a __DHIS2_BASE_URL__ placeholder in
+        // their index.html that central replaces on serve with the
+        // real instance base URL. The app's bootstrap then calls
+        // new URL(base) on the value — literal __DHIS2_BASE_URL__
+        // throws "Failed to construct 'URL': Invalid URL" and the
+        // app dies at init (observed in mu-hiv-tracker 1.0.2). We
+        // substitute with the request's own origin (scheme +
+        // Host header) so the app's new URL() gets a valid absolute
+        // URL that same-origin's back to DER for every /api call.
+        if (contentType.startsWith("text/html")) {
+            final String origin = request.getScheme() + "://"
+                    + request.getHeader("Host");
+            String html = new String(body, StandardCharsets.UTF_8);
+            // DHIS2 __DHIS2_BASE_URL__ placeholder substitution.
+            if (html.contains("__DHIS2_BASE_URL__")) {
+                html = html.replace("__DHIS2_BASE_URL__", origin);
+            }
+            // Inject a minimal DER top-bar for COI apps — they lose
+            // the SPA chrome because they're a top-level navigation
+            // (iframe wrapping would defeat COOP/COEP isolation).
+            // Gives operators a Back-to-DER link + app label so the
+            // handoff feels intentional rather than "I lost my shell".
+            if (isCoiEnabled(app)) {
+                html = injectDerTopbar(html, app);
+            }
+            body = html.getBytes(StandardCharsets.UTF_8);
+        }
         final HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType(contentType));
         headers.setCacheControl(cacheHeaderFor(relative));
@@ -274,6 +301,76 @@ public class AppStaticHandler {
      *  file-exists probe; every subsequent serve is a hashmap hit. */
     private final java.util.concurrent.ConcurrentMap<String, Boolean> coiCache
             = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Injects a minimal DER top-bar + spacer into a COI app's HTML.
+     *  Inline styles only — no external stylesheet that might run
+     *  afoul of COEP:credentialless on cross-origin fetches. The
+     *  bar is fixed + z-indexed above the app content, 44px tall
+     *  with a 44px body-padding spacer so no app content is hidden
+     *  behind it.
+     *
+     *  <p>Gives operators a Back-to-DER link, the app label, and a
+     *  subtle "Isolated mode" pill so the handoff is deliberate
+     *  rather than "I lost my shell". No DER session queries happen
+     *  here — this is pure markup, served alongside the HTML; the
+     *  app's own bootstrap handles live state.</p> */
+    private static String injectDerTopbar(final String html, final InstalledApp app) {
+        final String displayName = app.displayName()
+                .replace("\"", "&quot;")
+                .replace("<", "&lt;").replace(">", "&gt;");
+        final String bar = "<style>"
+            + "#__der_bar__{"
+            + "position:fixed;top:0;left:0;right:0;height:44px;z-index:2147483647;"
+            + "display:flex;align-items:center;gap:16px;padding:0 20px;"
+            + "background:#0d2e5c;color:#eaf0f7;"
+            + "font:500 13px/1.3 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;"
+            + "box-shadow:0 1px 3px rgba(0,0,0,0.25);"
+            + "}"
+            + "#__der_bar__ a,#__der_bar__ a:visited{color:#eaf0f7;text-decoration:none;}"
+            + "#__der_bar__ a:hover{text-decoration:underline;}"
+            + "#__der_bar__ .__der_back__{"
+            + "display:inline-flex;align-items:center;gap:6px;"
+            + "padding:5px 10px;border-radius:6px;background:rgba(255,255,255,0.08);"
+            + "}"
+            + "#__der_bar__ .__der_back__:hover{background:rgba(255,255,255,0.15);text-decoration:none;}"
+            + "#__der_bar__ .__der_app_name__{font-weight:600;flex:1;"
+            + "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}"
+            + "#__der_bar__ .__der_pill__{"
+            + "font-size:11px;padding:3px 10px;border-radius:12px;"
+            + "background:rgba(255,255,255,0.12);letter-spacing:0.3px;"
+            + "}"
+            + "body{padding-top:44px !important;}"
+            + "@media (prefers-reduced-motion:no-preference){"
+            + "#__der_bar__{transition:background .2s ease}"
+            + "}"
+            + "</style>"
+            + "<div id=\"__der_bar__\" role=\"banner\">"
+            + "<a href=\"/\" class=\"__der_back__\" title=\"Back to DER\">"
+            + "<svg width=\"12\" height=\"12\" viewBox=\"0 0 12 12\" fill=\"none\" "
+            + "aria-hidden=\"true\"><path d=\"M7.5 2L3.5 6l4 4\" stroke=\"currentColor\" "
+            + "stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>"
+            + "DER</a>"
+            + "<span class=\"__der_app_name__\">" + displayName + "</span>"
+            + "<span class=\"__der_pill__\" title=\"This app runs in an isolated window for secure local storage\">"
+            + "Isolated mode</span>"
+            + "</div>";
+        // Place the bar immediately after <body ...>; fall back to
+        // prepending if no body tag is present (very rare).
+        final int bodyIdx = indexOfBodyOpen(html);
+        if (bodyIdx < 0) {
+            return bar + html;
+        }
+        return html.substring(0, bodyIdx) + bar + html.substring(bodyIdx);
+    }
+
+    private static int indexOfBodyOpen(final String html) {
+        final int i = html.toLowerCase(java.util.Locale.ROOT).indexOf("<body");
+        if (i < 0) {
+            return -1;
+        }
+        final int end = html.indexOf('>', i);
+        return end < 0 ? -1 : end + 1;
+    }
 
     private boolean isCoiEnabled(final InstalledApp app) {
         final String path = app.installPath();
