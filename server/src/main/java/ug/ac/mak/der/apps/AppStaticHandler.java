@@ -349,6 +349,22 @@ public class AppStaticHandler {
                 .replace("\"", "&quot;")
                 .replace("<", "&lt;").replace(">", "&gt;");
         final String bar = "<style>"
+            // Hide DHIS2's own HeaderBar component so only the DER
+            // chrome shows at the top. Covers @dhis2/ui HeaderBar
+            // (data-test^='headerbar-') in both direct render and
+            // dir-wrapper variants, plus the sidebar-app-launcher
+            // some custom apps also render alongside. We use :has()
+            // (baseline 2024 across Chrome/Edge/Safari/Firefox) so
+            // the rule stays scoped to the real HeaderBar instead
+            // of hiding every <header> in the app.
+            + "header:has([data-test^='headerbar-']),"
+            + "div:has(> header [data-test='headerbar-logo']){"
+            + "display:none !important;"
+            + "}"
+            // Reset any body padding the DHIS2 app shell added for
+            // its own HeaderBar height — we're replacing it with the
+            // DER bar at the same 44px height below.
+            + "body{padding-top:44px !important;margin-top:0 !important;}"
             + "#__der_bar__{"
             + "position:fixed;top:0;left:0;right:0;height:44px;z-index:2147483647;"
             + "display:flex;align-items:center;gap:16px;padding:0 20px;"
@@ -369,7 +385,6 @@ public class AppStaticHandler {
             + "font-size:11px;padding:3px 10px;border-radius:12px;"
             + "background:rgba(255,255,255,0.12);letter-spacing:0.3px;"
             + "}"
-            + "body{padding-top:44px !important;}"
             + "@media (prefers-reduced-motion:no-preference){"
             + "#__der_bar__{transition:background .2s ease}"
             + "}"
