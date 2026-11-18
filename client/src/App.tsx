@@ -5,6 +5,7 @@ import { RequireAuth } from './components/RequireAuth';
 import { SignIn } from './screens/SignIn';
 import { DerHome } from './screens/DerHome';
 import { SessionDetails } from './screens/SessionDetails';
+import { DevicePeers } from './screens/DevicePeers';
 import { RecentWork } from './screens/RecentWork';
 import { EdgeConnectionError } from './screens/EdgeConnectionError';
 import { OrgUnitBindingProvider } from './orgunit/OrgUnitBindingContext';
@@ -71,6 +72,14 @@ function InnerRoutes(): JSX.Element {
             element={
               <RequireAuth>
                 <SessionDetails />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/peers"
+            element={
+              <RequireAuth>
+                <DevicePeers />
               </RequireAuth>
             }
           />

@@ -40,4 +40,7 @@ export const MODULES: readonly ModuleTile[] = [
   { id: 'data', label: 'Data',
     subtitle: 'Aggregate · Programs · Drafts',
     to: '/aggregate/datasets', testId: 'app-data', icon: ICON.dataset },
+  { id: 'network', label: 'Peers',
+    subtitle: 'Device-to-device sessions',
+    to: '/peers', testId: 'app-peers', icon: ICON.wifi },
 ];

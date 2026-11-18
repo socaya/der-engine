@@ -52,11 +52,33 @@ body {
 
 .der-metadata-browser,
 .der-recent-work,
-.der-session-details {
+.der-session-details,
+.der-device-peers {
     display: flex;
     flex-direction: column;
     gap: 16px;
 }
+
+.der-peer-offers { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.der-peer-offers li { display:flex; gap:12px; align-items:center; justify-content:space-between; padding:10px 12px; background:#f6f7f9; border-radius:4px; }
+.der-peer-session { display:grid; grid-template-columns:auto 1fr; gap:4px 16px; margin:0; }
+.der-peer-session dt { font-weight:500; color:#666; }
+.der-peer-session dd { margin:0; }
+.der-peer-last-message { font-size:12px; color:#555; margin:12px 0 4px; }
+.der-peer-actions { display:flex; gap:8px; margin-top:12px; }
+.der-peer-list-header { display:flex; justify-content:space-between; align-items:center; }
+.der-peer-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.der-peer-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 12px; border-bottom:1px solid #eee; }
+.der-peer-identity { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.der-peer-ua { font-size:11px; color:#888; }
+.der-p2p-tag-connected { background:#22c55e; color:#fff; }
+.der-p2p-tag-connecting, .der-p2p-tag-signaling-offer, .der-p2p-tag-signaling-answer { background:#f0ad4e; color:#fff; }
+.der-p2p-tag-reconnecting { background:#fb923c; color:#fff; }
+.der-p2p-tag-failed, .der-p2p-tag-disconnected, .der-p2p-tag-closed { background:#dc3545; color:#fff; }
+.der-p2p-tag-idle { background:#aaa; color:#fff; }
+.der-peer-status-pending { background:#f0ad4e; color:#fff; }
+.der-peer-status-approved { background:#22c55e; color:#fff; }
+.der-peer-status-revoked, .der-peer-status-suspended { background:#dc3545; color:#fff; }
 
 /* ─── Run validation banner (2.3.30) ──────────────────── */
 .run-validation-banner{

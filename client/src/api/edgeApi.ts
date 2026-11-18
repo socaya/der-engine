@@ -1042,6 +1042,17 @@ export function fetchDevice(deviceId: string): Promise<EnrolledDevice> {
   return request<EnrolledDevice>('GET', `/edge-api/v1/devices/${deviceId}`);
 }
 
+/** DER-APPS-DHIS2-001 P2P.2 — list every enrolled device on this
+ *  appliance so the Peers screen can present them as candidate
+ *  endpoints for a WebRTC data-channel session. The server already
+ *  enforces authentication; this call is cookie-based like the rest
+ *  of the API layer. */
+export function listDevices(): Promise<EnrolledDevice[]> {
+  return request<{ devices: EnrolledDevice[] }>(
+    'GET', '/edge-api/v1/devices',
+  ).then((r) => r.devices ?? []);
+}
+
 /** §2.3.30 — progressive-validation issues attached to a workflow run. */
 export interface ValidationIssue {
   issueId: string;
