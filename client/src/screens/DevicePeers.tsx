@@ -7,68 +7,78 @@ import { listDevices } from '../api/edgeApi';
 import { count as countQueue } from '../offline/queue';
 import {
   JournalReplicator,
-  useP2P,
+  useP2PMesh,
   usePendingOffers,
   type P2PConnectionStatus,
+  type P2PSession,
   type PendingOffer,
   type ReplicateOutcome,
 } from '../p2p';
 
 /**
- * Device Peers screen — the operator-facing surface for the P2P data
- * channels DER's WebRTC signaling broker (/edge-api/v1/webrtc) + the
- * {@link import('../p2p').useP2P} hook make possible.
+ * Device Peers screen — multi-session edition (P2P.6).
  *
- * <p>Layout, top-to-bottom:
+ * <p>Shows the live P2P mesh:
  * <ol>
- *   <li>Incoming offers card — surfaces any session where another
- *       device is waiting on this device to answer. Accept opens the
- *       data channel; Dismiss leaves the offer to expire server-side
- *       (the broker drops OFFERED rows older than ~5m).</li>
- *   <li>Active session card — shows the current connection target,
- *       status badge, kind, and a smoke-test send button. Only
- *       rendered when a session is live.</li>
- *   <li>Peers list — every enrolled device on this appliance except
- *       the one running this UI, with a Connect button when idle
- *       and a status indicator when a handshake / session is in
- *       flight.</li>
+ *   <li><strong>Incoming offers</strong> — any pending session where
+ *       another device is waiting for this device to answer. Accept
+ *       opens a new channel (doesn't close existing ones).</li>
+ *   <li><strong>Active sessions</strong> — one card per live
+ *       connection with status badge, in-flight count, Flush and
+ *       Close actions. Auto-flush fires per-session on the first
+ *       {@code connected} transition.</li>
+ *   <li><strong>Peers</strong> — enrolled devices; the Connect button
+ *       is disabled only for the specific peer already in a live
+ *       session (not globally, as in P2P.2).</li>
  * </ol>
- *
- * <p>The hook owns at most one active connection at a time per the
- * single-channel model in {@link import('../p2p').PeerConnectionManager};
- * the UI makes that limit obvious by greying out Connect buttons once
- * a session is live. Future P2P.3 will layer a protocol envelope
- * (seq/ack/retry) on top so the ping smoke-test gets replaced by
- * real journal-sync traffic.</p>
  */
 export function DevicePeers(): JSX.Element {
   const localDevice = useMemo(() => getStoredDeviceId(), []);
-  const { session, lastMessage, lastError, connect, accept, send, close, manager } =
-    useP2P(localDevice);
+  const {
+    sessions, lastMessage, lastError,
+    connect, accept, send, close, closeAll, mesh,
+  } = useP2PMesh(localDevice);
   const { offers, refresh: refreshOffers } = usePendingOffers(localDevice, 2000);
 
   const [devices, setDevices] = useState<EnrolledDevice[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
   const [queueCount, setQueueCount] = useState<number>(0);
-  const [flushResult, setFlushResult] = useState<ReplicateOutcome[] | null>(null);
-  const [flushing, setFlushing] = useState<boolean>(false);
+  const [flushResults, setFlushResults] =
+    useState<Record<string, ReplicateOutcome[]>>({});
+  const [flushingIds, setFlushingIds] = useState<Set<string>>(new Set());
 
-  // Bind one JournalReplicator per manager instance so the receiver-
-  // side handler stays registered for the lifetime of the channel,
-  // not just while flushAll is in-flight.
-  const replicatorRef = useRef<JournalReplicator | null>(null);
+  // One JournalReplicator per session, lazily created on-demand.
+  // Receiver handler registers once per manager; we tear them down
+  // implicitly when PeerMeshManager.close() drops the manager.
+  const replicatorRef = useRef<Map<string, JournalReplicator>>(new Map());
   useEffect(() => {
-    if (!manager) {
-      replicatorRef.current = null;
-      return undefined;
+    if (!mesh) return;
+    for (const s of sessions) {
+      if (replicatorRef.current.has(s.sessionId)) continue;
+      const m = mesh.manager(s.sessionId);
+      if (m) replicatorRef.current.set(s.sessionId, new JournalReplicator(m));
     }
-    replicatorRef.current = new JournalReplicator(manager);
-    return () => { replicatorRef.current = null; };
-  }, [manager]);
+    // GC dropped sessions out of the map.
+    for (const [id] of replicatorRef.current) {
+      if (!sessions.some((s) => s.sessionId === id)) {
+        replicatorRef.current.delete(id);
+      }
+    }
+  }, [sessions, mesh]);
 
-  // Refresh local queue count on mount + whenever a flush completes
-  // so the "N queued" badge next to Flush reflects reality.
+  const loadDevices = useCallback(async () => {
+    setLoading(true);
+    try {
+      setDevices(await listDevices());
+    } catch (ex) {
+      setActionError(`Failed to list devices: ${(ex as Error).message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => { loadDevices(); }, [loadDevices]);
+
   const refreshQueue = useCallback(async () => {
     try {
       const n = await countQueue('aggregate')
@@ -81,63 +91,62 @@ export function DevicePeers(): JSX.Element {
   }, []);
   useEffect(() => { refreshQueue(); }, [refreshQueue]);
 
-  // Auto-flush on connect: as soon as the channel reaches `connected`,
-  // push every queued entry. Operator doesn't need to click Flush in
-  // the common case; the manual button stays available for retries.
-  // Guarded by a ref so we don't re-flush on every status change —
-  // only the transition INTO `connected` fires the push.
-  const autoFlushedForSession = useRef<string | null>(null);
+  // Auto-flush on connect, per-session. Guarded against status
+  // flicker (reconnect) by a set of already-flushed session ids.
+  const autoFlushedIds = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!session || !replicatorRef.current) return;
-    if (session.status !== 'connected') return;
-    if (autoFlushedForSession.current === session.sessionId) return;
-    autoFlushedForSession.current = session.sessionId;
-    (async () => {
-      setFlushing(true);
-      try {
-        const results = await replicatorRef.current!.flushAll();
-        setFlushResult(results);
-        await refreshQueue();
-      } catch (ex) {
-        setActionError(`Auto-flush failed: ${(ex as Error).message}`);
-      } finally {
-        setFlushing(false);
-      }
-    })();
-  }, [session, refreshQueue]);
-
-  const loadDevices = useCallback(async () => {
-    setLoading(true);
-    try {
-      setDevices(await listDevices());
-    } catch (ex) {
-      setActionError(`Failed to list devices: ${(ex as Error).message}`);
-    } finally {
-      setLoading(false);
+    for (const s of sessions) {
+      if (s.status !== 'connected') continue;
+      if (autoFlushedIds.current.has(s.sessionId)) continue;
+      autoFlushedIds.current.add(s.sessionId);
+      // Fire-and-forget — results surface in flushResults when they land.
+      runFlush(s.sessionId).catch(() => undefined);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions]);
 
-  useEffect(() => {
-    loadDevices();
-  }, [loadDevices]);
+  const runFlush = async (sessionId: string): Promise<void> => {
+    const replicator = replicatorRef.current.get(sessionId);
+    if (!replicator) return;
+    setFlushingIds((prev) => {
+      const next = new Set(prev);
+      next.add(sessionId);
+      return next;
+    });
+    try {
+      const results = await replicator.flushAll();
+      setFlushResults((prev) => ({ ...prev, [sessionId]: results }));
+      await refreshQueue();
+    } catch (ex) {
+      setActionError(
+        `Flush on session ${sessionId.slice(0, 8)}… failed: ${(ex as Error).message}`);
+    } finally {
+      setFlushingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(sessionId);
+        return next;
+      });
+    }
+  };
+
+  const activeByRemote = useMemo(() => {
+    const m = new Map<string, P2PSession>();
+    for (const s of sessions) m.set(s.remoteDevice, s);
+    return m;
+  }, [sessions]);
 
   const peers = useMemo(
     () => devices.filter((d) => d.deviceId !== localDevice),
     [devices, localDevice],
   );
 
-  const activeTargetDevice = session?.remoteDevice ?? null;
-  const connectBusy = session !== null
-    && session.status !== 'closed'
-    && session.status !== 'failed'
-    && session.status !== 'disconnected';
-
   const handleConnect = async (peer: EnrolledDevice): Promise<void> => {
     setActionError(null);
     try {
       await connect(peer.deviceId, 'data');
     } catch (ex) {
-      setActionError(`Connect to ${peer.deviceId.slice(0, 8)}… failed: ${(ex as Error).message}`);
+      setActionError(
+        `Connect to ${peer.deviceId.slice(0, 8)}… failed: ${(ex as Error).message}`);
     }
   };
 
@@ -147,33 +156,19 @@ export function DevicePeers(): JSX.Element {
       await accept(offer);
       refreshOffers();
     } catch (ex) {
-      setActionError(`Accept offer ${offer.sessionId.slice(0, 8)}… failed: ${(ex as Error).message}`);
+      setActionError(
+        `Accept ${offer.sessionId.slice(0, 8)}… failed: ${(ex as Error).message}`);
     }
   };
 
-  const handlePing = (): void => {
+  const handlePing = (sessionId: string): void => {
     try {
-      send({ type: 'ping', payload: { at: new Date().toISOString() } });
+      send(sessionId, {
+        type: 'ping',
+        payload: { at: new Date().toISOString() },
+      });
     } catch (ex) {
-      setActionError(`Send failed: ${(ex as Error).message}`);
-    }
-  };
-
-  const handleFlushQueue = async (): Promise<void> => {
-    if (!replicatorRef.current) {
-      setActionError('Replicator not ready');
-      return;
-    }
-    setActionError(null);
-    setFlushing(true);
-    try {
-      const results = await replicatorRef.current.flushAll();
-      setFlushResult(results);
-      await refreshQueue();
-    } catch (ex) {
-      setActionError(`Flush failed: ${(ex as Error).message}`);
-    } finally {
-      setFlushing(false);
+      setActionError(`Ping failed: ${(ex as Error).message}`);
     }
   };
 
@@ -183,7 +178,7 @@ export function DevicePeers(): JSX.Element {
         <h1>Device peers</h1>
         <NoticeBox warning title="No device enrolled">
           This browser isn’t enrolled as a DER device yet, so it can’t
-          open a peer-to-peer session. Complete device enrolment first
+          open peer-to-peer sessions. Complete device enrolment first
           from Session → Enrol this device.
         </NoticeBox>
       </div>
@@ -192,7 +187,12 @@ export function DevicePeers(): JSX.Element {
 
   return (
     <div className="der-device-peers">
-      <h1>Device peers</h1>
+      <div className="der-peer-screen-header">
+        <h1>Device peers</h1>
+        <span className="der-peer-count-badge">
+          {sessions.length} live, {queueCount} queued
+        </span>
+      </div>
 
       {actionError && (
         <NoticeBox error title="Action failed">{actionError}</NoticeBox>
@@ -206,10 +206,7 @@ export function DevicePeers(): JSX.Element {
               <li key={o.sessionId}>
                 <code>{o.initiatorDevice.slice(0, 8)}…</code>
                 {' wants to open a '}<strong>{o.kind}</strong>{' channel.'}
-                <Button small primary
-                  onClick={() => handleAccept(o)}
-                  disabled={connectBusy}
-                >
+                <Button small primary onClick={() => handleAccept(o)}>
                   Accept
                 </Button>
               </li>
@@ -218,59 +215,60 @@ export function DevicePeers(): JSX.Element {
         </Card>
       )}
 
-      {session && (
+      {sessions.length > 0 && (
         <Card>
-          <h2>Active session</h2>
-          <dl className="der-peer-session">
-            <dt>Remote device</dt>
-            <dd><code>{session.remoteDevice}</code></dd>
-            <dt>Session id</dt>
-            <dd><code>{session.sessionId.slice(0, 8)}…</code></dd>
-            <dt>Role</dt>
-            <dd>{session.role}</dd>
-            <dt>Channel</dt>
-            <dd>{session.kind}</dd>
-            <dt>Status</dt>
-            <dd>{renderStatusTag(session.status)}</dd>
-            <dt>Last change</dt>
-            <dd>{session.lastChangeAt}</dd>
-          </dl>
+          <div className="der-peer-list-header">
+            <h2>Active sessions</h2>
+            <Button small destructive onClick={closeAll}>Close all</Button>
+          </div>
+          <ul className="der-peer-session-list">
+            {sessions.map((s) => {
+              const isFlushing = flushingIds.has(s.sessionId);
+              const results = flushResults[s.sessionId];
+              return (
+                <li key={s.sessionId} className="der-peer-session-card">
+                  <div className="der-peer-session-head">
+                    <code>{s.remoteDevice.slice(0, 8)}…</code>
+                    {renderStatusTag(s.status)}
+                    <span className="der-peer-session-role">{s.role}</span>
+                    <span className="der-peer-session-kind">{s.kind}</span>
+                  </div>
+                  {results && (
+                    <div className="der-peer-flush-summary">
+                      sent {results.filter((r) => r.kind === 'sent').length},
+                      {' '}failed {results.filter((r) => r.kind === 'failed').length}
+                    </div>
+                  )}
+                  <div className="der-peer-actions">
+                    <Button small secondary
+                      disabled={s.status !== 'connected'}
+                      onClick={() => handlePing(s.sessionId)}>
+                      Ping
+                    </Button>
+                    <Button small primary
+                      loading={isFlushing}
+                      disabled={s.status !== 'connected' || queueCount === 0}
+                      onClick={() => runFlush(s.sessionId)}>
+                      Flush {queueCount}
+                    </Button>
+                    <Button small destructive onClick={() => close(s.sessionId)}>
+                      Close
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
           {lastMessage && (
             <p className="der-peer-last-message">
-              Last message: <code>{JSON.stringify(lastMessage)}</code>
+              Last from <code>{lastMessage.sessionId.slice(0, 8)}…</code>:{' '}
+              <code>{JSON.stringify(lastMessage.msg)}</code>
             </p>
           )}
           {lastError && (
-            <NoticeBox warning title={`Channel error in ${lastError.phase}`}>
+            <NoticeBox warning title={`Error on ${lastError.sessionId.slice(0, 8)}… (${lastError.phase})`}>
               {lastError.error.message}
             </NoticeBox>
-          )}
-          <div className="der-peer-actions">
-            <Button small secondary
-              disabled={session.status !== 'connected'}
-              onClick={handlePing}
-            >
-              Send ping
-            </Button>
-            <Button small primary
-              loading={flushing}
-              disabled={session.status !== 'connected' || queueCount === 0}
-              onClick={handleFlushQueue}
-            >
-              Flush {queueCount} queued
-            </Button>
-            <Button small destructive onClick={close}>
-              Close session
-            </Button>
-          </div>
-          {flushResult && flushResult.length > 0 && (
-            <div className="der-peer-flush-summary">
-              <h3>Last flush</h3>
-              <ul>
-                <li>sent: {flushResult.filter((r) => r.kind === 'sent').length}</li>
-                <li>failed: {flushResult.filter((r) => r.kind === 'failed').length}</li>
-              </ul>
-            </div>
           )}
         </Card>
       )}
@@ -287,7 +285,7 @@ export function DevicePeers(): JSX.Element {
         )}
         <ul className="der-peer-list">
           {peers.map((p) => {
-            const isTarget = p.deviceId === activeTargetDevice;
+            const active = activeByRemote.get(p.deviceId);
             return (
               <li key={p.deviceId}>
                 <div className="der-peer-row">
@@ -301,13 +299,12 @@ export function DevicePeers(): JSX.Element {
                     )}
                   </div>
                   <div className="der-peer-action">
-                    {isTarget && session
-                      ? renderStatusTag(session.status)
+                    {active
+                      ? renderStatusTag(active.status)
                       : (
                         <Button small primary
-                          disabled={connectBusy || p.status !== 'APPROVED'}
-                          onClick={() => handleConnect(p)}
-                        >
+                          disabled={p.status !== 'APPROVED'}
+                          onClick={() => handleConnect(p)}>
                           Connect
                         </Button>
                       )}
