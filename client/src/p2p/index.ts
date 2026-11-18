@@ -11,6 +11,15 @@ export { WorkflowReplicator } from './workflowReplicator';
 export type { PushWorkflowResult } from './workflowReplicator';
 export { MetadataSyncReplicator } from './metadataSyncReplicator';
 export type { MetadataSyncResult } from './metadataSyncReplicator';
+export {
+  DerPeerProtocol, DppError, DPP_VERSION, RELAY_DEFAULT_TTL,
+} from './derPeerProtocol';
+export type {
+  DppCapabilities, DppFrame, DppFrameType, DppHandler,
+  DppHandlerContext, DppResource, DppRouteTable,
+} from './derPeerProtocol';
+export { WorkflowHandoff } from './workflowHandoff';
+export type { RunAdvancePayload, HandoffResult } from './workflowHandoff';
 export { PeerMeshManager } from './mesh';
 export type {
   MeshMessageListener, MeshStatusListener, MeshErrorListener,
