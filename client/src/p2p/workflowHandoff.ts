@@ -53,18 +53,30 @@ export interface HandoffResult {
   readonly error?: string;
 }
 
+export interface DppLookup {
+  /** Returns the DerPeerProtocol bound to a session with the given
+   *  remote device, or null if no such session exists. Used for
+   *  mesh-wide RELAY routing in DPP.3 — when the current channel's
+   *  peer isn't the next-step owner, we hop through whichever
+   *  session reaches the owner directly. */
+  readonly dppFor: (deviceId: string) => DerPeerProtocol | null;
+}
+
 export class WorkflowHandoff {
   private readonly dpp: DerPeerProtocol;
   private readonly mgr: PeerConnectionManager;
+  private readonly lookup: DppLookup | null;
 
   constructor(
     mgr: PeerConnectionManager,
     local: DppCapabilities,
     routes?: DppRouteTable,
     dpp?: DerPeerProtocol,
+    lookup?: DppLookup,
   ) {
     this.mgr = mgr;
     this.dpp = dpp ?? new DerPeerProtocol(mgr, local, routes);
+    this.lookup = lookup ?? null;
     this.dpp.on('workflow', 'run-advance',
       (frame, ctx) => this.applyIncoming(
         frame.payload as RunAdvancePayload, ctx.sourceDevice));
@@ -135,15 +147,20 @@ export class WorkflowHandoff {
     }
 
     if (payload.nextOwner && payload.nextStep) {
-      const route = this.dpp.routeTable().get(payload.nextStep);
+      const route = this.dpp.routeTable().get(payload.nextStep)
+        ?? payload.nextOwner;
       if (route && route !== localDevice) {
-        // Case 2 — peer in the mesh owns the next step. Relay.
+        // Case 2 — a peer in the mesh owns the next step. Prefer
+        // the session that peer is directly on (true one-hop relay);
+        // fall back to the current channel's dpp when we don't have
+        // a direct session but the broker might route further.
+        const targetDpp = this.lookup?.dppFor(route) ?? this.dpp;
         try {
-          await this.dpp.relay('workflow', 'run-advance', payload, route);
+          await targetDpp.relay('workflow', 'run-advance', payload, route);
           return;
         } catch {
-          // Fall through to Case 3 — queue locally for the owner
-          // to pick up when they reconnect.
+          // Fall through to Case 3 — queue locally for the owner to
+          // pick up when they reconnect.
         }
       }
     }

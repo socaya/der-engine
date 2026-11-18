@@ -124,8 +124,20 @@ export class PeerMeshManager {
 
   /** Manager for a given session, exposed so higher-level primitives
    *  (JournalReplicator, workflow replicators) can bind their own
-   *  P2PProtocol directly to the underlying channel. */
+   *  protocol directly to the underlying channel. */
   manager(sessionId: string): PeerConnectionManager | null {
+    return this.byId.get(sessionId) ?? null;
+  }
+
+  /** DPP/1 multi-hop support — find the live session whose remote
+   *  peer is {@code deviceId}. Used by {@link WorkflowHandoff} to
+   *  pick the right channel to relay a run-advance frame through
+   *  when the next-step owner isn't the peer on the current session.
+   *  Returns null when the device isn't currently reachable on any
+   *  channel. */
+  sessionFor(deviceId: string): PeerConnectionManager | null {
+    const sessionId = this.byRemote.get(deviceId);
+    if (!sessionId) return null;
     return this.byId.get(sessionId) ?? null;
   }
 

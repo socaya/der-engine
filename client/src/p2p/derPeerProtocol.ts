@@ -465,16 +465,45 @@ export class DerPeerProtocol {
         `TTL expired en route to ${frame.route}`);
       return;
     }
-    // Lookup the next hop via the global route table. If we don't
-    // know the target, NACK — the caller can fall back to inbox
-    // queueing.
-    //
-    // NOTE: A future mesh enhancement will add multi-hop lookup
-    // across all open channels on the mesh; today we only forward
-    // if the target is the peer we're talking to (route table hit
-    // owned by remote) OR explicitly ours via local step ownership.
-    this.sendNack(frame.seq, 'UNKNOWN_ROUTE',
-      `no route to ${frame.route} on this channel`);
+    // Forward via the registered relayDispatcher. The DevicePeers
+    // wiring sets this to a mesh.sessionFor(deviceId)-backed
+    // function so the frame hops through whichever DerPeerProtocol
+    // instance is directly connected to the route target. Without a
+    // dispatcher (standalone protocol instance, e.g. tests), NACK —
+    // nothing to forward through.
+    if (!this.relayDispatcher) {
+      this.sendNack(frame.seq, 'UNKNOWN_ROUTE',
+        `no relay dispatcher registered for ${frame.route}`);
+      return;
+    }
+    try {
+      const forwarded = await this.relayDispatcher(frame, ttl);
+      if (!forwarded) {
+        this.sendNack(frame.seq, 'UNKNOWN_ROUTE',
+          `no live session to ${frame.route}`);
+        return;
+      }
+      this.sendAck(frame.seq);
+    } catch (ex) {
+      const code = ex instanceof DppError ? ex.code : 'RELAY_FAILED';
+      const message = (ex as Error).message;
+      this.sendNack(frame.seq, code, message);
+    }
+  }
+
+  private relayDispatcher: ((frame: DppFrame, newTtl: number)
+      => Promise<boolean>) | null = null;
+
+  /** Register a dispatcher the protocol calls when a RELAY frame
+   *  lands with a non-local route. The dispatcher returns true when
+   *  the frame was successfully forwarded to the next hop, false if
+   *  no route exists — in which case this protocol NACKs
+   *  UNKNOWN_ROUTE back to the sender. Mesh-wide wiring lives in
+   *  the DevicePeers screen (DPP.3). */
+  registerRelayDispatcher(
+    dispatcher: (frame: DppFrame, newTtl: number) => Promise<boolean>,
+  ): void {
+    this.relayDispatcher = dispatcher;
   }
 
   private abortInFlight(reason: string): void {

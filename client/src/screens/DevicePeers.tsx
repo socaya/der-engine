@@ -3,7 +3,7 @@ import { Button, Card, NoticeBox, Tag } from '@dhis2/ui';
 
 import { getStoredDeviceId } from '../device/DeviceEnrollment';
 import type { EnrolledDevice } from '../api/edgeApi';
-import { listDevices, listCaptureWorkflows } from '../api/edgeApi';
+import { listDevices, listCaptureWorkflows, listOwnedStepIds } from '../api/edgeApi';
 import { count as countQueue } from '../offline/queue';
 import {
   DerPeerProtocol,
@@ -75,18 +75,47 @@ export function DevicePeers(): JSX.Element {
   // channels.
   const routeTableRef = useRef<DppRouteTable>(new Map());
 
+  // DPP.3: real owned-step list from the server. Populated on mount
+  // and reused for every subsequent HELLO. If the fetch fails the
+  // array stays empty — HELLO still works, just without mesh-wide
+  // routing through this device.
+  const [ownsSteps, setOwnsSteps] = useState<string[]>([]);
+  useEffect(() => {
+    if (!localDevice) return;
+    listOwnedStepIds(localDevice)
+      .then(setOwnsSteps)
+      .catch(() => setOwnsSteps([]));
+  }, [localDevice]);
+
   useEffect(() => {
     if (!mesh || !localDevice) return;
     const local: DppCapabilities = {
       deviceId: localDevice,
       capabilities: ['journal', 'workflow', 'metadata', 'control'],
-      ownsSteps: [],
+      ownsSteps,
     };
     for (const s of sessions) {
       if (dppRef.current.has(s.sessionId)) continue;
       const m = mesh.manager(s.sessionId);
       if (!m) continue;
       const dpp = new DerPeerProtocol(m, local, routeTableRef.current);
+      // DPP.3 multi-hop: when a RELAY frame lands with a route this
+      // peer doesn't own, look up whichever session's peer IS the
+      // target and forward through that session's protocol. Silent
+      // no-op when the target isn't currently reachable — the caller
+      // gets UNKNOWN_ROUTE and queues the frame locally.
+      dpp.registerRelayDispatcher(async (frame, ttl) => {
+        const targetMgr = mesh.sessionFor(frame.route!);
+        if (!targetMgr) return false;
+        const nextSessionId = targetMgr.session()?.sessionId;
+        if (!nextSessionId) return false;
+        const nextDpp = dppRef.current.get(nextSessionId);
+        if (!nextDpp || nextDpp === dpp) return false;
+        await nextDpp.relay(
+          frame.resource!, frame.action!, frame.payload,
+          frame.route!, ttl);
+        return true;
+      });
       dppRef.current.set(s.sessionId, dpp);
       journalRef.current.set(s.sessionId, new JournalReplicator(m, dpp));
       workflowRef.current.set(s.sessionId, new WorkflowReplicator(m, dpp));
@@ -101,7 +130,7 @@ export function DevicePeers(): JSX.Element {
         metadataRef.current.delete(id);
       }
     }
-  }, [sessions, mesh, localDevice]);
+  }, [sessions, mesh, localDevice, ownsSteps]);
 
   const [metadataResults, setMetadataResults] =
     useState<Record<string, MetadataSyncResult>>({});

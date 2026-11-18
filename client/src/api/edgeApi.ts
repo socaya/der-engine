@@ -1053,6 +1053,16 @@ export function listDevices(): Promise<EnrolledDevice[]> {
   ).then((r) => r.devices ?? []);
 }
 
+/** DPP/1 step ownership — which capture_workflow_step UUIDs this
+ *  device is the configured owner for. Fed into the P2P HELLO
+ *  frame's ownsSteps capability so the mesh route table is
+ *  populated at session open. */
+export function listOwnedStepIds(deviceId: string): Promise<string[]> {
+  return request<{ stepIds: string[] }>(
+    'GET', `/edge-api/v1/workflows/steps/owned-by-device/${deviceId}`,
+  ).then((r) => r.stepIds ?? []);
+}
+
 /** §2.3.30 — progressive-validation issues attached to a workflow run. */
 export interface ValidationIssue {
   issueId: string;
