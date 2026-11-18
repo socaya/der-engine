@@ -22,6 +22,12 @@ export interface UseP2PResult {
   readonly accept: (offer: PendingOffer) => Promise<void>;
   readonly send: (msg: P2PMessage) => void;
   readonly close: () => void;
+  /** The underlying manager, exposed so higher-level primitives
+   *  ({@link JournalReplicator}, future workflow replicators) can bind
+   *  a P2PProtocol instance to the same channel without the hook
+   *  having to know about every possible consumer. Null until the
+   *  first render that has a non-null deviceId. */
+  readonly manager: PeerConnectionManager | null;
 }
 
 export function useP2P(localDeviceId: string | null, opts?: P2POptions): UseP2PResult {
@@ -84,7 +90,11 @@ export function useP2P(localDeviceId: string | null, opts?: P2POptions): UseP2PR
   }, []);
 
   return useMemo(
-    () => ({ session, lastMessage, lastError, connect, accept, send, close }),
+    () => ({
+      session, lastMessage, lastError,
+      connect, accept, send, close,
+      manager: mgrRef.current,
+    }),
     [session, lastMessage, lastError, connect, accept, send, close],
   );
 }

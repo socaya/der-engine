@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Card, NoticeBox, Tag } from '@dhis2/ui';
 
 import { getStoredDeviceId } from '../device/DeviceEnrollment';
 import type { EnrolledDevice } from '../api/edgeApi';
 import { listDevices } from '../api/edgeApi';
+import { count as countQueue } from '../offline/queue';
 import {
+  JournalReplicator,
   useP2P,
   usePendingOffers,
   type P2PConnectionStatus,
   type PendingOffer,
+  type ReplicateOutcome,
 } from '../p2p';
 
 /**
@@ -40,13 +43,43 @@ import {
  */
 export function DevicePeers(): JSX.Element {
   const localDevice = useMemo(() => getStoredDeviceId(), []);
-  const { session, lastMessage, lastError, connect, accept, send, close } =
+  const { session, lastMessage, lastError, connect, accept, send, close, manager } =
     useP2P(localDevice);
   const { offers, refresh: refreshOffers } = usePendingOffers(localDevice, 2000);
 
   const [devices, setDevices] = useState<EnrolledDevice[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [queueCount, setQueueCount] = useState<number>(0);
+  const [flushResult, setFlushResult] = useState<ReplicateOutcome[] | null>(null);
+  const [flushing, setFlushing] = useState<boolean>(false);
+
+  // Bind one JournalReplicator per manager instance so the receiver-
+  // side handler stays registered for the lifetime of the channel,
+  // not just while flushAll is in-flight.
+  const replicatorRef = useRef<JournalReplicator | null>(null);
+  useEffect(() => {
+    if (!manager) {
+      replicatorRef.current = null;
+      return undefined;
+    }
+    replicatorRef.current = new JournalReplicator(manager);
+    return () => { replicatorRef.current = null; };
+  }, [manager]);
+
+  // Refresh local queue count on mount + whenever a flush completes
+  // so the "N queued" badge next to Flush reflects reality.
+  const refreshQueue = useCallback(async () => {
+    try {
+      const n = await countQueue('aggregate')
+        + await countQueue('event')
+        + await countQueue('tracker');
+      setQueueCount(n);
+    } catch {
+      setQueueCount(0);
+    }
+  }, []);
+  useEffect(() => { refreshQueue(); }, [refreshQueue]);
 
   const loadDevices = useCallback(async () => {
     setLoading(true);
@@ -98,6 +131,24 @@ export function DevicePeers(): JSX.Element {
       send({ type: 'ping', payload: { at: new Date().toISOString() } });
     } catch (ex) {
       setActionError(`Send failed: ${(ex as Error).message}`);
+    }
+  };
+
+  const handleFlushQueue = async (): Promise<void> => {
+    if (!replicatorRef.current) {
+      setActionError('Replicator not ready');
+      return;
+    }
+    setActionError(null);
+    setFlushing(true);
+    try {
+      const results = await replicatorRef.current.flushAll();
+      setFlushResult(results);
+      await refreshQueue();
+    } catch (ex) {
+      setActionError(`Flush failed: ${(ex as Error).message}`);
+    } finally {
+      setFlushing(false);
     }
   };
 
@@ -176,10 +227,26 @@ export function DevicePeers(): JSX.Element {
             >
               Send ping
             </Button>
+            <Button small primary
+              loading={flushing}
+              disabled={session.status !== 'connected' || queueCount === 0}
+              onClick={handleFlushQueue}
+            >
+              Flush {queueCount} queued
+            </Button>
             <Button small destructive onClick={close}>
               Close session
             </Button>
           </div>
+          {flushResult && flushResult.length > 0 && (
+            <div className="der-peer-flush-summary">
+              <h3>Last flush</h3>
+              <ul>
+                <li>sent: {flushResult.filter((r) => r.kind === 'sent').length}</li>
+                <li>failed: {flushResult.filter((r) => r.kind === 'failed').length}</li>
+              </ul>
+            </div>
+          )}
         </Card>
       )}
 
