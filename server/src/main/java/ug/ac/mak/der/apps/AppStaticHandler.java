@@ -271,18 +271,11 @@ public class AppStaticHandler {
                 }
             }
             // Every DHIS2 app serve gets the HeaderBar-hide CSS so
-            // only DER chrome shows at the top (iframe-wrapped apps
-            // sit inside the DER shell; COI apps get the injected
-            // DER top-bar below). Operators asked for consistent
-            // app chrome regardless of mount mode.
+            // only DER chrome shows at the top. COI apps now mount
+            // as iframes too (the DER SPA sets COOP + COEP on its
+            // own top document so isolation propagates into the
+            // iframe) — no separate top-bar injection needed.
             html = injectHideHeaderBar(html);
-            // COI apps additionally get the injected DER top-bar —
-            // they're top-level navigations (iframe wrapping would
-            // defeat COOP/COEP isolation) so we replace the shell
-            // chrome with a minimal Back-to-DER bar.
-            if (isCoiEnabled(app)) {
-                html = injectDerTopbar(html, app);
-            }
             body = html.getBytes(StandardCharsets.UTF_8);
         }
         final HttpHeaders headers = new HttpHeaders();

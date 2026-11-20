@@ -1,6 +1,5 @@
-import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useAppCatalogue, type CatalogueApp } from './catalogue';
+import { useAppCatalogue } from './catalogue';
 import { AppHost } from './AppHost';
 import { IframeHost } from './IframeHost';
 
@@ -30,7 +29,7 @@ export function AppDispatcher(): JSX.Element {
   const { appKey = '' } = useParams();
   const { apps, loading } = useAppCatalogue(true);
 
-  const entry: CatalogueApp | undefined = apps.find((a) => a.appKey === appKey);
+  const entry = apps.find((a) => a.appKey === appKey);
 
   if (apps.length === 0 && loading) {
     return (
@@ -54,34 +53,13 @@ export function AppDispatcher(): JSX.Element {
     return <IframeHost app={entry} />;
   }
 
-  // DBE-COI — apps that need cross-origin isolation (OPFS sync,
-  // SharedArrayBuffer) only get it when the DHIS2 app bundle is the
-  // top-level document. Iframe-wrapping defeats the COOP/COEP
-  // headers the server stamps on /dhis-web-<key>/** because
-  // isolation propagates from parent to child. Redirect the browser
-  // to the direct path so the app loads as its own window.
-  if (entry.needsCrossOriginIsolation) {
-    return <CoiRedirect app={entry} />;
-  }
-
-  // Default — DER_ESM and DHIS2_IFRAME both render through AppHost.
-  // AppHost reads useParams itself and picks ESM-vs-iframe based on
-  // the catalogue entry's hostKind.
+  // DER_ESM and DHIS2_IFRAME both render through AppHost — including
+  // COI apps (needsCrossOriginIsolation). The DER SPA itself ships
+  // with COOP + COEP (vite.config.ts in dev, SecurityConfig in
+  // production), so isolation propagates from this top document into
+  // the AppHost iframe when the iframe content (served by
+  // AppStaticHandler with matching COOP+COEP+CORP) agrees. The
+  // operator sees COI apps inside the DER shell exactly like
+  // Dashboard, Data Visualizer, Capture, etc.
   return <AppHost />;
-}
-
-/** Full-page redirect to /dhis-web-&lt;key&gt;/ for COI-dependent
- *  apps. window.location.replace keeps the operator from hitting
- *  Back and landing on the non-isolated wrapper (which would then
- *  redirect again, breaking the back button). */
-function CoiRedirect({ app }: { app: CatalogueApp }): JSX.Element {
-  useEffect(() => {
-    window.location.replace(`/dhis-web-${app.appKey}/`);
-  }, [app.appKey]);
-  return (
-    <div className="der-apphost der-apphost--loading"
-         data-test="der-coi-redirect">
-      Opening {app.displayName} in isolated mode…
-    </div>
-  );
 }

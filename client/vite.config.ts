@@ -33,6 +33,20 @@ const samesiteFrameHeaders = () => ({
     }, next: () => void) => void) => void } }) {
     s.middlewares.use((_req, res, next) => {
       res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+      // Cross-origin isolation for the DER SPA itself so iframe-
+      // mounted DHIS2 COI apps (OPFS-backed — e.g. mu-hiv-tracker)
+      // inherit isolation from this top document. Without COOP/
+      // COEP on the TOP document, window.crossOriginIsolated stays
+      // false in every descendant iframe regardless of the headers
+      // the iframe resource itself returns.
+      //
+      // credentialless COEP keeps us compatible with cross-origin
+      // sub-resources that don't ship CORP (fonts + icons from
+      // DHIS2's shared CDN). AppStaticHandler stamps the same trio
+      // on /dhis-web-<key>/** responses for COI apps so same-origin
+      // iframe loads work end-to-end.
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+      res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
       next();
     });
   },
