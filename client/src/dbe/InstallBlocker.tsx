@@ -157,7 +157,7 @@ export function InstallBlocker(): JSX.Element | null {
             Protect your offline data
           </h1>
           <p className="der-install-subtitle">
-            Without persistent storage, DER's queued submissions can
+            Without persistent storage, DER&apos;s queued submissions can
             be erased by the browser at any time. Finish one of the
             steps below to secure your clinic data.
           </p>
@@ -335,7 +335,7 @@ function StageContent({ stage, platform, canPrompt, status }: StageContentProps)
       <>
         <StepHeader title="Almost there — grant notifications to activate persistence" />
         <p className="der-install-explain">
-          You're running the installed app ✓ but {platform.browser === 'chrome' || platform.browser === 'edge' ? 'Chrome' : 'your browser'} needs
+          You&apos;re running the installed app ✓ but {platform.browser === 'chrome' || platform.browser === 'edge' ? 'Chrome' : 'your browser'} needs
           one more signal before it grants persistent storage.
           Granting notifications permission (used only for critical
           sync alerts) satisfies the check.
@@ -411,10 +411,10 @@ function PlatformInstallSteps({ platform, canPrompt }: { platform: Platform; can
       return (
         <ol className="der-install-steps">
           <li><span className="der-install-step-num">1</span>
-            <div>Open your browser's menu (three dots, top-right).</div></li>
+            <div>Open your browser&apos;s menu (three dots, top-right).</div></li>
           <li><span className="der-install-step-num">2</span>
-            <div>Tap <strong>Install app</strong> (or "Add to Home
-              screen").</div></li>
+            <div>Tap <strong>Install app</strong> (or &ldquo;Add to Home
+              screen&rdquo;).</div></li>
           <li><span className="der-install-step-num">3</span>
             <div>Confirm. Reopen DER from your app drawer.</div></li>
         </ol>

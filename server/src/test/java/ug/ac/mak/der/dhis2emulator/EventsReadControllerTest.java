@@ -58,18 +58,26 @@ class EventsReadControllerTest {
     }
 
     @Test
-    void trackerEventsListReturnsInstancesKey() throws Exception {
+    void trackerEventsListReturnsEventsKey() throws Exception {
+        // EventsReadController now returns the new-tracker-API key
+        // "events" on /api/tracker/events (was "instances" — that
+        // key is reserved for /api/tracker/trackedEntities). See
+        // the commit that landed orgUnits-plural + ouMode support.
         when(events.findByProgramAndOrgUnit(anyString(), anyString(), anyInt()))
                 .thenReturn(List.of(sample()));
         mockMvc.perform(get("/api/tracker/events?program=p&orgUnit=o").with(as()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.instances").isArray())
-                .andExpect(jsonPath("$.instances[0].event").exists())
-                .andExpect(jsonPath("$.instances[0].enrollment").exists());
+                .andExpect(jsonPath("$.events").isArray())
+                .andExpect(jsonPath("$.events[0].event").exists())
+                .andExpect(jsonPath("$.events[0].enrollment").exists());
     }
 
     @Test
     void missingProgramIs400() throws Exception {
+        // Legacy /api/events keeps the 400 on missing-param. Tracker
+        // /api/tracker/events now returns 200 {events:[]} so UIs
+        // that probe before the operator picks a program don't crash
+        // (observed in mu-hiv-tracker's EventProgramList).
         mockMvc.perform(get("/api/events?orgUnit=o").with(as()))
                 .andExpect(status().isBadRequest());
         mockMvc.perform(get("/api/events?program=p").with(as()))

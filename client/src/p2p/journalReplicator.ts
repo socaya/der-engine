@@ -1,5 +1,6 @@
 import { listAll, remove, type QueueEntry } from '../offline/queue';
-import { DerPeerProtocol, DppError } from './derPeerProtocol';
+import type { DerPeerProtocol} from './derPeerProtocol';
+import { DppError } from './derPeerProtocol';
 import type { PeerConnectionManager } from './peerConnection';
 
 /**

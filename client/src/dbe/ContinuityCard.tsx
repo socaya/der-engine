@@ -75,7 +75,7 @@ export function ContinuityCard(): JSX.Element | null {
       {snap.level === 'offline' && (
         <p className="der-continuity-footer">
           DER server is unreachable and the local cache is empty —
-          this browser can't render DHIS2 apps right now. Reconnect
+          this browser can&apos;t render DHIS2 apps right now. Reconnect
           to a network with DER reachability, or open an installed
           DHIS2 app while online at least once to prime the cache.
         </p>

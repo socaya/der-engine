@@ -155,7 +155,13 @@ class AppStaticHandlerTest {
         final ResponseEntity<byte[]> resp = new AppStaticHandler(repo, cat)
                 .serve("stock", req);
         assertThat(resp.getStatusCode().value()).isEqualTo(200);
-        assertThat(new String(resp.getBody())).isEqualTo("<html>stock</html>");
+        // AppStaticHandler stamps a HeaderBar-hide <style> block
+        // on every HTML serve so operators see consistent DER
+        // chrome across every DHIS2 app. Assert the prefix + the
+        // app's own body, rather than equality.
+        assertThat(new String(resp.getBody()))
+                .endsWith("<html>stock</html>")
+                .contains("__der_hide_dhis2_headerbar__");
     }
 
     @Test
@@ -216,6 +222,10 @@ class AppStaticHandlerTest {
         final ResponseEntity<byte[]> resp = new AppStaticHandler(repo, cat)
                 .serve("stock", req);
         assertThat(resp.getStatusCode().value()).isEqualTo(200);
-        assertThat(new String(resp.getBody())).isEqualTo("<html>deeplinked</html>");
+        // HeaderBar-hide style is stamped on every HTML serve (see
+        // iframeServeIndexHtmlFromZip for the rationale).
+        assertThat(new String(resp.getBody()))
+                .endsWith("<html>deeplinked</html>")
+                .contains("__der_hide_dhis2_headerbar__");
     }
 }
