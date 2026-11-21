@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
 import { EmptyBlock, ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
-import { Panel, Status, SyncStatusBar } from '../shared';
+import { Panel, Status, SyncStatusBar, RowMenu, type RowMenuItem,
+         usePaged, TablePager } from '../shared';
 import { UiIcon } from '../../components/UiIcon';
 
 export interface WorkflowQueueProps {
@@ -57,6 +58,15 @@ export function WorkflowQueue({ api = edgeApi }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, deviceId]);
 
+  const filtered = filter === 'ALL' || rows == null
+    ? (rows ?? [])
+    : rows.filter((r) => r.readiness === filter);
+  const readyCount = (rows ?? []).filter((r) => r.readiness === 'READY').length;
+  const blockedCount = (rows ?? []).length - readyCount;
+  /* `usePaged` must stay above every early-return so React sees the
+   * same hook order on every render. */
+  const paged = usePaged(filtered, 25);
+
   if (error) {
     return <ErrorBlock title="Queue load failed"
                         testId="queue-error">{error}</ErrorBlock>;
@@ -64,10 +74,6 @@ export function WorkflowQueue({ api = edgeApi }:
   if (rows == null) {
     return <LoadingBlock testId="queue-loading" />;
   }
-
-  const filtered = filter === 'ALL' ? rows : rows.filter((r) => r.readiness === filter);
-  const readyCount = rows.filter((r) => r.readiness === 'READY').length;
-  const blockedCount = rows.length - readyCount;
 
   const totalIssues = rows.reduce((a, r) => a + r.validationErrorCount, 0);
   const tone: 'success' | 'info' | 'warning' | 'muted' = rows.length === 0
@@ -110,19 +116,20 @@ export function WorkflowQueue({ api = edgeApi }:
       />
       <h1 className="ea-visually-hidden" data-test="queue-heading">My queue</h1>
 
-      <Panel title={`Steps (${filtered.length}${filter === 'ALL' ? '' : ' of ' + rows.length})`}
+      <Panel title={`${filtered.length} step${filtered.length === 1 ? '' : 's'}${filter === 'ALL' ? '' : ' of ' + rows.length}`}
              action={
-               <div style={{ display: 'flex', gap: 8, alignItems: 'center',
-                              flexWrap: 'wrap' }}>
-                 <div className="ea-queue-tabs" data-test="queue-tabs" role="tablist">
-                   <TabBtn label={`All (${rows.length})`} value="ALL" current={filter} onPick={setFilter} />
-                   <TabBtn label={`Ready (${readyCount})`} value="READY" current={filter} onPick={setFilter} />
-                   <TabBtn label={`Blocked (${blockedCount})`} value="BLOCKED" current={filter} onPick={setFilter} />
-                 </div>
-                 <select aria-label="Filter queue by device"
-                         className="ea-input"
+               <div className="ea-data-filterbar" role="group" aria-label="Filters">
+                 <select className="ea-input ea-input--compact"
+                         data-test="queue-readiness-filter"
+                         value={filter}
+                         onChange={(e) => setFilter(e.target.value as typeof filter)}
+                         aria-label="Filter queue by readiness">
+                   <option value="ALL">All ({rows.length})</option>
+                   <option value="READY">Ready ({readyCount})</option>
+                   <option value="BLOCKED">Blocked ({blockedCount})</option>
+                 </select>
+                 <select className="ea-input ea-input--compact"
                          data-test="queue-device-filter"
-                         style={{ width: 200 }}
                          value={deviceId}
                          onChange={(e) => {
                            const v = e.target.value;
@@ -134,7 +141,8 @@ export function WorkflowQueue({ api = edgeApi }:
                              edgeApi.writeUserPref(edgeApi.PREF_PREFERRED_DEVICE, v)
                                .catch(() => undefined);
                            }
-                         }}>
+                         }}
+                         aria-label="Filter queue by device">
                    <option value="">All devices</option>
                    {devices.map((d) => (
                      <option key={d.deviceId} value={d.deviceId}>
@@ -157,61 +165,78 @@ export function WorkflowQueue({ api = edgeApi }:
               <thead>
                 <tr>
                   <th>Workflow</th>
+                  <th className="ea-col-w-140">Run</th>
                   <th>Step</th>
                   <th className="ea-col-w-110">Role</th>
                   <th className="ea-col-w-110">Readiness</th>
                   <th className="ea-col-w-110">Issues</th>
-                  <th className="ea-col-w-160">Updated</th>
-                  <th className="ea-col-w-90" aria-label="actions"></th>
+                  <th className="ea-col-w-140 ea-text-right">Updated</th>
+                  <th className="ea-col-w-48 ea-text-right" aria-label="Actions"></th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r) => (
-                  <tr key={`${r.runId}-${r.stepId}`}
-                      data-test={`queue-row-${r.runId}-${r.stepId}`}
-                      className={r.readiness === 'BLOCKED' ? 'is-dim' : ''}>
-                    <td className="ea-fw-medium">
-                      <Link to={`/workflows/${r.workflowId}`}>
-                        {r.workflowName}
-                      </Link>
-                      <div className="ea-text-muted ea-text-xs">
-                        run · {r.businessKey ?? r.runId.slice(0, 8)}
-                      </div>
-                    </td>
-                    <td>
-                      <strong>#{r.stepOrdinal}</strong> · {r.stepName}
-                    </td>
-                    <td>{r.ownerRole}</td>
-                    <td data-test={`queue-row-${r.runId}-${r.stepId}-readiness`}>
-                      <ReadinessPill readiness={r.readiness} />
-                    </td>
-                    <td>
-                      {r.validationErrorCount > 0 ? (
-                        <Link to={`/workflows/runs/${r.runId}/validation`}
-                              data-test={`queue-row-${r.runId}-${r.stepId}-issues`}
-                              style={{ textDecoration: 'none' }}>
-                          <Status tone="danger">
-                            {r.validationErrorCount} issue{r.validationErrorCount === 1 ? '' : 's'}
-                          </Status>
+                {paged.rows.map((r) => {
+                  const menuItems: RowMenuItem[] = [
+                    { label: 'Open run',
+                      to: `/workflows/runs?workflow=${r.workflowId}`,
+                      dataTest: `queue-row-${r.runId}-${r.stepId}-open` },
+                    { label: 'Open workflow',
+                      to: `/workflows/${r.workflowId}` },
+                  ];
+                  if (r.validationErrorCount > 0) {
+                    menuItems.push({
+                      label: `View ${r.validationErrorCount} issue${r.validationErrorCount === 1 ? '' : 's'}`,
+                      to: `/workflows/runs/${r.runId}/validation`,
+                    });
+                  }
+                  return (
+                    <tr key={`${r.runId}-${r.stepId}`}
+                        data-test={`queue-row-${r.runId}-${r.stepId}`}
+                        className={r.readiness === 'BLOCKED' ? 'is-dim' : ''}>
+                      <td className="ea-fw-medium"
+                          title={r.workflowName}>
+                        <Link to={`/workflows/${r.workflowId}`}
+                              style={{ color: 'var(--der-ink-900)',
+                                       textDecoration: 'none' }}>
+                          {r.workflowName}
                         </Link>
-                      ) : (
-                        <span className="ea-text-muted">—</span>
-                      )}
-                    </td>
-                    <td className="ea-text-muted">
-                      {new Date(r.runUpdatedAt).toLocaleString()}
-                    </td>
-                    <td>
-                      <Link to={`/workflows/runs?workflow=${r.workflowId}`}
-                            className="ea-btn ea-btn--ghost ea-btn--sm"
-                            data-test={`queue-row-${r.runId}-${r.stepId}-open`}>
-                        Open run
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="ea-mono ea-text-2xs ea-text-muted"
+                          title={r.runId}>
+                        {r.businessKey ?? r.runId.slice(0, 8)}
+                      </td>
+                      <td title={r.stepName}>
+                        <strong>#{r.stepOrdinal}</strong>{' '}{r.stepName}
+                      </td>
+                      <td>{r.ownerRole}</td>
+                      <td data-test={`queue-row-${r.runId}-${r.stepId}-readiness`}>
+                        <ReadinessPill readiness={r.readiness} />
+                      </td>
+                      <td>
+                        {r.validationErrorCount > 0 ? (
+                          <Link to={`/workflows/runs/${r.runId}/validation`}
+                                data-test={`queue-row-${r.runId}-${r.stepId}-issues`}
+                                style={{ textDecoration: 'none' }}>
+                            <Status tone="danger">
+                              {r.validationErrorCount} issue{r.validationErrorCount === 1 ? '' : 's'}
+                            </Status>
+                          </Link>
+                        ) : (
+                          <span className="ea-text-muted">—</span>
+                        )}
+                      </td>
+                      <td className="ea-text-muted ea-text-xs ea-text-right">
+                        {new Date(r.runUpdatedAt).toLocaleDateString()}
+                      </td>
+                      <td className="ea-text-right">
+                        <RowMenu items={menuItems} />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+            <TablePager {...paged.pagerProps} />
           </div>
         )}
       </Panel>
@@ -229,20 +254,6 @@ function ReadinessPill({ readiness }: { readiness: 'READY' | 'BLOCKED' }): JSX.E
   );
 }
 
-function TabBtn({ label, value, current, onPick }: {
-    label: string;
-    value: 'ALL' | 'READY' | 'BLOCKED';
-    current: 'ALL' | 'READY' | 'BLOCKED';
-    onPick: (v: 'ALL' | 'READY' | 'BLOCKED') => void;
-}): JSX.Element {
-  const active = current === value;
-  return (
-    <button type="button"
-             className={'ea-queue-tab' + (active ? ' is-active' : '')}
-             data-test={`queue-tab-${value.toLowerCase()}`}
-             onClick={() => onPick(value)}
-             role="tab" aria-selected={active}>
-      {label}
-    </button>
-  );
-}
+/* Phase-4B: `TabBtn` chip-tab component removed — the readiness
+ * filter is now the standard `.ea-input--compact` select inside
+ * `.ea-data-filterbar`, matching every other listing screen. */

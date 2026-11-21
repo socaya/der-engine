@@ -85,7 +85,9 @@ describe('WorkflowQueue', () => {
     vi.spyOn(edgeApi, 'readAllUserPrefs').mockResolvedValue({ prefs: {} });
     renderWithProviders(<WorkflowQueue api={api as never} />);
     await waitFor(() => expect(screen.getByTestId('queue-table')).toBeInTheDocument());
-    await userEvent.click(screen.getByTestId('queue-tab-ready'));
+    /* Phase-4B: `queue-tab-{readiness}` chip buttons replaced by
+     * the standard `queue-readiness-filter` compact select. */
+    await userEvent.selectOptions(screen.getByTestId('queue-readiness-filter'), 'READY');
     expect(screen.queryByTestId('queue-row-run-2-s2')).toBeNull();
     expect(screen.getByTestId('queue-row-run-1-step-1')).toBeInTheDocument();
   });
@@ -101,7 +103,7 @@ describe('WorkflowQueue', () => {
     vi.spyOn(edgeApi, 'readAllUserPrefs').mockResolvedValue({ prefs: {} });
     renderWithProviders(<WorkflowQueue api={api as never} />);
     await waitFor(() => expect(screen.getByTestId('queue-table')).toBeInTheDocument());
-    await userEvent.click(screen.getByTestId('queue-tab-blocked'));
+    await userEvent.selectOptions(screen.getByTestId('queue-readiness-filter'), 'BLOCKED');
     expect(screen.getByTestId('queue-empty')).toBeInTheDocument();
   });
 
