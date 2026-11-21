@@ -553,17 +553,26 @@ export function AppCatalogue(): JSX.Element {
               {q && ` · search="${searchQuery.trim()}"`}
             </div>
             <table
-              className="ea-table"
+              className="ea-table ea-table--dense ea-table--nowrap"
               data-test="apps-table"
-              style={{ width: '100%', borderCollapse: 'collapse' }}
+              style={{ width: '100%' }}
             >
+              {/* Phase-4B single-line table: stacked sub-lines
+                  (name + appKey + module in one cell; requires + SHA
+                  in another) flattened into dedicated columns so
+                  every row renders on one line with ellipsis
+                  overflow. Supporting detail (module path, full
+                  bundle SHA) moves to cell `title` tooltips. */}
               <thead>
                 <tr>
-                  <th style={{ textAlign: 'left', padding: '6px 8px' }}>App</th>
-                  <th style={{ textAlign: 'left', padding: '6px 8px' }}>Type</th>
-                  <th style={{ textAlign: 'left', padding: '6px 8px' }}>Version</th>
-                  <th style={{ textAlign: 'left', padding: '6px 8px' }}>Detail</th>
-                  <th style={{ textAlign: 'right', padding: '6px 8px' }}>Actions</th>
+                  <th>App name</th>
+                  <th className="ea-col-w-140">App key</th>
+                  <th className="ea-col-w-140">Module</th>
+                  <th className="ea-col-w-110">Type</th>
+                  <th className="ea-col-w-90">Version</th>
+                  <th className="ea-col-w-110">Requires</th>
+                  <th className="ea-col-w-110">Bundle</th>
+                  <th className="ea-col-w-48 ea-text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -573,37 +582,34 @@ export function AppCatalogue(): JSX.Element {
                     const disabled = disabledIds.has(a.appId);
                     return (
                       <tr key={`der-${a.appId}`} data-test={`app-row-${a.appId}`}>
-                        <td style={{ padding: '6px 8px' }}>
-                          <div style={{ fontWeight: 600 }}>{a.displayName}</div>
-                          <div className="ea-text-muted ea-text-xs">
-                            {a.appKey}
-                          </div>
-                          {a.module && (
-                            <div className="ea-text-muted ea-text-xs">
-                              {a.module}
-                            </div>
-                          )}
+                        <td className="ea-fw-medium">
+                          {a.displayName}
                         </td>
-                        <td style={{ padding: '6px 8px' }}
-                            data-test={`type-${a.appId}`}>
-                          <span style={{ fontSize: 12, padding: '2px 6px',
-                                         borderRadius: 10,
-                                         background: '#e6effb',
-                                         color: '#1b4a7a' }}>
+                        <td className="ea-mono ea-text-xs ea-text-muted">
+                          {a.appKey}
+                        </td>
+                        <td className="ea-mono ea-text-xs ea-text-muted"
+                            title={a.module ?? ''}>
+                          {a.module ?? '—'}
+                        </td>
+                        <td data-test={`type-${a.appId}`}>
+                          <span className="ea-chip ea-chip--primary">
                             DER (signed)
                           </span>
                         </td>
-                        <td style={{ padding: '6px 8px' }}>{a.version}</td>
-                        <td style={{ padding: '6px 8px', fontSize: 12 }}>
-                          <div className="ea-text-muted">
-                            requires DER API <code>{a.requiresDerApi}</code>
-                          </div>
-                          <code title={a.bundleSha256} data-test={`sha-${a.appId}`}
-                                style={{ fontSize: 11 }}>
-                            sha {a.bundleSha256.slice(0, 10)}
+                        <td className="ea-mono ea-text-xs">{a.version}</td>
+                        <td className="ea-mono ea-text-xs"
+                            title={`DER API ${a.requiresDerApi}`}>
+                          API {a.requiresDerApi}
+                        </td>
+                        <td>
+                          <code title={a.bundleSha256}
+                                data-test={`sha-${a.appId}`}
+                                className="ea-mono ea-text-2xs">
+                            {a.bundleSha256.slice(0, 10)}
                           </code>
                         </td>
-                        <td style={{ padding: '6px 8px', textAlign: 'right' }}
+                        <td className="ea-text-right"
                             data-test={`row-actions-${a.appId}`}>
                           <RowMenu
                             items={[
@@ -626,30 +632,29 @@ export function AppCatalogue(): JSX.Element {
                   return (
                     <tr key={`dhis2-${a.appId}`}
                         data-test={`dhis2-app-row-${a.appKey}`}>
-                      <td style={{ padding: '6px 8px' }}>
-                        <div style={{ fontWeight: 600 }}>{a.displayName}</div>
-                        <div className="ea-text-muted ea-text-xs">
-                          {a.appKey}
-                        </div>
+                      <td className="ea-fw-medium" title={deepLink}>
+                        {a.displayName}
                       </td>
-                      <td style={{ padding: '6px 8px' }}
-                          data-test={`dhis2-type-${a.appKey}`}>
-                        <span style={{ fontSize: 12, padding: '2px 6px',
-                                       borderRadius: 10,
-                                       background: '#e6f4ea',
-                                       color: '#276a3f' }}>
+                      <td className="ea-mono ea-text-xs ea-text-muted">
+                        {a.appKey}
+                      </td>
+                      <td className="ea-text-muted ea-text-xs">—</td>
+                      <td data-test={`dhis2-type-${a.appKey}`}>
+                        <span className="ea-chip ea-chip--success">
                           DHIS2
                         </span>
                       </td>
-                      <td style={{ padding: '6px 8px' }}>{a.version}</td>
-                      <td style={{ padding: '6px 8px', fontSize: 12 }}>
+                      <td className="ea-mono ea-text-xs">{a.version}</td>
+                      <td className="ea-text-muted ea-text-xs">—</td>
+                      <td>
                         <a href={deepLink}
                            target="_blank" rel="noopener noreferrer"
+                           className="ea-sync-path-link ea-text-xs"
                            data-test={`dhis2-open-${a.appKey}`}>
-                          {deepLink} ↗
+                          Open ↗
                         </a>
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right' }}
+                      <td className="ea-text-right"
                           data-test={`dhis2-row-actions-${a.appKey}`}>
                         <RowMenu
                           items={[
@@ -717,16 +722,17 @@ export function AppCatalogue(): JSX.Element {
               )}
               {hubApps.length > 0 && (
                 <table
-                  className="ea-table"
+                  className="ea-table ea-table--dense ea-table--nowrap"
                   data-test="apphub-table"
-                  style={{ width: '100%', borderCollapse: 'collapse' }}
+                  style={{ width: '100%' }}
                 >
                   <thead>
                     <tr>
-                      <th style={{ textAlign: 'left', padding: '6px 8px' }}>App</th>
-                      <th style={{ textAlign: 'left', padding: '6px 8px' }}>Available</th>
-                      <th style={{ textAlign: 'left', padding: '6px 8px' }}>Installed</th>
-                      <th style={{ textAlign: 'right', padding: '6px 8px' }}>Action</th>
+                      <th>App name</th>
+                      <th className="ea-col-w-140">App key</th>
+                      <th className="ea-col-w-110">Available</th>
+                      <th className="ea-col-w-110">Installed</th>
+                      <th className="ea-col-w-140 ea-text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -740,25 +746,25 @@ export function AppCatalogue(): JSX.Element {
                       return (
                         <tr key={row.appKey}
                             data-test={`apphub-row-${row.appKey}`}>
-                          <td style={{ padding: '6px 8px' }}>
-                            <div style={{ fontWeight: 600 }}>{row.displayName}</div>
-                            <div className="ea-text-muted ea-text-xs">
-                              {row.appKey}
-                            </div>
+                          <td className="ea-fw-medium">
+                            {row.displayName}
                           </td>
-                          <td style={{ padding: '6px 8px' }}>{row.version}</td>
-                          <td style={{ padding: '6px 8px' }}>
+                          <td className="ea-mono ea-text-xs ea-text-muted">
+                            {row.appKey}
+                          </td>
+                          <td className="ea-mono ea-text-xs">{row.version}</td>
+                          <td className="ea-mono ea-text-xs">
                             {row.installedVersion ?? '—'}
                           </td>
-                          <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                          <td className="ea-text-right">
                             <button
                               type="button"
-                              className="ea-btn ea-btn--primary"
+                              className="ea-btn ea-btn--primary ea-btn--sm"
                               onClick={() => void onInstallFromHub(row)}
                               disabled={installing || alreadyAtThis}
                               data-test={`apphub-install-btn-${row.appKey}`}
                             >
-                              {installing ? 'Installing...' : label}
+                              {installing ? 'Installing…' : label}
                             </button>
                           </td>
                         </tr>
