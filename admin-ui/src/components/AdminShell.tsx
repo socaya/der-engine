@@ -278,53 +278,50 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
         />
       )}
 
-      <header className="ea-topbar" data-test="headerbar">
-        {/* UI-11 — the sidebar toggle lived here (unused since the
-         * sidebar never collapses). Replaced with the OU chip so
-         * "where is this edge bound?" is always the first thing
-         * operators read. */}
-        {!onSignIn && authed && (
-          <Link
-            to="/dhis2/organisation-unit"
-            className={'ea-topbar-ou'
-                + (ou?.bound ? ' ea-topbar-ou--bound' : ' ea-topbar-ou--unbound')}
-            aria-label={ou?.bound
-                ? `Bound organisation unit: ${ou.orgUnitDisplayName ?? ou.orgUnitId}`
-                : 'No organisation unit bound — click to bind'}
-            title={ou?.bound
-                ? `Bound to ${ou.orgUnitDisplayName ?? ou.orgUnitId}`
-                : 'No organisation unit bound — click to bind'}
-            data-test="topbar-ou"
-          >
-            <span className="ea-topbar-ou-label">OU</span>
-            <span className="ea-topbar-ou-value">
-              {ou == null ? '…'
-                  : ou.bound ? (ou.orgUnitDisplayName ?? ou.orgUnitId ?? '—')
-                  : 'Not bound'}
-            </span>
-          </Link>
-        )}
-        {onSignIn && (
-          <Link to="/" className="ea-brand" data-test="brand" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none' }}>
-            <img src="/admin/assets/der-logo.svg" alt="DER — DHIS2 Edge Runtime" style={{ height: 36 }} />
-          </Link>
-        )}
-        {!onSignIn && (
-          <>
-            <div style={{ flex: 1 }} />
-            <div data-test="brand" style={{ display: 'none' }}>DER</div>
-          </>
-        )}
-        <div className="ea-topbar-right">
-          {authed && !onSignIn && <TopbarOperatingMode />}
-          {authed && !onSignIn && (
-            <>
-              <AttentionCentre />
-              <UserMenu />
-            </>
+      {/* Topbar renders only for authenticated screens — the sign-in
+       * page is a standalone marketing-style surface (card on
+       * blended background) so we omit the header entirely there.
+       * A hidden brand div is kept under /sign-in so the existing
+       * `data-test="brand"` contract (tested by the AdminShell
+       * sign-in-mode test) still resolves. */}
+      {onSignIn ? (
+        <div data-test="brand" hidden>DER</div>
+      ) : (
+        <header className="ea-topbar" data-test="headerbar">
+          {authed && (
+            <Link
+              to="/dhis2/organisation-unit"
+              className={'ea-topbar-ou'
+                  + (ou?.bound ? ' ea-topbar-ou--bound' : ' ea-topbar-ou--unbound')}
+              aria-label={ou?.bound
+                  ? `Bound organisation unit: ${ou.orgUnitDisplayName ?? ou.orgUnitId}`
+                  : 'No organisation unit bound — click to bind'}
+              title={ou?.bound
+                  ? `Bound to ${ou.orgUnitDisplayName ?? ou.orgUnitId}`
+                  : 'No organisation unit bound — click to bind'}
+              data-test="topbar-ou"
+            >
+              <span className="ea-topbar-ou-label">OU</span>
+              <span className="ea-topbar-ou-value">
+                {ou == null ? '…'
+                    : ou.bound ? (ou.orgUnitDisplayName ?? ou.orgUnitId ?? '—')
+                    : 'Not bound'}
+              </span>
+            </Link>
           )}
-        </div>
-      </header>
+          <div style={{ flex: 1 }} />
+          <div data-test="brand" style={{ display: 'none' }}>DER</div>
+          <div className="ea-topbar-right">
+            {authed && <TopbarOperatingMode />}
+            {authed && (
+              <>
+                <AttentionCentre />
+                <UserMenu />
+              </>
+            )}
+          </div>
+        </header>
+      )}
 
       {/* NFR-28: surface unsafe clock drift + time-zone mismatch above
          the main content so operators see it on every page. Silent
