@@ -769,7 +769,9 @@ export function SyncPath(
 const SYNC_PATH_ADMIN_BASE: string =
   typeof __DER_ADMIN_BASE__ !== 'undefined' ? __DER_ADMIN_BASE__ : '/';
 const SYNC_PATH_DER_ICON   = SYNC_PATH_ADMIN_BASE + 'assets/der-icon.svg';
-const SYNC_PATH_DHIS2_ICON = SYNC_PATH_ADMIN_BASE + 'assets/dhis2-logo.svg';
+/* Icon-only mark (hexagon) — not the full `dhis2-logo.svg` which
+ * bundles the wordmark. See admin-ui/public/assets/dhis2-icon.svg. */
+const SYNC_PATH_DHIS2_ICON = SYNC_PATH_ADMIN_BASE + 'assets/dhis2-icon.svg';
 
 function syncPathDisplay(state: edgeApi.LocalDataSyncState | null | undefined):
   { tone: 'success' | 'info' | 'muted' | 'warning' | 'danger';
