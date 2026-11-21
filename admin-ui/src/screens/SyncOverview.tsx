@@ -66,16 +66,24 @@ export function SyncOverview(): JSX.Element {
     ? Object.values(stats).reduce((a, b) => a + (b.PENDING ?? 0) + (b.IN_FLIGHT ?? 0), 0)
     : 0;
 
+  // Status wording aligns with docs/ui/admin-ui-terminology.md:
+  //  - "Needs review" (not "Needs attention") — matches the nav
+  //    label on /sync/attention, so the sidebar and the status chip
+  //    stop disagreeing about the same state.
+  //  - "Sync service paused" (not bare "Paused") — tells the operator
+  //    which service is paused, per the plan's `Worker paused` rule.
+  //  - "Waiting to synchronise" — glossary status for queued items.
   let tone: SyncStatusTone;
   let statusLabel: string;
   if (!w.enabled) {
-    tone = 'muted'; statusLabel = 'Paused';
+    tone = 'muted'; statusLabel = 'Sync service paused';
   } else if (!centralReachable) {
     tone = 'warning'; statusLabel = 'Central unavailable';
   } else if (attentionCount > 0) {
-    tone = 'danger'; statusLabel = 'Needs attention';
+    tone = 'danger'; statusLabel = 'Needs review';
   } else if (waitingCount > 0) {
-    tone = 'info'; statusLabel = `${waitingCount.toLocaleString()} waiting`;
+    tone = 'info';
+    statusLabel = `${waitingCount.toLocaleString()} waiting to synchronise`;
   } else {
     tone = 'success'; statusLabel = 'Up to date';
   }
@@ -113,7 +121,7 @@ export function SyncOverview(): JSX.Element {
               <>
                 <span>·</span>
                 <Link to="/sync/attention">
-                  {attentionCount} need{attentionCount === 1 ? 's' : ''} attention
+                  {attentionCount} need{attentionCount === 1 ? 's' : ''} review
                 </Link>
               </>
             )}
@@ -132,7 +140,7 @@ export function SyncOverview(): JSX.Element {
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                     data-test="sync-push-data"
                     disabled={pushDisabled}
-                    title={!w.enabled ? 'Worker is paused — resume it on the Worker page'
+                    title={!w.enabled ? 'Sync service is paused — resume from the Worker tab'
                       : !centralReachable ? 'Central DHIS2 is unavailable' : undefined}
                     onClick={() => { push.trigger('JOURNAL_WORKER_DRAIN').catch(() => undefined); }}>
               {pushBusy ? <Spinner /> : <UiIcon icon="push" size={14} />}

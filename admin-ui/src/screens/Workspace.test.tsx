@@ -73,7 +73,11 @@ describe('Workspace', () => {
     expect(document.body.textContent ?? '').toMatch(/2\.3\.122/);
   });
 
-  it('renders the Client devices panel from a populated listDevices probe', async () => {
+  it('summarises devices in the Resources panel (count + pending breakdown)', async () => {
+    /* Overview no longer renders individual device names (the old
+     * "Client devices" panel used to); it now presents a Resources
+     * summary with the approved count and a pending-approval caption
+     * so Overview and /devices stop competing for the same list. */
     stubAll();
     vi.spyOn(edgeApi, 'listDevices').mockResolvedValue({
       devices: [
@@ -91,10 +95,14 @@ describe('Workspace', () => {
     } as unknown as { devices: edgeApi.EdgeDeviceRow[] });
     renderWithProviders(<Workspace />, { authApi });
     await waitFor(() =>
-      expect(document.body.textContent ?? '').toMatch(/clinic kiosk/i));
+      expect(document.body.textContent ?? '').toMatch(/1 approved/i));
+    expect(document.body.textContent ?? '').toMatch(/1 pending approval/i);
   });
 
-  it('renders the Edge workflows panel from a populated listWorkflows probe', async () => {
+  it('summarises workflows in the Resources panel (active / total)', async () => {
+    /* Overview shows the `active / total` count and an Active vs
+     * Disabled segment bar, not the individual workflow names (that
+     * table lives on /workflows). */
     stubAll();
     vi.spyOn(edgeApi, 'listWorkflows').mockResolvedValue({
       workflows: [
@@ -112,8 +120,7 @@ describe('Workspace', () => {
     } as unknown as { workflows: edgeApi.CaptureWorkflowSummary[] });
     renderWithProviders(<Workspace />, { authApi });
     await waitFor(() =>
-      expect(document.body.textContent ?? '').toMatch(/weekly aggregate/i));
-    expect(document.body.textContent ?? '').toMatch(/hiv disabled/i);
+      expect(document.body.textContent ?? '').toMatch(/1 \/ 2 active/i));
   });
 
   it('surfaces the ConflictRow count when listConflicts returns rows', async () => {

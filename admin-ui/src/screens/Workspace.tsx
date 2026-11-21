@@ -10,26 +10,34 @@ import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 /**
  * Overview — DER Admin landing page.
  *
- * Comprehensive institutional dashboard. Answers the five
- * comprehension-first questions in the simplification plan while
- * presenting the operational picture via charts (not just lists):
+ * Executive-summary layout, deliberately consolidated to four
+ * visual blocks (not a long stack of panels):
  *
- *   1. Is the local DER server running?
- *   2. Can local users continue capturing data?
- *   3. Is Central DHIS2 reachable right now?
- *   4. Is any data waiting to be synchronised?
- *   5. Does any record need review?
+ *   1. One compact header: title · operational state · meta row
+ *      (version, recent success rate, last updated, conflicts link).
+ *   2. One status strip: four flat cells answering the four
+ *      questions a site administrator lands here to resolve —
+ *      Local server · Local capture · Central DHIS2 · Sync queue.
+ *      (One optional attention strip appears below this when
+ *      conflicts > 0.)
+ *   3. One main dashboard row: a 7-day stacked sync-activity bar
+ *      chart on the left, a single resource-summary panel on the
+ *      right that stacks three horizontal segmented bars
+ *      (Workflows · Storage · Devices) together, so the three
+ *      secondary surfaces appear as *one* coherent summary rather
+ *      than three separate panels.
+ *   4. One activity row: recent sync runs (left) · common tasks
+ *      (right).
  *
- * Visual language — flat institutional: hairline 1 px borders,
- * 2 px corner radii (no chip-style pills), subdued surfaces.
- * Charts: 7-day stacked sync-activity bar chart, horizontal
- * segmented storage usage bar, workflow enabled/disabled split,
- * recent activity timeline.
+ * All data comes from the real /edge-api/v1 probes — no mocks.
+ * Charts are inline SVG (no new dependencies). Visual language
+ * is flat institutional: hairline 1 px borders, zero corner-radius,
+ * no chip-style pills.
  *
- * Loading contract — once `Promise.allSettled` for the seven
- * probes resolves the shell always renders, even if individual
- * probes failed (their slot shows `Unknown` and the ErrorBlock
- * surfaces the failing reason).
+ * Loading contract — once Promise.allSettled for the seven probes
+ * resolves the shell always renders, even if individual probes
+ * failed (their slot shows `Unknown` and the ErrorBlock surfaces
+ * the failing reason).
  */
 export function Workspace(): JSX.Element {
   const [h, setH] = useState<edgeApi.HealthResponse | null>(null);
@@ -67,7 +75,6 @@ export function Workspace(): JSX.Element {
     });
   }, []);
 
-  // 7-day stacked sync activity bucket (local timezone, calendar days).
   const sync7 = useMemo(() => bucketJobsByDay(jobs ?? [], 7), [jobs]);
   const maxDay = sync7.reduce((m, d) => Math.max(m, d.ok + d.fail + d.conflict), 0);
 
@@ -108,41 +115,39 @@ export function Workspace(): JSX.Element {
   const pendingDevices = (devices ?? []).filter((d) => d.status === 'PENDING');
 
   const allOps = derUp === true && dhis2Up && dbUp === true && schedStarted;
-  const heroTone: Tone = allOps
-    ? 'success'
+  const heroTone: Tone = allOps ? 'success'
     : derUp === false ? 'danger' : 'warning';
-  const heroLabel = allOps
-    ? 'All systems operational'
+  const heroLabel = allOps ? 'All systems operational'
     : derUp === false ? (h?.status ?? 'DEGRADED')
     : dhis2Known && !dhis2Up ? 'Central DHIS2 unreachable'
     : 'Partial outage';
 
-  const recentJobs = (jobs ?? []).slice(0, 7);
+  const recentJobs = (jobs ?? []).slice(0, 8);
 
   return (
     <div className="ea-screen ea-overview" data-test="workspace-overview">
-      {/* ─── Header ─────────────────────────────────────────────── */}
+
+      {/* ── Block 1 — compact header row, title + inline meta. Soft
+          UI: no bordered chips. Status is colour-only text. ── */}
       <section className="ea-overview-header">
-        <div>
+        <div className="ea-overview-heading">
           <h1 className="ea-overview-title">DER Server</h1>
           <p className="ea-overview-sub">
             Local data capture and synchronisation with Central DHIS2.
           </p>
         </div>
         <div className="ea-overview-header-meta">
-          <StatusBadge tone={heroTone}>{heroLabel}</StatusBadge>
+          <SoftStatus tone={heroTone}>{heroLabel}</SoftStatus>
           {si && <span className="ea-overview-meta-item">Version {si.build.version}</span>}
           {reliability != null && (
-            <span
-              className="ea-overview-meta-item"
-              title={`${succeeded} succeeded of ${totalRuns} tracked runs`}
-            >
-              Recent sync success {reliability}% ({totalRuns} runs)
+            <span className="ea-overview-meta-item"
+                  title={`${succeeded} of ${totalRuns} tracked job runs succeeded`}>
+              Recent sync success {reliability}% · {totalRuns} runs
             </span>
           )}
           {totalConflicts > 0 && (
-            <Link to="/journal/conflicts" className="ea-overview-meta-link ea-overview-meta-link--warning">
-              {totalConflicts} conflict{totalConflicts === 1 ? '' : 's'}
+            <Link to="/sync/attention" className="ea-overview-meta-item ea-overview-meta-link">
+              {totalConflicts} to review
             </Link>
           )}
           {t && <span className="ea-overview-meta-item">Updated {fmtAgo(t.toISOString())}</span>}
@@ -155,7 +160,9 @@ export function Workspace(): JSX.Element {
         </ErrorBlock>
       )}
 
-      {/* ─── Status strip — four cells, flat institutional. ─── */}
+      {/* ── Block 2 — four-cell status summary. Soft UI: hairline
+          dividers between cells, top-edge tone accent, no bordered
+          cards. ── */}
       <div className="ea-overview-status" data-test="workspace-status-row">
         <StatusCell
           label="Local server"
@@ -187,150 +194,88 @@ export function Workspace(): JSX.Element {
         <StatusCell
           label="Sync queue"
           value={
-            totalConflicts > 0
-              ? `${totalConflicts} need review`
-              : totalRuns === 0
-                ? 'No recent runs'
-                : 'No items waiting'
+            totalConflicts > 0 ? `${totalConflicts} to review`
+              : totalRuns === 0 ? 'No recent runs'
+              : 'No items waiting'
           }
           tone={totalConflicts > 0 ? 'warning' : 'success'}
-          detail="Captured records awaiting synchronisation or conflict review."
+          detail="Captured records waiting to synchronise, or conflicts needing review."
           to={totalConflicts > 0 ? '/sync/attention' : '/sync'}
         />
       </div>
+      {/* Attention strip removed per DER Soft UI guidance — the
+          "N to review" meta link on the header + the warning tone on
+          the Sync queue status cell already surface the conflict
+          state without a stacked yellow alert block. */}
 
-      {/* ─── Attention strip ─── */}
-      {totalConflicts > 0 && (
-        <div className="ea-overview-attention" data-test="workspace-attention">
-          <strong>{totalConflicts} record{totalConflicts === 1 ? '' : 's'} need{totalConflicts === 1 ? 's' : ''} review</strong>
-          — conflicting changes must be resolved before they can be accepted centrally.
-          <Link to="/sync/attention" className="ea-overview-attention-link">Review conflicts →</Link>
-          {conflicts && conflicts[0] && (
-            <div className="ea-overview-attention-note">
-              First: {conflicts[0].entityType} · {conflicts[0].entityRef}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ─── Main charts row: sync activity 7d + workflow split ─── */}
-      <div className="ea-overview-row-2">
-        <section className="ea-overview-panel ea-overview-panel--wide" data-test="chart-sync-activity">
+      {/* ── Block 3 — main dashboard row. ── */}
+      <div className="ea-overview-dashboard">
+        {/* Left: sync activity 7 days */}
+        <section className="ea-overview-panel ea-overview-panel--main"
+                 data-test="chart-sync-activity">
           <header className="ea-overview-panel-head">
             <h2>Synchronisation activity · 7 days</h2>
             <div className="ea-overview-panel-meta">
-              <span>{succeeded} succeeded</span>
-              <span>·</span>
-              <span>{failed} failed</span>
-              <span>·</span>
-              <Link to="/sync/history" className="ea-overview-link">Open history</Link>
+              <LegendSwatch tone="success" label={`${succeeded} succeeded`} />
+              <LegendSwatch tone="danger" label={`${failed} failed`} />
+              <Link to="/sync/history" className="ea-overview-link">Full history →</Link>
             </div>
           </header>
           <SyncActivityChart days={sync7} max={maxDay} />
-          <footer className="ea-overview-panel-foot">
-            <LegendSwatch tone="success" label="Succeeded" />
-            <LegendSwatch tone="danger" label="Failed" />
-            <LegendSwatch tone="warning" label="Conflict" />
-          </footer>
         </section>
 
-        <section className="ea-overview-panel" data-test="chart-workflows">
+        {/* Right: compact resource summary — Workflows / Storage / Devices
+         * rolled together into ONE panel so Overview stops stacking
+         * three near-identical panels. */}
+        <section className="ea-overview-panel ea-overview-panel--summary"
+                 data-test="summary-resources">
           <header className="ea-overview-panel-head">
-            <h2>Workflows</h2>
-            <Link to="/workflows" className="ea-overview-link">Manage</Link>
+            <h2>Resources</h2>
           </header>
-          <div className="ea-overview-figure-big">{activeWf}
-            <span className="ea-overview-figure-sub">of {totalWf} active</span>
-          </div>
-          <HorizontalSegBar
+
+          <SummaryRow
+            label="Workflows"
+            metric={`${activeWf} / ${totalWf} active`}
+            to="/workflows"
             segments={[
               { label: 'Active', value: activeWf, tone: 'success' },
               { label: 'Disabled', value: Math.max(0, totalWf - activeWf), tone: 'muted' },
             ]}
           />
-          <ul className="ea-overview-list">
-            {(wfs ?? []).slice(0, 4).map((wf) => (
-              <li key={wf.workflowId}>
-                <Dot tone={wf.enabled ? 'success' : 'muted'} />
-                <span className="ea-overview-list-main">{wf.displayName}</span>
-                <span className="ea-overview-list-meta">{wf.steps?.length ?? 0} step{(wf.steps?.length ?? 0) === 1 ? '' : 's'}</span>
-              </li>
-            ))}
-            {(wfs ?? []).length === 0 && (
-              <li className="ea-overview-list-empty">No workflows defined.</li>
-            )}
-          </ul>
-        </section>
-      </div>
-
-      {/* ─── Storage + Devices row ─── */}
-      <div className="ea-overview-row-2">
-        <section className="ea-overview-panel ea-overview-panel--wide" data-test="chart-storage">
-          <header className="ea-overview-panel-head">
-            <h2>Storage usage</h2>
-            <Link to="/monitoring/storage" className="ea-overview-link">Details</Link>
-          </header>
-          {si ? (
-            <>
-              <div className="ea-overview-figure-big">
-                {fmtBytes(storageUsed)}
-                <span className="ea-overview-figure-sub">DER footprint</span>
-              </div>
-              <HorizontalSegBar
-                segments={[
-                  { label: `DER files · ${fmtBytes(storageFiles)}`, value: storageFiles, tone: 'primary' },
-                  { label: `PostgreSQL (der.*) · ${fmtBytes(storageDb)}`, value: storageDb, tone: 'teal' },
-                  { label: `Other on volume · ${fmtBytes(storageOther)}`, value: storageOther, tone: 'warning' },
-                  { label: `Free · ${fmtBytes(storageFree)}`, value: storageFree, tone: 'muted' },
-                ]}
-              />
-              <dl className="ea-overview-kv">
-                <div><dt>Volume total</dt><dd>{fmtBytes(storageTotal)}</dd></div>
-                <div><dt>Free on volume</dt><dd>{fmtBytes(storageFree)}</dd></div>
-                <div><dt>Scheduler</dt><dd>{schedStarted ? 'Running' : 'Stopped'}</dd></div>
-              </dl>
-            </>
-          ) : (
-            <p className="ea-overview-list-empty">Storage usage unavailable.</p>
-          )}
-        </section>
-
-        <section className="ea-overview-panel" data-test="chart-devices">
-          <header className="ea-overview-panel-head">
-            <h2>Client devices</h2>
-            <Link to="/devices" className="ea-overview-link">All devices</Link>
-          </header>
-          <div className="ea-overview-figure-big">
-            {approvedDevices.length}
-            <span className="ea-overview-figure-sub">approved · {pendingDevices.length} pending</span>
-          </div>
-          <HorizontalSegBar
+          <SummaryRow
+            label="Storage"
+            metric={si ? `${fmtBytes(storageUsed)} used` : 'Unknown'}
+            to="/monitoring/storage"
+            caption={si ? `${fmtBytes(storageFree)} free of ${fmtBytes(storageTotal)}` : undefined}
+            segments={[
+              { label: `DER files · ${fmtBytes(storageFiles)}`, value: storageFiles, tone: 'primary' },
+              { label: `PostgreSQL · ${fmtBytes(storageDb)}`, value: storageDb, tone: 'teal' },
+              { label: `Other · ${fmtBytes(storageOther)}`, value: storageOther, tone: 'warning' },
+              { label: `Free · ${fmtBytes(storageFree)}`, value: storageFree, tone: 'muted' },
+            ]}
+          />
+          <SummaryRow
+            label="Devices"
+            metric={`${approvedDevices.length} approved`}
+            to="/devices"
+            caption={pendingDevices.length > 0
+              ? `${pendingDevices.length} pending approval`
+              : undefined}
             segments={[
               { label: 'Approved', value: approvedDevices.length, tone: 'success' },
               { label: 'Pending', value: pendingDevices.length, tone: 'warning' },
             ]}
           />
-          <ul className="ea-overview-list">
-            {approvedDevices.slice(0, 4).map((d) => (
-              <li key={d.deviceId}>
-                <Dot tone="success" />
-                <span className="ea-overview-list-main">{d.displayName ?? d.deviceId.slice(0, 8) + '…'}</span>
-                <span className="ea-overview-list-meta">{fmtAgo(d.lastSeenAt)}</span>
-              </li>
-            ))}
-            {approvedDevices.length === 0 && (
-              <li className="ea-overview-list-empty">No approved devices yet.</li>
-            )}
-          </ul>
         </section>
       </div>
 
-      {/* ─── Recent activity + quick actions ─── */}
-      <div className="ea-overview-row-2">
-        <section className="ea-overview-panel ea-overview-panel--wide" data-test="activity-feed">
+      {/* ── Block 4 — activity + actions row. ── */}
+      <div className="ea-overview-dashboard">
+        <section className="ea-overview-panel ea-overview-panel--main"
+                 data-test="activity-feed">
           <header className="ea-overview-panel-head">
             <h2>Recent sync activity</h2>
-            <Link to="/sync/history" className="ea-overview-link">Full history</Link>
+            <Link to="/sync/history" className="ea-overview-link">Full history →</Link>
           </header>
           {recentJobs.length === 0 ? (
             <p className="ea-overview-list-empty">No sync runs recorded yet.</p>
@@ -365,7 +310,8 @@ export function Workspace(): JSX.Element {
           )}
         </section>
 
-        <section className="ea-overview-panel" data-test="quick-actions">
+        <section className="ea-overview-panel ea-overview-panel--summary"
+                 data-test="quick-actions">
           <header className="ea-overview-panel-head">
             <h2>Common tasks</h2>
           </header>
@@ -384,21 +330,10 @@ export function Workspace(): JSX.Element {
             </Link>
             <Link to="/dhis2/compat" className="ea-overview-action">
               <span className="ea-overview-action-title">Test DHIS2 connection</span>
-              <span className="ea-overview-action-sub">Live probe against central</span>
+              <span className="ea-overview-action-sub">Live probe against Central DHIS2</span>
             </Link>
           </nav>
         </section>
-      </div>
-
-      {/* ─── Process explainer strip — kept for first-time users. ─── */}
-      <div className="ea-overview-steps" data-test="workspace-steps" aria-label="How DER works">
-        <StepChip n={1} label="Capture locally" />
-        <StepArrow />
-        <StepChip n={2} label="Store safely" />
-        <StepArrow />
-        <StepChip n={3} label="Synchronise when connected" />
-        <StepArrow />
-        <StepChip n={4} label="Review conflicts if needed" />
       </div>
     </div>
   );
@@ -431,25 +366,15 @@ function StatusCell(props: {
   );
 }
 
-function StatusBadge({ tone, children }: { tone: Tone; children: React.ReactNode }): JSX.Element {
+/** Soft-UI status label — colour only, no border, no fill. Matches
+ *  the DER <Status> component idiom used across other screens. */
+function SoftStatus({ tone, children }: { tone: Tone; children: React.ReactNode }): JSX.Element {
   return (
-    <span className={'ea-overview-badge ea-overview-badge--' + tone}>
+    <span className={'ea-overview-soft-status ea-overview-soft-status--' + tone}>
+      <span className={'ea-overview-soft-status-dot ea-overview-soft-status-dot--' + tone} aria-hidden="true" />
       {children}
     </span>
   );
-}
-
-function StepChip({ n, label }: { n: number; label: string }): JSX.Element {
-  return (
-    <span className="ea-overview-step" aria-label={`Step ${n}: ${label}`}>
-      <span className="ea-overview-step-n" aria-hidden="true">{n}</span>
-      <span className="ea-overview-step-label">{label}</span>
-    </span>
-  );
-}
-
-function StepArrow(): JSX.Element {
-  return <span className="ea-overview-step-arrow" aria-hidden="true">→</span>;
 }
 
 function LegendSwatch({ tone, label }: { tone: Tone; label: string }): JSX.Element {
@@ -458,6 +383,51 @@ function LegendSwatch({ tone, label }: { tone: Tone; label: string }): JSX.Eleme
       <span className={'ea-overview-legend-swatch ea-overview-legend-swatch--' + tone} aria-hidden="true" />
       {label}
     </span>
+  );
+}
+
+/** One row of the right-hand Resources summary: label, big metric,
+ *  thin horizontal segmented bar, optional caption, link. All three
+ *  secondary summaries (Workflows / Storage / Devices) share this
+ *  component so they look like one summary rather than three panels. */
+function SummaryRow(props: {
+  label: string;
+  metric: string;
+  to: string;
+  caption?: string;
+  segments: ReadonlyArray<{ label: string; value: number; tone: Tone }>;
+}): JSX.Element {
+  const total = props.segments.reduce((a, s) => a + s.value, 0);
+  return (
+    <div className="ea-overview-summary-row">
+      <div className="ea-overview-summary-head">
+        <span className="ea-overview-summary-label">{props.label}</span>
+        <Link to={props.to} className="ea-overview-summary-link">View →</Link>
+      </div>
+      <div className="ea-overview-summary-metric">{props.metric}</div>
+      {total === 0 ? (
+        <div className="ea-overview-segbar ea-overview-segbar--empty">No data</div>
+      ) : (
+        <div className="ea-overview-segbar" role="img"
+             aria-label={props.segments.map((s) => `${s.label} ${s.value}`).join(', ')}>
+          {props.segments.map((s, i) => {
+            if (s.value === 0) return null;
+            const pct = (s.value / total) * 100;
+            return (
+              <div
+                key={i}
+                className={'ea-overview-segbar-seg ea-overview-segbar-seg--' + s.tone}
+                style={{ width: pct + '%' }}
+                title={`${s.label}: ${s.value}`}
+              />
+            );
+          })}
+        </div>
+      )}
+      {props.caption && (
+        <div className="ea-overview-summary-caption">{props.caption}</div>
+      )}
+    </div>
   );
 }
 
@@ -491,8 +461,8 @@ function bucketJobsByDay(jobs: ReadonlyArray<edgeApi.JobRun>, days: number): Rea
 
 function SyncActivityChart({ days, max }: { days: ReadonlyArray<DayBucket>; max: number }): JSX.Element {
   const safeMax = Math.max(1, max);
-  const h = 160;
-  const w = 100; // percentage units
+  const h = 180;
+  const w = 100;
   const barW = 100 / days.length;
   return (
     <div className="ea-overview-chart">
@@ -503,7 +473,6 @@ function SyncActivityChart({ days, max }: { days: ReadonlyArray<DayBucket>; max:
         preserveAspectRatio="none"
         height={h}
       >
-        {/* Y-axis hairlines */}
         {[0, 0.25, 0.5, 0.75, 1].map((f) => (
           <line
             key={f}
@@ -517,9 +486,7 @@ function SyncActivityChart({ days, max }: { days: ReadonlyArray<DayBucket>; max:
         ))}
         {days.map((d, i) => {
           const total = d.ok + d.fail + d.conflict;
-          if (total === 0) {
-            return null;
-          }
+          if (total === 0) return null;
           const x = i * barW + barW * 0.18;
           const width = barW * 0.64;
           const inner = h - 20;
@@ -565,41 +532,5 @@ function SyncActivityChart({ days, max }: { days: ReadonlyArray<DayBucket>; max:
         ))}
       </div>
     </div>
-  );
-}
-
-function HorizontalSegBar({ segments }: {
-  segments: ReadonlyArray<{ label: string; value: number; tone: Tone }>;
-}): JSX.Element {
-  const total = segments.reduce((a, s) => a + s.value, 0);
-  if (total === 0) {
-    return <div className="ea-overview-segbar ea-overview-segbar--empty">No data</div>;
-  }
-  return (
-    <>
-      <div className="ea-overview-segbar" role="img"
-           aria-label={segments.map((s) => `${s.label} ${s.value}`).join(', ')}>
-        {segments.map((s, i) => {
-          if (s.value === 0) return null;
-          const pct = (s.value / total) * 100;
-          return (
-            <div
-              key={i}
-              className={'ea-overview-segbar-seg ea-overview-segbar-seg--' + s.tone}
-              style={{ width: pct + '%' }}
-              title={`${s.label}: ${s.value}`}
-            />
-          );
-        })}
-      </div>
-      <ul className="ea-overview-segbar-legend" aria-hidden="true">
-        {segments.map((s, i) => (
-          <li key={i}>
-            <span className={'ea-overview-legend-swatch ea-overview-legend-swatch--' + s.tone} />
-            {s.label}
-          </li>
-        ))}
-      </ul>
-    </>
   );
 }

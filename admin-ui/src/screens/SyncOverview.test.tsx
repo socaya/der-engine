@@ -147,26 +147,32 @@ describe('SyncOverview — status-bar tone branches', () => {
     expect(screen.getByText(/unreachable/)).toBeInTheDocument();
   });
 
-  it('shows "Needs attention" when stats surface CONFLICT_REVIEW rows', async () => {
+  it('shows "Needs review" when stats surface CONFLICT_REVIEW rows', async () => {
+    /* Phase 4B terminology: renamed from "Needs attention" to match
+     * the sidebar nav label on /sync/attention ("Needs review") so
+     * the chip and the nav stop disagreeing. */
     wireHappyPath({
       stats: { EVENT: { CONFLICT_REVIEW: 3, PENDING: 0 }, TEI: { RETRYABLE: 1 } },
     });
     renderWithProviders(<SyncOverview />);
-    await waitFor(() => expect(screen.getByText(/Needs attention/i)).toBeInTheDocument());
-    // The attention link shows the plural count (4 total).
-    expect(screen.getByText(/4 need[s]? attention/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/Needs review/i)).toBeInTheDocument());
+    // The inline link shows the plural count (4 total).
+    expect(screen.getByText(/4 need[s]? review/)).toBeInTheDocument();
   });
 
-  it('shows singular "needs attention" copy for a count of 1', async () => {
+  it('shows singular "needs review" copy for a count of 1', async () => {
     wireHappyPath({ stats: { EVENT: { CENTRAL_REJECTED: 1 } } });
     renderWithProviders(<SyncOverview />);
-    await waitFor(() => expect(screen.getByText(/1 needs attention/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/1 needs review/)).toBeInTheDocument());
   });
 
-  it('shows "waiting" when PENDING/IN_FLIGHT counts are nonzero', async () => {
+  it('shows "waiting to synchronise" when PENDING/IN_FLIGHT counts are nonzero', async () => {
+    /* Phase 4B: "N waiting" → "N waiting to synchronise" so the
+     * state is self-describing (what was it waiting for?). */
     wireHappyPath({ stats: { EVENT: { PENDING: 2, IN_FLIGHT: 5 } } });
     renderWithProviders(<SyncOverview />);
-    await waitFor(() => expect(screen.getByText(/7 waiting/)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/7 waiting to synchronise/)).toBeInTheDocument());
   });
 
   it('shows "Up to date" when all queues are empty and central is reachable', async () => {
@@ -226,7 +232,7 @@ describe('SyncOverview — pull / push buttons', () => {
     expect(screen.getByTestId('sync-pull-metadata')).not.toBeDisabled();
     expect(screen.getByTestId('sync-push-data')).toBeDisabled();
     expect(screen.getByTestId('sync-push-data'))
-      .toHaveAttribute('title', expect.stringMatching(/Worker is paused/));
+      .toHaveAttribute('title', expect.stringMatching(/Sync service is paused/));
   });
 
   it('invokes triggerJob with the right Quartz job name when Pull is clicked', async () => {

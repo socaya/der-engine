@@ -469,7 +469,7 @@ code{font-family:var(--der-font-mono);font-size:var(--fs-sm)}
 
 /* ---------- Main area ---------- */
 .ea-main{grid-area:main;min-width:0}
-.ea-main-inner{max-width:none;margin:0;padding:16px 24px}
+.ea-main-inner{max-width:none;margin:0 /* padding:16px 24px removed per request */ }
 
 /* ============ Typography ============ */
 h1{
@@ -1030,39 +1030,51 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
   background-size:cover;
   background-position:center;
 }
-/* Overlay fades in only when an admin-uploaded image is applied
- * via inline style (ea-sign-in[style*="background-image"]). */
+/* A soft overlay fades in only when an admin-uploaded image is
+ * applied via inline style (ea-sign-in[style*="background-image"]).
+ * Kept gentle so the image still reads through the frosted card. */
 .ea-sign-in[style*="background-image"]::before{
   content:'';position:absolute;inset:0;z-index:0;
   background:linear-gradient(
     180deg,
-    rgba(10,26,54,0.55) 0%,
-    rgba(10,26,54,0.35) 50%,
-    rgba(10,26,54,0.60) 100%);
+    rgba(10,26,54,0.28) 0%,
+    rgba(10,26,54,0.12) 50%,
+    rgba(10,26,54,0.32) 100%);
   pointer-events:none;
 }
 .ea-sign-in-card{
   position:relative;z-index:1;
   width:432px;max-width:100%;
-  /* Translucent surface so the background blends through without
-   * the heavy glass-morphism look. `backdrop-filter` is capped at
-   * a gentle saturate+blur so legibility stays high on real photos. */
-  background:rgba(255,255,255,0.86);
-  -webkit-backdrop-filter:saturate(1.1) blur(6px);
-  backdrop-filter:saturate(1.1) blur(6px);
-  border:1px solid rgba(255,255,255,0.72);
+  /* Frosted-glass surface over the uploaded background:
+   *   - 42% opaque white → the image is clearly visible through the
+   *     card while form copy remains legible thanks to the auto
+   *     dark overlay applied to the backdrop.
+   *   - 18 px backdrop blur + saturate(1.3) gives the characteristic
+   *     glass softening of the colours behind.
+   *   - Thin white-at-50% border fakes the frosted edge, and a
+   *     1 px inset white top highlight catches the "lit top" look. */
+  background:rgba(255,255,255,0.42);
+  -webkit-backdrop-filter:saturate(1.3) blur(18px);
+  backdrop-filter:saturate(1.3) blur(18px);
+  border:1px solid rgba(255,255,255,0.5);
   box-shadow:
-    0 24px 60px -24px rgba(10,26,54,0.35),
-    0 2px 8px rgba(10,26,54,0.08);
+    inset 0 1px 0 rgba(255,255,255,0.6),
+    0 24px 60px -24px rgba(10,26,54,0.45),
+    0 2px 8px rgba(10,26,54,0.12);
+  /* Deepen the body copy a touch so it reads on the frosted panel. */
+  color:var(--der-ink-900, #0f172a);
 }
-/* When no custom background is set, give the card a fully opaque
- * surface so it reads as a crisp institutional card on the soft
- * radial canvas instead of looking washed out. */
+/* When no custom background is set, give the card a crisp opaque
+ * surface so it reads as a solid institutional card on the soft
+ * default canvas instead of looking washed-out. */
 .ea-sign-in:not([style*="background-image"]) .ea-sign-in-card{
-  background:rgba(255,255,255,0.98);
+  background:rgba(255,255,255,0.97);
   border-color:var(--der-border-subtle, #e5e7eb);
   -webkit-backdrop-filter:none;
   backdrop-filter:none;
+  box-shadow:
+    0 24px 60px -24px rgba(10,26,54,0.25),
+    0 2px 8px rgba(10,26,54,0.06);
 }
 .ea-sign-in-pad{padding:var(--sp-7) var(--sp-6) var(--sp-5)}
 .ea-sign-in-brand{display:flex;justify-content:center;margin-bottom:var(--sp-2)}
@@ -1194,7 +1206,6 @@ kbd{
   .ea-shell--mobile-open .ea-sidebar-brand{justify-content:flex-start;padding:var(--sp-5)}
   .ea-topbar{padding:0 var(--sp-4)}
   .ea-user-chip-info{display:none}
-  .ea-main-inner{padding:var(--sp-4)}
   .ea-topbar-search{max-width:200px}
   h1{font-size:var(--fs-2xl)}
 }
@@ -1204,7 +1215,6 @@ kbd{
   dl{grid-template-columns:1fr;gap:var(--sp-1) 0}
   dt{margin-top:var(--sp-2)}
   .ea-health-cards{grid-template-columns:1fr}
-  .ea-main-inner{padding:var(--sp-3)}
 }
 
 /* mobile overlay backdrop */
@@ -1846,67 +1856,84 @@ kbd{
 @media(max-width:1280px){.ea-ws-grid-2,.ea-ws-grid-3{grid-template-columns:1fr}}
 
 /* ============================================================
-   Overview — flat institutional dashboard
+   Overview — DER Soft UI standard
    ------------------------------------------------------------
-   Visual language: hairline 1 px borders, 2 px corner radii
-   (no chip-style pills), subdued surfaces, charts first.
+   Follows the established DER Soft UI pattern used across the
+   admin-ui: no bordered cards, no filled/bordered chips, soft
+   colour-only status labels, hairline bottom dividers between
+   rows, generous breathing room. Panels have NO border/background
+   of their own — content hierarchy is carried by typography and
+   subtle horizontal rules.
    ============================================================ */
 
-.ea-overview{color:var(--der-ink-900, #0f172a)}
+.ea-overview{color:var(--der-ink-900, #0f172a);padding:16px 24px}
 
-/* Header */
+/* Header — one row, minimal chrome */
 .ea-overview-header{
-  display:flex;flex-wrap:wrap;gap:16px 24px;
+  display:flex;flex-wrap:wrap;gap:12px 24px;
   align-items:flex-start;justify-content:space-between;
-  padding:0 0 16px;
-  border-bottom:1px solid var(--der-border-subtle, #e5e7eb);
+  padding:0 0 12px;
   margin-bottom:16px;
+  border-bottom:1px solid var(--der-border-subtle, #e5e7eb);
 }
 .ea-overview-title{
   font-size:20px;font-weight:600;letter-spacing:-0.01em;
-  margin:0 0 4px;color:var(--der-ink-900, #0f172a);
+  margin:0 0 2px;color:var(--der-ink-900, #0f172a);
 }
 .ea-overview-sub{
   margin:0;font-size:13px;color:var(--der-ink-400, #64748b);
 }
 .ea-overview-header-meta{
-  display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;
-  font-size:12px;color:var(--der-ink-400, #64748b);
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;
+  font-size:12px;color:var(--der-ink-500, #475569);
 }
-.ea-overview-meta-item{white-space:nowrap}
+.ea-overview-meta-item{
+  white-space:nowrap;color:var(--der-ink-500, #475569);
+  font-weight:500;
+}
 .ea-overview-meta-link{
-  text-decoration:none;color:var(--der-ink-900, #0f172a);
-  padding:2px 8px;border:1px solid var(--der-warning, #d97706);
-  background:var(--der-warning-soft, #fef3c7);font-weight:500;
+  text-decoration:none;color:var(--der-warning-ink, #9a3412);
+  font-weight:600;
 }
-.ea-overview-meta-link--warning{color:var(--der-warning-ink, #9a3412)}
+.ea-overview-meta-link:hover{text-decoration:underline}
 
-/* Flat status badge (not a chip — no border-radius) */
-.ea-overview-badge{
-  display:inline-flex;align-items:center;
-  padding:3px 10px;
-  font-size:12px;font-weight:600;letter-spacing:0.02em;
-  border:1px solid currentColor;
+/* Soft status label — colour only, with a leading tone dot. No
+   border, no background fill. Matches .ea-status idiom. */
+.ea-overview-soft-status{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:13px;font-weight:600;line-height:1.3;white-space:nowrap;
 }
-.ea-overview-badge--success{color:var(--der-success, #16a34a);background:rgba(22,163,74,0.06)}
-.ea-overview-badge--warning{color:var(--der-warning, #d97706);background:rgba(217,119,6,0.07)}
-.ea-overview-badge--danger{color:var(--der-danger, #dc2626);background:rgba(220,38,38,0.06)}
-.ea-overview-badge--muted{color:var(--der-ink-400, #64748b);background:rgba(100,116,139,0.06)}
+.ea-overview-soft-status--success{color:var(--der-success-ink, #166534)}
+.ea-overview-soft-status--warning{color:var(--der-warning-ink, #9a3412)}
+.ea-overview-soft-status--danger{color:var(--der-danger-ink, #991b1b)}
+.ea-overview-soft-status--muted{color:var(--der-ink-500, #475569)}
+.ea-overview-soft-status--primary{color:var(--der-primary-ink, #1e3a8a)}
+.ea-overview-soft-status--teal{color:var(--der-teal-ink, #0f766e)}
+.ea-overview-soft-status-dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+}
+.ea-overview-soft-status-dot--success{background:var(--der-success, #16a34a)}
+.ea-overview-soft-status-dot--warning{background:var(--der-warning, #d97706)}
+.ea-overview-soft-status-dot--danger{background:var(--der-danger, #dc2626)}
+.ea-overview-soft-status-dot--muted{background:var(--der-ink-300, #94a3b8)}
+.ea-overview-soft-status-dot--primary{background:var(--der-primary, #1d4ed8)}
+.ea-overview-soft-status-dot--teal{background:var(--der-teal, #0d9488)}
 
-/* Status strip — four flat cells */
+/* Status strip — four soft cells. No outer border, hairline
+   vertical dividers only, 3-px top accent in the tone colour. */
 .ea-overview-status{
   display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
   gap:0;
-  margin:0 0 16px;
-  border:1px solid var(--der-border-subtle, #e5e7eb);
-  background:var(--der-surface, #fff);
+  margin:0 0 20px;
+  border-top:1px solid var(--der-border-subtle, #e5e7eb);
+  border-bottom:1px solid var(--der-border-subtle, #e5e7eb);
 }
 .ea-overview-status-cell{
   display:flex;flex-direction:column;gap:6px;
-  padding:14px 16px;
+  padding:12px 16px;
   text-decoration:none;color:inherit;
   border-right:1px solid var(--der-border-subtle, #e5e7eb);
-  border-top:3px solid transparent;
+  border-top:2px solid transparent;
   transition:background 0.12s ease;
 }
 .ea-overview-status-cell:last-child{border-right:0}
@@ -1915,7 +1942,7 @@ kbd{
 .ea-overview-status-cell--success{border-top-color:var(--der-success, #16a34a)}
 .ea-overview-status-cell--warning{border-top-color:var(--der-warning, #d97706)}
 .ea-overview-status-cell--danger{border-top-color:var(--der-danger, #dc2626)}
-.ea-overview-status-cell--muted{border-top-color:var(--der-border-strong, #cbd5e1)}
+.ea-overview-status-cell--muted{border-top-color:var(--der-ink-300, #94a3b8)}
 .ea-overview-status-label{
   font-size:11px;text-transform:uppercase;letter-spacing:0.08em;
   color:var(--der-ink-400, #64748b);font-weight:600;
@@ -1934,46 +1961,76 @@ kbd{
   .ea-overview-status-cell:last-child{border-bottom:0}
 }
 
-/* Attention strip — full-width rectangle, no radius */
-.ea-overview-attention{
-  margin:0 0 16px;padding:12px 16px;
-  background:var(--der-warning-soft, #fef3c7);
-  border:1px solid var(--der-warning, #d97706);
-  border-left:4px solid var(--der-warning, #d97706);
-  color:var(--der-ink-900, #0f172a);font-size:13px;
+/* Main dashboard row — main chart (2/3) + resources summary (1/3).
+ * Soft UI: no outer container card, panels sit on the canvas with
+ * a hairline divider between them only on wide viewports. */
+.ea-overview-dashboard{
+  display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);
+  gap:24px;
+  margin:0 0 24px;
 }
-.ea-overview-attention-link{
-  margin-left:8px;color:var(--der-warning-ink, #9a3412);font-weight:600;
+.ea-overview-dashboard > .ea-overview-panel + .ea-overview-panel{
+  padding-left:24px;
+  border-left:1px solid var(--der-border-subtle, #e5e7eb);
 }
-.ea-overview-attention-note{
-  margin-top:4px;font-size:12px;color:var(--der-ink-500, #475569);
+@media(max-width:1180px){
+  .ea-overview-dashboard{grid-template-columns:1fr;gap:20px}
+  .ea-overview-dashboard > .ea-overview-panel + .ea-overview-panel{
+    border-left:0;padding-left:0;
+    padding-top:20px;
+    border-top:1px solid var(--der-border-subtle, #e5e7eb);
+  }
 }
 
-/* Two-column row of panels (one wide + one standard) */
-.ea-overview-row-2{
-  display:grid;grid-template-columns:2fr 1fr;gap:16px;
-  margin:0 0 16px;
+/* Summary row inside the Resources panel */
+.ea-overview-summary-row{
+  display:flex;flex-direction:column;gap:6px;
+  padding:12px 0;
+  border-bottom:1px solid var(--der-border-subtle, #e5e7eb);
 }
-@media(max-width:1180px){.ea-overview-row-2{grid-template-columns:1fr}}
+.ea-overview-summary-row:first-of-type{padding-top:0}
+.ea-overview-summary-row:last-of-type{padding-bottom:0;border-bottom:0}
+.ea-overview-summary-head{
+  display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+}
+.ea-overview-summary-label{
+  font-size:11px;text-transform:uppercase;letter-spacing:0.08em;
+  color:var(--der-ink-400, #64748b);font-weight:600;
+}
+.ea-overview-summary-link{
+  font-size:11px;color:var(--der-primary, #1d4ed8);
+  text-decoration:none;font-weight:500;
+}
+.ea-overview-summary-link:hover{text-decoration:underline}
+.ea-overview-summary-metric{
+  font-size:18px;font-weight:600;color:var(--der-ink-900, #0f172a);
+  line-height:1.1;
+}
+.ea-overview-summary-caption{
+  font-size:11px;color:var(--der-ink-400, #64748b);
+}
+.ea-overview-panel--main{min-width:0}
+.ea-overview-panel--summary{min-width:0}
 
-/* Flat institutional panel */
+/* Soft-UI panel — no border, no background. Hierarchy comes
+   from the title and the content. Content area has its own
+   hairline dividers where they add clarity. */
 .ea-overview-panel{
-  background:var(--der-surface, #fff);
-  border:1px solid var(--der-border-subtle, #e5e7eb);
-  padding:14px 16px;
-  display:flex;flex-direction:column;gap:12px;
+  background:none;
+  border:0;
+  padding:0;
+  display:flex;flex-direction:column;gap:10px;
   min-width:0;
 }
 .ea-overview-panel-head{
   display:flex;align-items:baseline;justify-content:space-between;
   gap:12px;flex-wrap:wrap;
+  padding-bottom:8px;
+  border-bottom:1px solid var(--der-border-subtle, #e5e7eb);
 }
 .ea-overview-panel-head h2{
-  margin:0;font-size:14px;font-weight:600;letter-spacing:0.01em;
+  margin:0;font-size:15px;font-weight:600;letter-spacing:-0.005em;
   color:var(--der-ink-900, #0f172a);
-  text-transform:uppercase;
-  letter-spacing:0.06em;
-  color:var(--der-ink-700, #334155);
 }
 .ea-overview-panel-meta{
   display:flex;gap:6px;align-items:center;
@@ -2101,14 +2158,18 @@ kbd{
   color:var(--der-ink-700, #334155);
 }
 .ea-overview-table tr:last-child td{border-bottom:0}
+/* Soft-UI outcome label — colour only, no border, no fill. */
 .ea-overview-outcome{
-  display:inline-block;padding:1px 6px;
-  font-size:11px;font-weight:600;letter-spacing:0.04em;
-  border:1px solid currentColor;
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:12px;font-weight:600;letter-spacing:0.02em;
 }
-.ea-overview-outcome--ok{color:var(--der-success, #16a34a)}
-.ea-overview-outcome--fail{color:var(--der-danger, #dc2626)}
-.ea-overview-outcome--muted{color:var(--der-ink-400, #64748b)}
+.ea-overview-outcome::before{
+  content:'';display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:currentColor;
+}
+.ea-overview-outcome--ok{color:var(--der-success-ink, #166534)}
+.ea-overview-outcome--fail{color:var(--der-danger-ink, #991b1b)}
+.ea-overview-outcome--muted{color:var(--der-ink-500, #475569)}
 
 /* Action list (right panel) */
 .ea-overview-actions{display:flex;flex-direction:column;gap:2px}
