@@ -129,7 +129,7 @@ export function Hardware(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Zone</th><th>Temperature (°C)</th><th>Sampled</th>
               </tr></thead>
@@ -193,7 +193,7 @@ export function Hardware(): JSX.Element {
           <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>No LED zones.</p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Zone</th><th>Color</th><th>Pattern</th><th>Period</th>
                 <th>Label</th><th>Updated</th>
@@ -268,7 +268,7 @@ export function Hardware(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Secret ID</th><th>Algorithm</th><th>Sealed</th>
                 <th>Unseals</th><th>Last unseal</th><th>Description</th>

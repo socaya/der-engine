@@ -189,7 +189,7 @@ export function SystemApps(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="system-apps-table">
               <thead>
                 <tr>
@@ -349,7 +349,7 @@ export function SystemApps(): JSX.Element {
               {' · '}{syncReport.message ?? ''}
             </p>
             {syncReport.details.length > 0 && (
-              <table className="ea-table ea-table--dense">
+              <table className="ea-table ea-table--dense ea-table--nowrap">
                 <thead>
                   <tr>
                     <th>App</th>
@@ -404,7 +404,7 @@ export function SystemApps(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="system-apps-misses-table">
               <thead>
                 <tr>

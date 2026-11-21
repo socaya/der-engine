@@ -92,7 +92,7 @@ export function DeviceMessaging(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Channel</th><th>Messages (24 h)</th><th>Last activity</th>
               </tr></thead>
@@ -120,7 +120,7 @@ export function DeviceMessaging(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>When</th><th>Channel</th><th>From device</th>
                 <th>Type</th><th>Payload</th><th>Expires</th>
@@ -163,7 +163,7 @@ export function DeviceMessaging(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Device</th><th>Channel</th><th>Cursor</th><th>Last poll</th>
                 <th className="ea-col-w-48" aria-label="Actions"></th>
@@ -210,7 +210,7 @@ export function DeviceMessaging(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Device</th><th>X25519 pubkey</th><th>Ed25519 pubkey</th><th>Updated</th>
               </tr></thead>
@@ -248,7 +248,7 @@ export function DeviceMessaging(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Doc ID</th><th>Type</th><th>Created by</th>
                 <th>Ops</th><th>Last op</th>
@@ -280,7 +280,7 @@ export function DeviceMessaging(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>When</th><th>Target edge</th><th>Outcome</th>
                 <th>HTTP</th><th>Reason</th>

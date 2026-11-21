@@ -83,7 +83,7 @@ export function Fleet(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense" aria-label="Fleet roster">
+            <table className="ea-table ea-table--dense ea-table--nowrap" aria-label="Fleet roster">
               <thead><tr>
                 <th scope="col">Edge ID</th>
                 <th scope="col">Role</th>
@@ -123,7 +123,7 @@ export function Fleet(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense" aria-label="Peer health">
+            <table className="ea-table ea-table--dense ea-table--nowrap" aria-label="Peer health">
               <thead><tr>
                 <th scope="col">Node</th>
                 <th scope="col">Endpoint</th>

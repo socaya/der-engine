@@ -144,7 +144,7 @@ export function SystemInformation(): JSX.Element {
           ]} />
           {si.apps.items && si.apps.items.length > 0 && (
             <div className="ea-table-wrap" style={{ marginTop: 10 }}>
-              <table className="ea-table ea-table--dense">
+              <table className="ea-table ea-table--dense ea-table--nowrap">
                 <thead>
                   <tr><th>Key</th><th>Name</th><th>Version</th><th>Enabled</th></tr>
                 </thead>

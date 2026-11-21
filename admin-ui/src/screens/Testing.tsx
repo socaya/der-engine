@@ -124,7 +124,7 @@ export function Testing(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense" aria-label="Testing runs">
+            <table className="ea-table ea-table--dense ea-table--nowrap" aria-label="Testing runs">
               <thead><tr>
                 <th scope="col">Started</th>
                 <th scope="col">Kind</th>

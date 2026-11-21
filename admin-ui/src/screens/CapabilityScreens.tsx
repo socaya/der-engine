@@ -3257,27 +3257,25 @@ export function CapRoles(): JSX.Element {
       )}
 
       <Panel
-        title="Roles"
+        title={`${filtered.length} role${filtered.length === 1 ? '' : 's'}`}
         action={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="ea-data-filterbar" role="group" aria-label="Filters">
+            <select aria-label="Filter roles by type"
+                    data-test="cap-roles-filter"
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+                    className="ea-input ea-input--compact">
+              <option value="ALL">All types ({visible.length})</option>
+              <option value="BUILTIN">Built-in</option>
+              <option value="CUSTOM">Custom</option>
+            </select>
             <input type="search"
                    aria-label="Filter roles by name"
                    data-test="cap-roles-search"
                    placeholder="Search…"
                    value={search}
                    onChange={(e) => setSearch(e.target.value)}
-                   className="ea-input ea-col-w-180"
-                    />
-            <select aria-label="Filter roles by type"
-                    data-test="cap-roles-filter"
-                    value={typeFilter}
-                    onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
-                    className="ea-input"
-                    style={{ width: 130 }}>
-              <option value="ALL">All types</option>
-              <option value="BUILTIN">Built-in</option>
-              <option value="CUSTOM">Custom</option>
-            </select>
+                   className="ea-input ea-input--compact" />
           </div>
         }>
         {filtered.length === 0 ? (
@@ -3289,48 +3287,49 @@ export function CapRoles(): JSX.Element {
           </EmptyBlock>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table" data-test="cap-roles-table">
+            <table className="ea-table ea-table--dense ea-table--nowrap"
+                   data-test="cap-roles-table">
               <thead><tr>
                 <th>Role</th>
+                <th>Description</th>
                 <th className="ea-col-w-110">Type</th>
-                <th className="ea-text-right ea-col-w-120">Authorities</th>
-                <th className="ea-text-right ea-col-w-90">Users</th>
-                <th className="ea-col-w-160">Updated</th>
-                <th style={{ width: 40 }} aria-label="actions"></th>
+                <th className="ea-col-w-110 ea-text-right">Authorities</th>
+                <th className="ea-col-w-90 ea-text-right">Users</th>
+                <th className="ea-col-w-140 ea-text-right">Updated</th>
+                <th className="ea-col-w-48 ea-text-right" aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {filtered.map((r) => (
                   <tr key={r.roleId} data-test={`cap-roles-row-${r.roleId}`}>
-                    <td>
+                    <td className="ea-fw-medium">
                       <Link to={`/access/roles/${encodeURIComponent(r.roleId)}`}
                              data-test={`cap-roles-link-${r.roleId}`}
-                             style={{ fontWeight: 600, color: 'var(--der-ink-900)',
+                             style={{ color: 'var(--der-ink-900)',
                                       textDecoration: 'none' }}>
                         {r.name}
                       </Link>
-                      {r.description && (
-                        <div className="ea-text-muted ea-text-xs">
-                          {r.description}
-                        </div>
-                      )}
+                    </td>
+                    <td className="ea-text-muted ea-text-xs"
+                        title={r.description ?? ''}>
+                      {r.description ?? '—'}
                     </td>
                     <td data-test={`cap-roles-type-${r.roleId}`}>
                       {r.builtin
                         ? <Status tone="info">Built-in</Status>
                         : <Status tone="success">Custom</Status>}
                     </td>
-                    <td className="ea-text-right"
+                    <td className="ea-text-right ea-mono"
                         data-test={`cap-roles-auth-${r.roleId}`}>
                       {r.authorities.length}
                     </td>
-                    <td className="ea-text-right"
+                    <td className="ea-text-right ea-mono"
                         data-test={`cap-roles-userct-${r.roleId}`}>
                       {r.userCount}
                     </td>
-                    <td className="ea-text-muted ea-text-xs">
-                      {r.updatedAt.replace('T', ' ').slice(0, 16)}
+                    <td className="ea-text-muted ea-text-xs ea-text-right">
+                      {r.updatedAt.replace('T', ' ').slice(0, 10)}
                     </td>
-                    <td>
+                    <td className="ea-text-right">
                       <RowMenu items={[
                         { label: 'Edit',
                           to: `/access/roles/${encodeURIComponent(r.roleId)}` },
@@ -3533,28 +3532,26 @@ export function CapAuthorities(): JSX.Element {
         }
       />
       <Panel
-        title="Authorities"
+        title={`${filtered.length} authorit${filtered.length === 1 ? 'y' : 'ies'}`}
         action={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="ea-data-filterbar" role="group" aria-label="Filters">
+            <select aria-label="Filter authorities by module"
+                    data-test="cap-authorities-filter"
+                    value={moduleFilter}
+                    onChange={(e) => setModuleFilter(e.target.value)}
+                    className="ea-input ea-input--compact">
+              <option value="ALL">All modules</option>
+              {modules.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
             <input type="search"
                    aria-label="Filter authorities"
                    data-test="cap-authorities-search"
                    placeholder="Search…"
                    value={search}
                    onChange={(e) => setSearch(e.target.value)}
-                   className="ea-input ea-col-w-180"
-                    />
-            <select aria-label="Filter authorities by module"
-                    data-test="cap-authorities-filter"
-                    value={moduleFilter}
-                    onChange={(e) => setModuleFilter(e.target.value)}
-                    className="ea-input ea-col-w-160"
-                    >
-              <option value="ALL">All modules</option>
-              {modules.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
+                   className="ea-input ea-input--compact" />
           </div>
         }>
         {filtered.length === 0 ? (
@@ -3564,13 +3561,14 @@ export function CapAuthorities(): JSX.Element {
           </EmptyBlock>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table" data-test="cap-authorities-table">
+            <table className="ea-table ea-table--dense ea-table--nowrap"
+                   data-test="cap-authorities-table">
               <thead><tr>
                 <th className="ea-col-w-110">Module</th>
-                <th style={{ width: 260 }}>Authority</th>
+                <th className="ea-col-w-200">Authority</th>
                 <th>Allows</th>
                 <th>Restricts (when absent)</th>
-                <th className="ea-text-right ea-col-w-90">Roles</th>
+                <th className="ea-col-w-90 ea-text-right">Roles</th>
               </tr></thead>
               <tbody>
                 {filtered.map((a) => {
@@ -4025,10 +4023,13 @@ export function CapSessions(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="cap-sessions-audit">
               <thead><tr>
-                <th>When</th><th>Actor</th><th>Outcome</th><th>Client</th>
+                <th className="ea-col-w-140">When</th>
+                <th className="ea-col-w-140">Actor</th>
+                <th className="ea-col-w-110">Outcome</th>
+                <th>Client</th>
               </tr></thead>
               <tbody>
                 {recentAuth.map((e, i) => (

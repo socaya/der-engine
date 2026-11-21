@@ -281,7 +281,7 @@ export function DataQueues(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense ea-table--selectable"
+            <table className="ea-table ea-table--dense ea-table--selectable ea-table--nowrap"
                    style={{ width: '100%', tableLayout: 'auto' }}>
               <thead><tr>
                 <th className="ea-col-w-32"></th>
