@@ -73,7 +73,7 @@ export function SnapshotDiff({ api = edgeApi, aOverride, bOverride }:
             <h2>Headline counters</h2>
             <p>Per-resource row totals in each snapshot + the delta.</p>
           </div>
-          <table className="ea-table ea-table--dense" data-test="diff-counters">
+          <table className="ea-table ea-table--dense ea-table--nowrap" data-test="diff-counters">
             <thead>
               <tr>
                 <th>Resource</th>

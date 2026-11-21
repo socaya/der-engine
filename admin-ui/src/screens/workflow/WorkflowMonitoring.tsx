@@ -69,7 +69,7 @@ function PrefetchReadinessTable({ devices }: {
 
   return (
     <div className="ea-table-wrap">
-      <table className="ea-table ea-table--dense"
+      <table className="ea-table ea-table--dense ea-table--nowrap"
              data-test="wf-monitor-prefetch">
         <thead>
           <tr>
@@ -386,7 +386,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                  </span>
                : undefined}>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"
+          <table className="ea-table ea-table--dense ea-table--nowrap"
                  data-test="wf-monitor-blockages">
             <thead>
               <tr>
@@ -438,7 +438,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                  </span>
                : undefined}>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"
+          <table className="ea-table ea-table--dense ea-table--nowrap"
                  data-test="wf-monitor-issues">
             <thead>
               <tr>
@@ -492,7 +492,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                  </span>
                : undefined}>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"
+          <table className="ea-table ea-table--dense ea-table--nowrap"
                  data-test="wf-monitor-conflicts">
             <thead>
               <tr>
@@ -538,7 +538,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                  </span>
                : undefined}>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"
+          <table className="ea-table ea-table--dense ea-table--nowrap"
                  data-test="wf-monitor-drafts">
             <thead>
               <tr>
@@ -596,7 +596,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
 
       <Panel title="Recent activity">
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"
+          <table className="ea-table ea-table--dense ea-table--nowrap"
                  data-test="wf-monitor-feed">
             <thead>
               <tr>
@@ -649,7 +649,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
       <Panel title="By workflow"
              action={undefined}>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"
+          <table className="ea-table ea-table--dense ea-table--nowrap"
                  data-test="wf-monitor-by-workflow">
             <thead>
               <tr>
@@ -696,7 +696,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
       <Panel title="By owner device"
              action={undefined}>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"
+          <table className="ea-table ea-table--dense ea-table--nowrap"
                  data-test="wf-monitor-by-device">
             <thead>
               <tr>
@@ -769,7 +769,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
                </select>
              }>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"
+          <table className="ea-table ea-table--dense ea-table--nowrap"
                  data-test="wf-monitor-turnaround">
             <thead>
               <tr>
@@ -821,7 +821,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
       <div hidden={section !== 'performance'}>
       <Panel title={`Device turnaround · last ${windowHours} h`}>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"
+          <table className="ea-table ea-table--dense ea-table--nowrap"
                  data-test="wf-monitor-device-turnaround">
             <thead>
               <tr>
@@ -861,7 +861,7 @@ export function WorkflowMonitoring({ api = edgeApi }:
       <Panel title="Service-point pressure"
              action={undefined}>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"
+          <table className="ea-table ea-table--dense ea-table--nowrap"
                  data-test="wf-monitor-by-step">
             <thead>
               <tr>

@@ -241,7 +241,7 @@ export function SiteConfig(): JSX.Element {
 
       <Panel title="Settings">
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
+          <table className="ea-table ea-table--dense ea-table--nowrap" style={{ width: '100%' }}>
             <thead><tr>
               <th>Setting</th><th>Value</th>
               <th className="ea-col-w-120">
@@ -389,7 +389,7 @@ export function ConfigEditor(): JSX.Element {
 
       <Panel title="Settings">
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
+          <table className="ea-table ea-table--dense ea-table--nowrap" style={{ width: '100%' }}>
             <thead><tr>
               <th>Key</th><th>Value</th>
               <th className="ea-col-w-120">
@@ -445,7 +445,7 @@ export function ConfigEditor(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="config-history">
               <thead><tr>
                 <th>When</th><th>Actor</th><th>Change</th><th>Outcome</th>
@@ -591,7 +591,7 @@ export function OperationalReport(): JSX.Element {
                </Link>
              }>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense" data-test="ops-by-state">
+          <table className="ea-table ea-table--dense ea-table--nowrap" data-test="ops-by-state">
             <thead><tr><th>State</th><th>Count</th></tr></thead>
             <tbody>
               {Object.entries(report.byState).map(([state, count]) => (

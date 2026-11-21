@@ -215,7 +215,7 @@ export function BackupList(): JSX.Element {
               </dl>
               {verifyHist.length > 0 && (
                 <div className="ea-table-wrap" style={{ marginTop: 10 }}>
-                  <table className="ea-table ea-table--dense" data-test="verify-history">
+                  <table className="ea-table ea-table--dense ea-table--nowrap" data-test="verify-history">
                     <thead><tr>
                       <th>Verified</th><th>Backup run</th><th>Outcome</th>
                       <th>Duration</th><th>Reason</th>

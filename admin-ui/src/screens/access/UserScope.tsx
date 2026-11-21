@@ -124,7 +124,7 @@ export function UserScope(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>User</th><th>Origin</th>
                 {CANONICAL_ROLES.map((r) => (

@@ -108,7 +108,7 @@ export function WorkerHealthScreen(): JSX.Element {
             <p className="ea-text-muted">No items pending.</p>
           ) : (
             <div className="ea-table-wrap">
-              <table className="ea-table ea-table--dense">
+              <table className="ea-table ea-table--dense ea-table--nowrap">
                 <thead><tr><th>State</th><th>Operations</th></tr></thead>
                 <tbody>
                   {Object.entries(w.backlog).map(([k, v]) => (

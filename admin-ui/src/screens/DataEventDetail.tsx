@@ -189,7 +189,7 @@ export function DataEventDetail(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="event-data-values">
               <thead><tr>
                 <th>Data element</th>

@@ -213,7 +213,7 @@ export function NetworkOverview(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Observed</th><th>Event</th><th>Interface</th>
                 <th>Device / node</th><th>Actor</th><th>Outcome</th>
@@ -694,7 +694,7 @@ export function NetworkConnectedDevices(): JSX.Element {
             <p className="ea-text-muted" style={{ padding: 10 }}>No devices on the local network.</p>
           ) : (
             <div className="ea-table-wrap">
-              <table className="ea-table ea-table--dense">
+              <table className="ea-table ea-table--dense ea-table--nowrap">
                 <thead><tr>
                   <th>Device</th><th>User / Owner</th><th>IP</th>
                   <th>Link</th><th>Signal</th><th>Trust</th><th>Last seen</th>
@@ -777,7 +777,7 @@ function EnrolTokensPanel(): JSX.Element {
         </p>
       ) : (
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense">
+          <table className="ea-table ea-table--dense ea-table--nowrap">
             <thead><tr>
               <th>Token (truncated)</th><th>Hint</th><th>Issued</th><th>Expires</th>
               <th>Status</th><th className="ea-col-w-48" aria-label="Actions"></th>
@@ -983,7 +983,7 @@ export function NetworkInterfaces(): JSX.Element {
       ) : (
         <Panel title="Interfaces">
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Name</th><th>Kind</th><th>Purpose</th>
                 <th>State</th><th>Address</th><th>MAC</th><th>Link</th>
@@ -1030,7 +1030,7 @@ export function NetworkInterfaces(): JSX.Element {
           <p className="ea-text-muted" style={{ padding: 10 }}>No routes.</p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Destination</th><th>Gateway</th><th>Interface</th>
                 <th>Metric</th><th>Source</th><th>Active</th>
@@ -1071,7 +1071,7 @@ export function NetworkInterfaces(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>MAC</th><th>IP</th><th>Hostname</th><th>Issued</th><th>Expires</th><th>Kind</th>
                 <th className="ea-col-w-48" aria-label="Actions"></th>
@@ -1309,7 +1309,7 @@ export function NetworkPeers(): JSX.Element {
       ) : (
         <Panel title="Peer links">
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Node</th><th>Site</th><th>Endpoint</th><th>State</th>
                 <th>Last handshake</th><th>Trust</th>
@@ -1522,7 +1522,7 @@ export function NetworkSecurity(): JSX.Element {
       />
 
       <Panel title="Firewall policy">
-        <table className="ea-table ea-table--dense" style={{ margin: 10 }}>
+        <table className="ea-table ea-table--dense ea-table--nowrap" style={{ margin: 10 }}>
           <thead><tr>
             <th style={{ width: 56 }}>#</th>
             <th>Source</th><th>Destination</th><th>Action</th><th>Note</th>
@@ -1825,7 +1825,7 @@ export function NetworkDiagnostics(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Observed</th><th>Event</th><th>Interface</th>
                 <th>Device / node</th><th>Outcome</th><th>Reason</th>
@@ -1888,7 +1888,7 @@ function MdnsPanel(): JSX.Element {
         </p>
       ) : (
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense">
+          <table className="ea-table ea-table--dense ea-table--nowrap">
             <thead><tr>
               <th>Service type</th><th>Host</th><th>Port</th><th>Description</th>
             </tr></thead>
@@ -2036,7 +2036,7 @@ export function NetworkSettings(): JSX.Element {
           <p className="ea-text-muted" style={{ padding: 10 }}>No settings.</p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr><th style={{ width: 280 }}>Key</th><th>Value</th>
                 <th className="ea-col-w-48" aria-label="Actions"></th></tr></thead>
               <tbody>

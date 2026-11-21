@@ -926,7 +926,7 @@ export function CapProgramRules(): JSX.Element {
             </EmptyBlock>
           ) : (
             <div className="ea-table-wrap">
-              <table className="ea-table ea-table--dense" data-test="cap-rules-table">
+              <table className="ea-table ea-table--dense ea-table--nowrap" data-test="cap-rules-table">
                 <thead><tr>
                   <th>Name</th>
                   <th className="ea-col-w-240">ID</th>
@@ -1149,7 +1149,7 @@ export function CapSyncHistory(): JSX.Element {
           </EmptyBlock>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense" data-test="cap-sync-history-table">
+            <table className="ea-table ea-table--dense ea-table--nowrap" data-test="cap-sync-history-table">
               <thead><tr>
                 <th>Started</th>
                 <th>Job</th>
@@ -1261,7 +1261,7 @@ export function CapDataQueues(): JSX.Element {
           </EmptyBlock>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="cap-queues-backlog">
               <thead><tr>
                 <th className="ea-col-w-140">State</th>
@@ -1418,7 +1418,7 @@ function RecentPullsTable(
   const paged = usePaged(history, 25);
   return (
     <div className="ea-table-wrap">
-      <table className="ea-table ea-table--dense ea-table--selectable">
+      <table className="ea-table ea-table--dense ea-table--selectable ea-table--nowrap">
         <thead><tr>
           <th>When</th>
           <th>Result</th>
@@ -1769,7 +1769,7 @@ export function CapSyncSchedule(): JSX.Element {
       ) : (
         <Panel title="Scheduled flows">
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense ea-table--selectable">
+            <table className="ea-table ea-table--dense ea-table--selectable ea-table--nowrap">
               <thead>
                 <tr>
                   <th className="ea-col-w-32"></th>
@@ -1998,7 +1998,7 @@ function WorkflowRunsTable(
   const paged = usePaged(runs, 25);
   return (
     <div className="ea-table-wrap">
-      <table className="ea-table ea-table--dense">
+      <table className="ea-table ea-table--dense ea-table--nowrap">
         <thead><tr>
           <th>Workflow</th><th>Status</th><th>Business key</th><th>Started</th>
         </tr></thead>
@@ -2074,7 +2074,7 @@ export function CapStepAssignments(): JSX.Element {
       ) : (
         <Panel title="Assignments">
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"><thead><tr>
+            <table className="ea-table ea-table--dense ea-table--nowrap"><thead><tr>
               {!scopedWorkflow && <th>Workflow</th>}
               <th style={{ width: 60 }}>Step</th>
               <th>Name</th>
@@ -2190,7 +2190,7 @@ function ReferralHistoryTable(
   const paged = usePaged(rows, 25);
   return (
     <div className="ea-table-wrap">
-      <table className="ea-table ea-table--dense">
+      <table className="ea-table ea-table--dense ea-table--nowrap">
         <thead><tr>
           <th>Received</th><th>Kind</th><th>Source ref</th><th>Status</th>
         </tr></thead>
@@ -3142,7 +3142,7 @@ export function CapUserMappings(): JSX.Element {
       />
       <Panel title="Edge users">
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"><thead><tr>
+          <table className="ea-table ea-table--dense ea-table--nowrap"><thead><tr>
             <th>Edge user</th><th>Roles</th><th className="ea-col-w-160">DHIS2 mapping</th>
           </tr></thead><tbody>
             {users.map((u) => (
@@ -3691,7 +3691,7 @@ export function AuthorityDetailPage(): JSX.Element {
           </EmptyBlock>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table" data-test="authority-detail-roles">
+            <table className="ea-table ea-table--dense ea-table--nowrap" data-test="authority-detail-roles">
               <thead><tr>
                 <th>Role</th>
                 <th className="ea-col-w-110">Type</th>
@@ -4252,7 +4252,7 @@ export function CapDeviceEnrolment(): JSX.Element {
       ) : (
         <Panel title={`${pending.length} pending device${pending.length === 1 ? '' : 's'}`}>
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="cap-enrolment-pending">
               <thead><tr>
                 <th>Device</th><th>Form factor</th><th>Enrolled</th>
@@ -4424,7 +4424,7 @@ export function CapOwnership(): JSX.Element {
             </p>
           ) : (
             <div className="ea-table-wrap">
-              <table className="ea-table ea-table--dense">
+              <table className="ea-table ea-table--dense ea-table--nowrap">
                 <thead><tr>
                   <th>Device</th><th>Assigned user</th>
                   <th>Status</th><th>Last seen</th>
@@ -4556,7 +4556,7 @@ export function CapConnections(): JSX.Element {
             </p>
           ) : (
             <div className="ea-table-wrap">
-              <table className="ea-table ea-table--dense">
+              <table className="ea-table ea-table--dense ea-table--nowrap">
                 <thead><tr>
                   <th>Device</th><th>Last seen</th>
                   <th>Firmware</th><th>User agent</th>
@@ -4717,7 +4717,7 @@ export function CapDeviceDiagnostics(): JSX.Element {
                  </label>
                }>
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Device</th><th>Status</th>
                 <th>Firmware</th><th>Last seen</th><th>Enrolled</th>
@@ -4868,7 +4868,7 @@ export function CapOperatorMetrics(): JSX.Element {
           </EmptyBlock>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense" data-test="cap-metrics-table">
+            <table className="ea-table ea-table--dense ea-table--nowrap" data-test="cap-metrics-table">
               <thead><tr>
                 <th>Job</th>
                 <th className="ea-text-right ea-col-w-100">Succeeded</th>
@@ -4980,7 +4980,7 @@ export function CapServiceHealth(): JSX.Element {
                </span>
              }>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense" data-test="cap-health-components">
+          <table className="ea-table ea-table--dense ea-table--nowrap" data-test="cap-health-components">
             <thead><tr>
               <th>Component</th>
               <th className="ea-col-w-90">Status</th>

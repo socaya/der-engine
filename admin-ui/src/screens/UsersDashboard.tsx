@@ -407,7 +407,7 @@ export function UserDetail(): JSX.Element {
                   Nothing in the last 50 security_audit rows for this user.
                 </EmptyBlock>
               : (
-                <table className="ea-table ea-table--dense"
+                <table className="ea-table ea-table--dense ea-table--nowrap"
                        data-test="user-detail-activity">
                   <thead>
                     <tr>

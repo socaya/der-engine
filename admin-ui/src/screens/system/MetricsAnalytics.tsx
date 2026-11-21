@@ -205,7 +205,7 @@ export function FacilityAnalytics(): JSX.Element {
           <p className="ea-text-muted">No captured data yet.</p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr><th>Entity</th><th>Count</th></tr></thead>
               <tbody>
                 {journal.map(([k, v]) => (

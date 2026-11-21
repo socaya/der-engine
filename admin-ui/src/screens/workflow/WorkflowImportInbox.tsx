@@ -178,7 +178,7 @@ export function WorkflowImportInbox({ api = edgeApi, embedded = false }:
           </EmptyBlock>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense" data-test="inbox-table">
+            <table className="ea-table ea-table--dense ea-table--nowrap" data-test="inbox-table">
           <thead>
             <tr>
               <th>Workflow</th>

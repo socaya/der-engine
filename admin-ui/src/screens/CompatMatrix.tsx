@@ -110,7 +110,7 @@ export function CompatMatrix(): JSX.Element {
       {tab === 'overview' && (<>
       <Panel title="Supported DHIS2 version matrix">
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense">
+          <table className="ea-table ea-table--dense ea-table--nowrap">
             <thead><tr>
               <th>DHIS2</th>
               <th>Profile</th>
@@ -154,7 +154,7 @@ export function CompatMatrix(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr><th style={{ width: '36%' }}>Capability</th><th>Value</th></tr></thead>
               <tbody>
                 {Object.entries(snap.capabilities).map(([k, v]) => (
@@ -194,7 +194,7 @@ function SnapshotHistoryPanel({ history }: { history: edgeApi.CompatSnapshot[] }
         <p className="ea-text-muted">No snapshots recorded.</p>
       ) : (
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense">
+          <table className="ea-table ea-table--dense ea-table--nowrap">
             <thead><tr>
               <th>Snapshot</th><th>Checked at</th><th>Central version</th>
               <th>Profile</th><th>Reachable</th><th>Response time</th><th>Note</th>

@@ -104,7 +104,7 @@ export function AuditEvents(): JSX.Element {
             </p>
           ) : (
             <div className="ea-table-wrap">
-              <table className="ea-table ea-table--dense">
+              <table className="ea-table ea-table--dense ea-table--nowrap">
                 <thead><tr>
                   <th>Observed</th><th>Event</th><th>Interface</th>
                   <th>Device / node</th><th>Actor</th><th>Outcome</th><th>Reason</th>
@@ -161,7 +161,7 @@ export function AuditEvents(): JSX.Element {
                              placeholder="Filter by event type"
                              value={query} onChange={(e) => setQuery(e.target.value)} />}>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense">
+          <table className="ea-table ea-table--dense ea-table--nowrap">
             <thead><tr><th>Observed</th><th>Event</th><th>Outcome</th><th>User</th></tr></thead>
             <tbody>
               {paged.rows.map((e) => (
@@ -438,7 +438,7 @@ export function SecurityAuditTrail(): JSX.Element {
               </EmptyBlock>
             : (
               <div className="ea-table-wrap">
-                <table className="ea-table ea-table--dense"
+                <table className="ea-table ea-table--dense ea-table--nowrap"
                        data-test="audit-trail-table">
                   <thead><tr>
                     <th>Observed</th>

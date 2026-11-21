@@ -146,7 +146,7 @@ export function WorkflowRunDetail(): JSX.Element {
 
       <Panel title="Steps">
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"
+          <table className="ea-table ea-table--dense ea-table--nowrap"
                  data-test="wf-run-detail-steps">
             <thead>
               <tr>
@@ -233,7 +233,7 @@ export function WorkflowRunDetail(): JSX.Element {
                  {detail.issues.length} issue{detail.issues.length === 1 ? '' : 's'}
                </span>}>
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="wf-run-detail-issues">
               <thead>
                 <tr>
@@ -275,7 +275,7 @@ export function WorkflowRunDetail(): JSX.Element {
                  {detail.conflicts.length} conflict{detail.conflicts.length === 1 ? '' : 's'}
                </span>}>
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="wf-run-detail-conflicts">
               <thead>
                 <tr>
@@ -478,7 +478,7 @@ function OutboundBundlePanel({ runId }: { runId: string }): JSX.Element {
         )}
       </div>
       <div className="ea-table-wrap">
-        <table className="ea-table ea-table--dense"
+        <table className="ea-table ea-table--dense ea-table--nowrap"
                 data-test="wf-run-manifest-table">
           <thead><tr>
             <th>Entity</th>

@@ -146,7 +146,7 @@ export function WorkflowActivity({ api = edgeApi }:
       <Panel title="Workflow catalogue"
              action={<Link to="/workflows/manage" className="ea-link-btn">Manage</Link>}>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense" data-test="wf-activity-catalogue">
+          <table className="ea-table ea-table--dense ea-table--nowrap" data-test="wf-activity-catalogue">
             <thead>
               <tr>
                 <th>Workflow</th>
@@ -193,7 +193,7 @@ export function WorkflowActivity({ api = edgeApi }:
 
       <Panel title="Operational queues">
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"
+          <table className="ea-table ea-table--dense ea-table--nowrap"
                  data-test="wf-activity-queues">
             <thead>
               <tr>

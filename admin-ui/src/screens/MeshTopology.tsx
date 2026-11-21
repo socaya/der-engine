@@ -134,7 +134,7 @@ export function MeshTopology(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense" aria-label="Direct peers">
+            <table className="ea-table ea-table--dense ea-table--nowrap" aria-label="Direct peers">
               <thead><tr>
                 <th scope="col">Node ID</th>
                 <th scope="col">Endpoint</th>
@@ -180,7 +180,7 @@ export function MeshTopology(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense" aria-label="Transitive reachability">
+            <table className="ea-table ea-table--dense ea-table--nowrap" aria-label="Transitive reachability">
               <thead><tr>
                 <th scope="col">Via (local peer)</th>
                 <th scope="col">Reaches</th>

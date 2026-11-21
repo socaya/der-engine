@@ -498,7 +498,7 @@ function MetadataDetailTabs({ sel, tab, setTab }: {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="meta-relationships">
               <thead><tr>
                 <th className="ea-col-w-180">Field</th>
@@ -557,7 +557,7 @@ function MetadataDetailTabs({ sel, tab, setTab }: {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="meta-rules">
               <thead><tr>
                 <th className="ea-col-w-140">Kind</th>

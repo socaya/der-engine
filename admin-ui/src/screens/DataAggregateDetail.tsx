@@ -235,7 +235,7 @@ export function JournalPanel(
         </p>
       ) : (
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"
+          <table className="ea-table ea-table--dense ea-table--nowrap"
                  data-test="journal-history">
             <thead><tr>
               <th style={{ width: 130 }}>Logged</th>

@@ -222,7 +222,7 @@ export function WorkflowPeers({ api = edgeApi, embedded = false }:
               Fill in the form above to register the first peer edge.
             </EmptyBlock>
           ) : (
-            <table className="ea-table ea-table--dense" data-test="peers-table">
+            <table className="ea-table ea-table--dense ea-table--nowrap" data-test="peers-table">
               <thead>
                 <tr>
                   <th>Peer</th>

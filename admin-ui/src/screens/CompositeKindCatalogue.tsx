@@ -225,7 +225,7 @@ export function CompositeKindCatalogue(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="compkinds-table">
               <thead>
                 <tr>

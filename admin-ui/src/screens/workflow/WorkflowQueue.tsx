@@ -153,7 +153,7 @@ export function WorkflowQueue({ api = edgeApi }:
           </EmptyBlock>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense" data-test="queue-table">
+            <table className="ea-table ea-table--dense ea-table--nowrap" data-test="queue-table">
               <thead>
                 <tr>
                   <th>Workflow</th>

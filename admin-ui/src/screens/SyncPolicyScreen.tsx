@@ -393,7 +393,7 @@ function PolicyAuditPanel(
         </p>
       ) : (
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense"
+          <table className="ea-table ea-table--dense ea-table--nowrap"
                  data-test="sync-policy-audit">
             <thead>
               <tr><th>When</th><th>Event</th><th>Detail</th></tr>

@@ -84,7 +84,7 @@ export function Packaging(): JSX.Element {
 
       <Panel title="Reference hardware kits">
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense" aria-label="Reference hardware kits">
+          <table className="ea-table ea-table--dense ea-table--nowrap" aria-label="Reference hardware kits">
             <thead><tr>
               <th scope="col">Kit</th>
               <th scope="col">Name</th>
@@ -117,7 +117,7 @@ export function Packaging(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense" aria-label="Artefact registry">
+            <table className="ea-table ea-table--dense ea-table--nowrap" aria-label="Artefact registry">
               <thead><tr>
                 <th scope="col">Built</th>
                 <th scope="col">Kind</th>

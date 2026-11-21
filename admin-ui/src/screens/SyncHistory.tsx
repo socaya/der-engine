@@ -326,7 +326,7 @@ export function SyncHistoryDetail(): JSX.Element {
               <p className="ea-text-muted" style={{ margin: '0 0 12px', fontSize: 12 }}>
                 Current snapshot of what metadata this edge holds after the pull.
               </p>
-              <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
+              <table className="ea-table ea-table--dense ea-table--nowrap" style={{ width: '100%' }}>
                 <thead><tr>
                   <th>Metadata type</th>
                   <th className="ea-text-right ea-col-w-120">Records</th>
@@ -400,7 +400,7 @@ export function SyncHistoryDetail(): JSX.Element {
 
           {parseByType(sel.detail).length > 0 && (
             <Panel title="Breakdown by data type">
-              <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
+              <table className="ea-table ea-table--dense ea-table--nowrap" style={{ width: '100%' }}>
                 <thead><tr>
                   <th className="ea-col-w-32"></th>
                   <th>Data type</th>
@@ -494,7 +494,7 @@ export function SyncHistoryDetail(): JSX.Element {
             }
             return (
               <Panel title="Payload">
-                <table className="ea-table ea-table--dense" style={{ width: '100%' }}>
+                <table className="ea-table ea-table--dense ea-table--nowrap" style={{ width: '100%' }}>
                   <tbody>
                     {entries.map(([k, v]) => (
                       <tr key={k}>

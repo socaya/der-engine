@@ -217,7 +217,7 @@ export function DataTeiDetail(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="tei-attributes">
               <thead><tr>
                 <th>Attribute (UID)</th>
@@ -243,7 +243,7 @@ export function DataTeiDetail(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="tei-enrolments">
               <thead><tr>
                 <th className="ea-col-w-140">Enrollment UID</th>
@@ -313,7 +313,7 @@ export function DataTeiDetail(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="tei-tracker-events">
               <thead><tr>
                 <th className="ea-col-w-140">Event UID</th>

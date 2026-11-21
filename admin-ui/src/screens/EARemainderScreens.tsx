@@ -472,7 +472,7 @@ export function EADiagnostics({ api = edgeApi }: {
           </EmptyBlock>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense" data-test="ea35-journal">
+            <table className="ea-table ea-table--dense ea-table--nowrap" data-test="ea35-journal">
               <thead><tr>
                 <th className="ea-col-w-140">State</th>
                 <th className="ea-text-right">Operations</th>
