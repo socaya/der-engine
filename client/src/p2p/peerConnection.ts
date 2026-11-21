@@ -61,6 +61,13 @@ export class PeerConnectionManager {
   private remoteDevice: string | null = null;
   private role: 'initiator' | 'responder' | null = null;
   private kind: PeerChannelKind = 'data';
+  /** Initiator side — ICE candidates fire during setLocalDescription
+   *  which happens BEFORE signaling.offer() returns the sessionId.
+   *  Without this buffer the trickle path drops them silently; later
+   *  peers without the embedded SDP candidates (relayed, TURN) fail
+   *  to connect. Flushed to signaling.postIce() once sessionId lands. */
+  private pendingCandidates: Array<{ sdp: string; mid: string | null;
+      mLineIndex: number | null }> = [];
 
   private status: P2PConnectionStatus = 'idle';
   private lastChangeAt = new Date().toISOString();
@@ -105,6 +112,7 @@ export class PeerConnectionManager {
         this.pc.localDescription!.sdp,
         kind,
       );
+      this.flushPendingIce();
       this.startPolling();
     } catch (ex) {
       this.emitError(ex, 'offer');
@@ -212,21 +220,40 @@ export class PeerConnectionManager {
 
   // ---- internals ----
 
+  /** Called after the initiator's sessionId has been assigned —
+   *  flush every ICE candidate that gathered during
+   *  setLocalDescription (before the signaling call returned). */
+  private flushPendingIce(): void {
+    if (!this.sessionId) return;
+    const sid = this.sessionId;
+    const buffered = this.pendingCandidates;
+    this.pendingCandidates = [];
+    for (const c of buffered) {
+      this.signaling
+        .postIce(sid, c.sdp, c.mid, c.mLineIndex)
+        .catch((ex) => this.emitError(ex, 'postIce'));
+    }
+  }
+
   private newPc(): RTCPeerConnection {
     const pc = new RTCPeerConnection({ iceServers: [...this.opts.iceServers] });
     pc.onicecandidate = (ev) => {
-      if (!ev.candidate || !this.sessionId) {
+      if (!ev.candidate) {
         return;
       }
-      // Trickle: push each candidate as it arrives instead of waiting
-      // for gathering to finish. Keeps handshake snappy on LAN.
+      const c = {
+        sdp: ev.candidate.candidate,
+        mid: ev.candidate.sdpMid ?? null,
+        mLineIndex: ev.candidate.sdpMLineIndex ?? null,
+      };
+      if (!this.sessionId) {
+        // Initiator ICE gathering fires BEFORE signaling.offer()
+        // returns. Buffer until sessionId lands; see flushPendingIce.
+        this.pendingCandidates.push(c);
+        return;
+      }
       this.signaling
-        .postIce(
-          this.sessionId,
-          ev.candidate.candidate,
-          ev.candidate.sdpMid ?? null,
-          ev.candidate.sdpMLineIndex ?? null,
-        )
+        .postIce(this.sessionId, c.sdp, c.mid, c.mLineIndex)
         .catch((ex) => this.emitError(ex, 'postIce'));
     };
     pc.oniceconnectionstatechange = () => {

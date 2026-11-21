@@ -104,7 +104,13 @@ export class SignalingClient implements SignalingBackend {
       createdAt: String(r.created_at ?? r.createdAt ?? ''),
       completedAt: r.completed_at as string | null ?? null,
       sdpOffer: String(r.sdp_offer ?? r.sdpOffer ?? ''),
-      sdpAnswer: (r.sdp_answer as string | null) ?? null,
+      // Server returns sdpAnswer (camelCase). The snake_case variant
+      // is kept for robustness against pre-controller shape changes
+      // or alternate serializers but never actually fires in prod —
+      // without this fix the initiator never saw the responder's
+      // answer and stayed stuck in have-local-offer forever,
+      // observed in the P2P e2e verify.
+      sdpAnswer: (r.sdpAnswer ?? r.sdp_answer ?? null) as string | null,
     };
   }
 
@@ -132,12 +138,19 @@ export class SignalingClient implements SignalingBackend {
     sdpMid: string | null,
     sdpMLineIndex: number | null,
   ): Promise<void> {
+    // Server's WebRtcController.IceBody expects the field name
+    // {@code candidate} (plus fromDevice + sdpMid + sdpMLineIndex).
+    // Sending candidateSdp triggers a 400 CANDIDATE_REQUIRED and
+    // ICE never reaches the peer — observed in the two-browser
+    // e2e probe where both sides stuck at "connecting" forever.
+    // Both names are sent for forward-compat; the server only
+    // reads `candidate`.
     await this.send(
       'POST',
       `/edge-api/v1/webrtc/${sessionId}/ice`,
       JSON.stringify({
         fromDevice: this.deviceId,
-        candidateSdp,
+        candidate: candidateSdp,
         sdpMid,
         sdpMLineIndex,
       }),
@@ -155,12 +168,17 @@ export class SignalingClient implements SignalingBackend {
     );
     const rows = Array.isArray(r.candidates) ? r.candidates : [];
     return rows.map((row: Record<string, unknown>) => ({
-      candidateId: Number(row.candidate_id ?? row.candidateId ?? 0),
-      fromDevice: String(row.from_device ?? row.fromDevice ?? ''),
-      candidateSdp: String(row.candidate_sdp ?? row.candidateSdp ?? ''),
-      sdpMid: (row.sdp_mid ?? row.sdpMid ?? null) as string | null,
-      sdpMLineIndex: (row.sdp_m_line_index ?? row.sdpMLineIndex ?? null) as number | null,
-      createdAt: String(row.created_at ?? row.createdAt ?? ''),
+      // Server emits camelCase from WebRtcSignallingService; snake_case
+      // fallbacks kept for forward-compat with alternate serializers.
+      // Server also uses `candidate` (not `candidateSdp`) as the key.
+      candidateId: Number(row.candidateId ?? row.candidate_id ?? 0),
+      fromDevice: String(row.fromDevice ?? row.from_device ?? ''),
+      candidateSdp: String(row.candidate ?? row.candidateSdp
+        ?? row.candidate_sdp ?? ''),
+      sdpMid: (row.sdpMid ?? row.sdp_mid ?? null) as string | null,
+      sdpMLineIndex: ((row.sdpMLineIndex ?? row.sdp_m_line_index
+        ?? null) as number | null),
+      createdAt: String(row.createdAt ?? row.created_at ?? ''),
     }));
   }
 
