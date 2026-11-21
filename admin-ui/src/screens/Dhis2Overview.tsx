@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { fmtAgo, fmtDate, SyncStatusBar } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
@@ -20,8 +19,6 @@ import { UiIcon } from '../components/UiIcon';
 export function Dhis2Overview(): JSX.Element {
   const [si, setSi] = useState<edgeApi.SystemInfo | null>(null);
   const [c, setC] = useState<edgeApi.CompatSnapshot | null>(null);
-  const [b, setB] = useState<edgeApi.OrgUnitBinding | null>(null);
-  const [d, setD] = useState<edgeApi.DriftResponse | null>(null);
   const [cfg, setCfg] = useState<edgeApi.Dhis2ConnectionPayload | null>(null);
   const [draft, setDraft] = useState<Partial<edgeApi.Dhis2ConnectionPayload>>({});
   const [refreshing, setRefreshing] = useState(false);
@@ -29,17 +26,18 @@ export function Dhis2Overview(): JSX.Element {
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
+  /* Phase-4B: the Related-tiles block was removed, so this page no
+   * longer needs to load the org-unit binding or metadata-drift
+   * snapshots. The 3 remaining probes (system info, compat, saved
+   * connection) are all that render on this page now. */
   async function reload(): Promise<void> {
     const r = await Promise.allSettled([
       edgeApi.systemInfo(), edgeApi.compat(),
-      edgeApi.getOrgUnitBinding(), edgeApi.drift(),
       edgeApi.readDhis2Connection(),
     ]);
     if (r[0].status === 'fulfilled') setSi(r[0].value);
     if (r[1].status === 'fulfilled') setC(r[1].value);
-    if (r[2].status === 'fulfilled') setB(r[2].value);
-    if (r[3].status === 'fulfilled') setD(r[3].value);
-    if (r[4].status === 'fulfilled') { setCfg(r[4].value); setDraft(r[4].value); }
+    if (r[2].status === 'fulfilled') { setCfg(r[2].value); setDraft(r[2].value); }
   }
   useEffect(() => { reload().catch(() => undefined); }, []);
 
@@ -72,8 +70,6 @@ export function Dhis2Overview(): JSX.Element {
   if (!si || !c || !cfg) return <LoadingBlock testId="loading" />;
 
   const reach = c.probeReachable;
-  const bound = b?.bound ?? false;
-  const drift = d?.fingerprintFrom && d?.fingerprintTo && d.fingerprintFrom !== d.fingerprintTo;
   const authKind: 'PAT' | 'Basic' | 'none' = cfg.patTokenSet ? 'PAT' : cfg.passwordSet ? 'Basic' : 'none';
 
   return (
@@ -247,54 +243,11 @@ export function Dhis2Overview(): JSX.Element {
         </div>
       </section>
 
-      <section>
-        <div className="ea-section-title">Related</div>
-        <div className="ea-tile-grid">
-          <Link to="/dhis2/organisation-unit" className="ea-link-tile">
-            <div className="ea-link-tile-icon" aria-hidden="true">⌖</div>
-            <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Organisation unit</div>
-              <div className="ea-link-tile-desc">
-                {bound ? `Bound to ${b?.orgUnitDisplayName}` : 'Not bound yet — pick a facility.'}
-              </div>
-            </div>
-          </Link>
-          <Link to="/dhis2/compat" className="ea-link-tile">
-            <div className="ea-link-tile-icon" aria-hidden="true">✓</div>
-            <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Compatibility</div>
-              <div className="ea-link-tile-desc">
-                Last check {c.capturedAt ? fmtAgo(c.capturedAt) : '—'}.
-              </div>
-            </div>
-          </Link>
-          <Link to="/dhis2/metadata" className="ea-link-tile">
-            <div className="ea-link-tile-icon" aria-hidden="true">◱</div>
-            <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Metadata</div>
-              <div className="ea-link-tile-desc">Read-only mirror of every DHIS2 metadata resource.</div>
-            </div>
-          </Link>
-          <Link to="/dhis2/metadata-sync" className="ea-link-tile">
-            <div className="ea-link-tile-icon" aria-hidden="true">▶</div>
-            <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Metadata sync</div>
-              <div className="ea-link-tile-desc">Trigger an immediate metadata pull from central.</div>
-            </div>
-          </Link>
-          <Link to="/dhis2/metadata-drift" className="ea-link-tile">
-            <div className="ea-link-tile-icon" aria-hidden="true">≠</div>
-            <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Metadata changes</div>
-              <div className="ea-link-tile-desc">
-                {drift
-                  ? 'Metadata changes detected — review before next sync.'
-                  : 'Local metadata matches Central.'}
-              </div>
-            </div>
-          </Link>
-        </div>
-      </section>
+      {/* Phase-4B: the "Related" tile grid (Organisation unit /
+          Compatibility / Metadata / Metadata sync / Metadata changes)
+          was removed — every destination is already one click away
+          via the top SectionTabs strip in the DHIS2 Connection
+          group, so the tiles were redundant visual noise. */}
 
       <section>
         <div className="ea-section-title">Connection check details</div>

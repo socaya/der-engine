@@ -107,12 +107,13 @@ describe('Dhis2Overview', () => {
   });
 
   it('tolerates fetch rejections for optional slices and still renders', async () => {
-    vi.mocked(mockedApi.getOrgUnitBinding).mockRejectedValue(new Error('ou-fail'));
-    vi.mocked(mockedApi.drift).mockRejectedValue(new Error('drift-fail'));
+    /* Phase-4B: the Related tiles block (Org-unit / Compat /
+     * Metadata / Metadata sync / Metadata changes) was removed —
+     * the hub no longer loads getOrgUnitBinding or drift, so a
+     * reject on either is irrelevant. Assertion simplified to
+     * "hub still mounts". */
     renderScreen();
     await waitFor(() => expect(screen.getByTestId('cap-dhis2-hub')).toBeInTheDocument());
-    // Related tiles still render even without a binding → shows the unbound caption.
-    expect(screen.getByText(/Not bound yet/i)).toBeInTheDocument();
   });
 
   it('renders populated hub with status strip and connection form', async () => {
@@ -120,19 +121,18 @@ describe('Dhis2Overview', () => {
     await waitFor(() => expect(screen.getByTestId('cap-dhis2-hub')).toBeInTheDocument());
     expect(screen.getByText(/Central reachable/)).toBeInTheDocument();
     expect(screen.getByTestId('dhis2-connection-form')).toBeInTheDocument();
-    // Related tile for bound OU shows the display name.
-    expect(screen.getByText(/Bound to Clinic/)).toBeInTheDocument();
-    // Probe button + save button present.
+    /* Probe button + save button present. (Related tile
+     * "Bound to Clinic" assertion dropped — tile row removed.) */
     expect(screen.getByTestId('dhis2-probe-now')).toBeInTheDocument();
     expect(screen.getByTestId('dhis2-save')).toBeInTheDocument();
   });
 
-  it('renders unreachable tone + "Not bound yet" when central is down and unbound', async () => {
+  it('renders unreachable tone when central is down', async () => {
+    /* Phase-4B: "Not bound yet" assertion dropped with the
+     * Related tiles. */
     vi.mocked(mockedApi.compat).mockResolvedValue(compat(false));
-    vi.mocked(mockedApi.getOrgUnitBinding).mockResolvedValue(binding(false));
     renderScreen();
     await waitFor(() => expect(screen.getByText(/Central unreachable/)).toBeInTheDocument());
-    expect(screen.getByText(/Not bound yet/)).toBeInTheDocument();
   });
 
   it('"Probe now" calls refreshCompat and systemInfo', async () => {
@@ -264,15 +264,10 @@ describe('Dhis2Overview', () => {
     expect(payload.patToken).toBe('d2pat_abc');
   });
 
-  it('shows metadata-changes tile copy when fingerprints differ', async () => {
-    /* Phase 4B terminology: "Drift detected" renamed to
-     * "Metadata changes detected" per
-     * docs/ui/admin-ui-terminology.md. */
-    vi.mocked(mockedApi.drift).mockResolvedValue(drift(true));
-    renderScreen();
-    await waitFor(() =>
-      expect(screen.getByText(/Metadata changes detected/)).toBeInTheDocument());
-  });
+  /* Phase-4B: the Related-tiles row was dropped so there is no
+   * longer a Metadata-changes tile on this hub. The drift copy is
+   * still covered by `MoreScreens.test.tsx > DriftInspector renders
+   * the perEntity breakdown and totals`. */
 
   it('reports PAT auth kind in the status bar when PAT is set', async () => {
     vi.mocked(mockedApi.readDhis2Connection).mockResolvedValue(cfg({
