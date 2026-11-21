@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { PageHeader } from '../components/PageHeader';
-import { Panel, usePaged, TablePager } from './shared';
+import { Panel, RowMenu, type RowMenuItem, usePaged, TablePager } from './shared';
 
 /** UI-1 — unified devices view.
  *
@@ -250,13 +250,6 @@ function StatusChip({ status }:
   );
 }
 
-interface MenuItem {
-  key: string;
-  label: string;
-  tone?: 'primary' | 'danger' | 'default';
-  onSelect: () => void;
-}
-
 function RowActions(
   { device, busy, onRun }: {
     device: edgeApi.UnifiedDevice;
@@ -264,94 +257,61 @@ function RowActions(
     onRun: (a: 'approve' | 'suspend' | 'revoke') => void;
   },
 ): JSX.Element {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent): void => {
-      const t = e.target as Node | null;
-      if (menuRef.current?.contains(t) || triggerRef.current?.contains(t)) return;
-      setOpen(false);
-    };
-    const esc = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') { setOpen(false); triggerRef.current?.focus(); }
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', esc);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', esc);
-    };
-  }, [open]);
-
+  /* Phase-4B: replaced the bespoke "Actions ▾" dropdown with the
+   * shared `RowMenu` kebab so every table in the admin UI uses the
+   * same context-menu pattern (⋮ trigger + aligned panel). The
+   * per-item `data-test` IDs that existed on the old buttons
+   * (devices-approve-{id} / devices-suspend-{id} / devices-revoke-{id}
+   * / devices-reapprove-{id}) are carried forward via the
+   * `dataTest` prop added to `RowMenuItem`. */
   const inFleet = device.sources.includes('DHIS2_FLEET');
-  const items: MenuItem[] = [];
+  const items: RowMenuItem[] = [];
   if (inFleet && device.status === 'PENDING') {
-    items.push({ key: 'approve', label: 'Approve', tone: 'primary',
-      onSelect: () => onRun('approve') });
+    items.push({
+      label: 'Approve',
+      onSelect: () => onRun('approve'),
+      dataTest: `devices-approve-${device.id}`,
+      disabled: busy,
+    });
   }
   if (inFleet && device.status === 'APPROVED') {
-    items.push({ key: 'suspend', label: 'Suspend',
-      onSelect: () => onRun('suspend') });
+    items.push({
+      label: 'Suspend',
+      onSelect: () => onRun('suspend'),
+      dataTest: `devices-suspend-${device.id}`,
+      disabled: busy,
+    });
   }
   if (inFleet && device.status === 'SUSPENDED') {
-    items.push({ key: 'reapprove', label: 'Reapprove', tone: 'primary',
-      onSelect: () => onRun('approve') });
+    items.push({
+      label: 'Reapprove',
+      onSelect: () => onRun('approve'),
+      dataTest: `devices-reapprove-${device.id}`,
+      disabled: busy,
+    });
   }
   if (inFleet && device.status !== 'REVOKED') {
-    items.push({ key: 'revoke', label: 'Revoke', tone: 'danger',
-      onSelect: () => onRun('revoke') });
+    items.push({
+      label: 'Revoke',
+      danger: true,
+      onSelect: () => onRun('revoke'),
+      dataTest: `devices-revoke-${device.id}`,
+      disabled: busy,
+    });
+  }
+  if (inFleet) {
+    items.push({
+      label: 'Open details',
+      to: `/devices/${device.id}`,
+      dataTest: `devices-details-${device.id}`,
+    });
   }
 
-  if (!inFleet && items.length === 0) {
+  if (items.length === 0) {
     return <span className="ea-empty-cell">—</span>;
   }
 
-  return (
-    <div className="ea-row-menu">
-      <button type="button"
-              ref={triggerRef}
-              className="ea-btn ea-btn--ghost ea-btn--sm"
-              data-test={`devices-actions-${device.id}`}
-              aria-haspopup="menu"
-              aria-expanded={open}
-              disabled={busy}
-              onClick={() => setOpen((v) => !v)}>
-        Actions ▾
-      </button>
-      {open && (
-        <div ref={menuRef}
-             role="menu"
-             className="ea-row-menu-panel"
-             data-test={`devices-actions-menu-${device.id}`}>
-          {items.map((it) => (
-            <button key={it.key}
-                    type="button"
-                    role="menuitem"
-                    className={`ea-row-menu-item${
-                      it.tone === 'danger' ? ' ea-row-menu-item--danger'
-                      : it.tone === 'primary' ? ' ea-row-menu-item--primary'
-                      : ''}`}
-                    data-test={`devices-${it.key}-${device.id}`}
-                    disabled={busy}
-                    onClick={() => { setOpen(false); it.onSelect(); }}>
-              {it.label}
-            </button>
-          ))}
-          {inFleet && (
-            <Link to={`/devices/${device.id}`}
-                  role="menuitem"
-                  className="ea-row-menu-item"
-                  onClick={() => setOpen(false)}>
-              Details
-            </Link>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  return <RowMenu items={items} />;
 }
 
 function sourceLabel(s: edgeApi.DeviceSource): string {

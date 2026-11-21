@@ -388,8 +388,14 @@ function BackupRunsTable({ rows }: { rows: ReadonlyArray<edgeApi.BackupRow> }): 
   const paged = usePaged(rows, 25);
   return (
     <div className="ea-table-wrap">
-      <table className="ea-table ea-table--dense">
-        <thead><tr><th>Run ID</th><th>Kind</th><th>Status</th><th>Requested</th><th>Message</th></tr></thead>
+      <table className="ea-table ea-table--dense ea-table--nowrap">
+        <thead><tr>
+          <th className="ea-col-w-90">Run ID</th>
+          <th className="ea-col-w-110">Kind</th>
+          <th className="ea-col-w-110">Status</th>
+          <th className="ea-col-w-140">Requested</th>
+          <th>Message</th>
+        </tr></thead>
         <tbody>
           {paged.rows.map((r) => (
             <tr key={r.runId}>
@@ -402,8 +408,8 @@ function BackupRunsTable({ rows }: { rows: ReadonlyArray<edgeApi.BackupRow> }): 
                   {r.status}
                 </Status>
               </td>
-              <td className="ea-mono">{fmtDate(r.requestedAt)}</td>
-              <td className="ea-text-muted">{r.message ?? '—'}</td>
+              <td className="ea-mono ea-text-xs">{fmtDate(r.requestedAt)}</td>
+              <td className="ea-text-muted" title={r.message ?? ''}>{r.message ?? '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -639,13 +645,18 @@ function RestoreRunsTable({ rows }: { rows: ReadonlyArray<edgeApi.RestoreRow> })
   const paged = usePaged(rows, 25);
   return (
     <div className="ea-table-wrap">
-      <table className="ea-table ea-table--dense">
-        <thead><tr><th>Run ID</th><th>Source</th><th>Status</th><th>Requested</th></tr></thead>
+      <table className="ea-table ea-table--dense ea-table--nowrap">
+        <thead><tr>
+          <th className="ea-col-w-90">Run ID</th>
+          <th>Source</th>
+          <th className="ea-col-w-110">Status</th>
+          <th className="ea-col-w-140 ea-text-right">Requested</th>
+        </tr></thead>
         <tbody>
           {paged.rows.map((r) => (
             <tr key={r.runId}>
               <td className="ea-mono">{r.runId}</td>
-              <td className="ea-mono" style={{ wordBreak: 'break-all' }}>{r.source}</td>
+              <td className="ea-mono ea-text-xs" title={r.source}>{r.source}</td>
               <td>
                 <Status tone={
                   r.status === 'SUCCESS' ? 'success'
@@ -653,7 +664,7 @@ function RestoreRunsTable({ rows }: { rows: ReadonlyArray<edgeApi.RestoreRow> })
                   {r.status}
                 </Status>
               </td>
-              <td className="ea-mono">{fmtDate(r.requestedAt)}</td>
+              <td className="ea-mono ea-text-xs ea-text-right">{fmtDate(r.requestedAt)}</td>
             </tr>
           ))}
         </tbody>

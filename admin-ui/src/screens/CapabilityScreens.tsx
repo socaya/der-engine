@@ -2493,15 +2493,16 @@ export function CapDrafts(): JSX.Element {
         </EmptyBlock>
       ) : (
         <>
-          <Panel title="Filters">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-                <span className="ea-text-muted">Kind</span>
+          <Panel
+            title={`${filtered.length} draft${filtered.length === 1 ? '' : 's'}${filtered.length !== rows.length ? ` of ${rows.length}` : ''}`}
+            action={
+              <div className="ea-data-filterbar" role="group" aria-label="Filters">
                 <select data-test="drafts-kind-filter"
                         value={kindFilter}
                         onChange={(e) => setKindFilter(e.target.value)}
-                        className="ea-input">
-                  <option value="ALL">All ({rows.length})</option>
+                        className="ea-input ea-input--compact"
+                        aria-label="Kind">
+                  <option value="ALL">All kinds ({rows.length})</option>
                   {DRAFT_KINDS.map((k) => {
                     const count = rows.filter((r) => r.kind === k.value).length;
                     return (
@@ -2511,60 +2512,56 @@ export function CapDrafts(): JSX.Element {
                     );
                   })}
                 </select>
-              </label>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, flex: '1 1 240px' }}>
-                <span className="ea-text-muted">Search title</span>
                 <input type="search" data-test="drafts-search"
                        value={search}
                        onChange={(e) => setSearch(e.target.value)}
                        placeholder="Filter by title…"
-                       className="ea-input" style={{ flex: 1 }} />
-              </label>
-              <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                      data-test="drafts-refresh"
-                      onClick={() => { reload().catch(() => undefined); }}>
-                Refresh
-              </button>
-            </div>
-          </Panel>
-
-          {publishableFiltered.length > 0 && (
-            <div className="ea-toolbar"
-                 style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '12px 0' }}>
-              <button type="button"
-                      className="ea-btn ea-btn--primary"
-                      data-test="drafts-publish-selected"
-                      disabled={selected.size === 0 || busy}
-                      onClick={() => { publishSelected().catch(() => undefined); }}>
-                {busy ? 'Publishing…' : `Publish selected (${selected.size})`}
-              </button>
-              <button type="button"
-                      className="ea-btn ea-btn--ghost ea-btn--sm"
-                      data-test="drafts-select-all-publishable"
-                      disabled={publishableFiltered.length === 0}
-                      onClick={() => {
-                        setSelected((prev) => {
-                          const next = new Set(prev);
-                          publishableFiltered.forEach((d) => next.add(d.draftId));
-                          return next;
-                        });
-                      }}>
-                Select all publishable ({publishableFiltered.length})
-              </button>
-              <button type="button"
-                      className="ea-btn ea-btn--ghost ea-btn--sm"
-                      data-test="drafts-clear-selection"
-                      disabled={selected.size === 0}
-                      onClick={() => setSelected(new Set())}>
-                Clear selection
-              </button>
-              <span className="ea-text-muted ea-text-xs">
-                Server batch cap: 100 drafts per request.
-              </span>
-            </div>
-          )}
-
-          <Panel title={`${filtered.length} draft${filtered.length === 1 ? '' : 's'}${filtered.length !== rows.length ? ` of ${rows.length}` : ''}`}>
+                       className="ea-input ea-input--compact" />
+                <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
+                        data-test="drafts-refresh"
+                        onClick={() => { reload().catch(() => undefined); }}>
+                  Refresh
+                </button>
+              </div>
+            }>
+            {publishableFiltered.length > 0 && (
+              <div className="ea-info-strip" data-test="drafts-batch-toolbar">
+                <span className="ea-info-strip-label">Batch</span>
+                <span className="ea-info-strip-value">
+                  {selected.size} selected
+                </span>
+                <span className="ea-info-strip-desc">
+                  Server cap 100 drafts per request.
+                </span>
+                <button type="button"
+                        className="ea-btn ea-btn--primary ea-btn--sm"
+                        data-test="drafts-publish-selected"
+                        disabled={selected.size === 0 || busy}
+                        onClick={() => { publishSelected().catch(() => undefined); }}>
+                  {busy ? 'Publishing…' : `Publish selected (${selected.size})`}
+                </button>
+                <button type="button"
+                        className="ea-btn ea-btn--ghost ea-btn--sm"
+                        data-test="drafts-select-all-publishable"
+                        disabled={publishableFiltered.length === 0}
+                        onClick={() => {
+                          setSelected((prev) => {
+                            const next = new Set(prev);
+                            publishableFiltered.forEach((d) => next.add(d.draftId));
+                            return next;
+                          });
+                        }}>
+                  Select all ({publishableFiltered.length})
+                </button>
+                <button type="button"
+                        className="ea-btn ea-btn--ghost ea-btn--sm"
+                        data-test="drafts-clear-selection"
+                        disabled={selected.size === 0}
+                        onClick={() => setSelected(new Set())}>
+                  Clear
+                </button>
+              </div>
+            )}
             <DraftsTable rows={filtered}
                          selected={selected}
                          toggleSelected={(id) => setSelected((prev) => {
@@ -2634,20 +2631,68 @@ function DraftsTable(
   }
   return (
     <div className="ea-table-wrap">
-      <table className="ea-table ea-table--dense">
+      <table className="ea-table ea-table--dense ea-table--nowrap">
+        {/* Phase-4B compact table: inline Publish/Schedule/Cancel/
+            Inspect/Discard button bank folded into a per-row
+            RowMenu so every row is single-line + the context
+            menu follows the standard DER pattern. Scheduled
+            timestamp moves to a tooltip; draft id prefix moves
+            to its own dedicated column. */}
         <thead><tr>
           <th style={{ width: 28 }}><span className="ea-visually-hidden">Select</span></th>
-          <th>Updated</th>
-          <th>Kind</th>
+          <th className="ea-col-w-110">Kind</th>
           <th>Title</th>
-          <th>Scheduled</th>
-          <th className="ea-col-w-240">Actions</th>
+          <th className="ea-col-w-110">Draft ID</th>
+          <th className="ea-col-w-110">Scheduled</th>
+          <th className="ea-col-w-140 ea-text-right">Updated</th>
+          <th className="ea-col-w-48 ea-text-right">Actions</th>
         </tr></thead>
         <tbody>
           {paged.rows.map((d) => {
             const publishable = PUBLISHABLE_KINDS.has(d.kind);
             const scheduled = Boolean(d.scheduledPublishAt);
             const rowErr = perRowErrors.find((e) => e.draftId === d.draftId);
+            const menuItems: Array<{
+              label: string;
+              onSelect: () => void;
+              dataTest: string;
+              danger?: boolean;
+            }> = [];
+            if (publishable) {
+              menuItems.push({
+                label: 'Publish now',
+                onSelect: () => { publish(d).catch(() => undefined); },
+                dataTest: `draft-publish-${d.draftId}`,
+              });
+              if (!scheduled) {
+                menuItems.push({
+                  label: 'Schedule…',
+                  onSelect: () => openSchedule(d),
+                  dataTest: `draft-schedule-${d.draftId}`,
+                });
+              } else {
+                menuItems.push({
+                  label: 'Cancel schedule',
+                  onSelect: () => { cancelSchedule(d.draftId).catch(() => undefined); },
+                  dataTest: `draft-cancel-schedule-${d.draftId}`,
+                });
+              }
+            }
+            menuItems.push({
+              label: 'Inspect',
+              onSelect: () => openPreview(d),
+              dataTest: `draft-inspect-${d.draftId}`,
+            });
+            menuItems.push({
+              label: 'Discard',
+              danger: true,
+              onSelect: () => {
+                confirmThenRun(
+                  `Discard draft "${d.title ?? 'Untitled'}"? The captured values will be lost.`,
+                  () => { remove(d.draftId).catch(() => undefined); });
+              },
+              dataTest: `draft-discard-${d.draftId}`,
+            });
             return (
               <>
                 <tr key={d.draftId}
@@ -2662,82 +2707,40 @@ function DraftsTable(
                              onChange={() => toggleSelected(d.draftId)} />
                     )}
                   </td>
-                  <td className="ea-text-muted"
-                      title={d.updatedAt}>{new Date(d.updatedAt).toLocaleString()}</td>
                   <td>
                     <Status tone={kindTone(d.kind)}>{kindLabel(d.kind)}</Status>
                   </td>
-                  <td>
-                    {d.title
-                      ? <strong>{d.title}</strong>
-                      : <span className="ea-text-muted">Untitled draft</span>}
-                    <div className="ea-text-muted ea-mono"
-                         style={{ fontSize: 11, marginTop: 2 }}>
-                      {d.draftId.slice(0, 8)}…
-                    </div>
+                  <td className="ea-fw-medium"
+                      title={d.title ?? 'Untitled draft'}>
+                    {d.title ?? <span className="ea-text-muted">Untitled draft</span>}
+                  </td>
+                  <td className="ea-mono ea-text-2xs ea-text-muted"
+                      title={d.draftId}>
+                    {d.draftId.slice(0, 8)}
                   </td>
                   <td>
-                    {scheduled
-                      ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          <span className="ea-chip ea-chip--warning"
-                                data-test={`draft-scheduled-${d.draftId}`}
-                                title={d.scheduledPublishAt ?? ''}>
-                            Scheduled
-                          </span>
-                          <span className="ea-text-muted ea-text-2xs">
-                            {d.scheduledPublishAt
-                              ? new Date(d.scheduledPublishAt).toLocaleString()
-                              : ''}
-                          </span>
-                        </div>
-                      )
-                      : <span className="ea-text-muted">—</span>}
+                    {scheduled ? (
+                      <span className="ea-chip ea-chip--warning"
+                            data-test={`draft-scheduled-${d.draftId}`}
+                            title={d.scheduledPublishAt ?? ''}>
+                        {d.scheduledPublishAt
+                          ? new Date(d.scheduledPublishAt).toLocaleString()
+                          : 'Scheduled'}
+                      </span>
+                    ) : <span className="ea-text-muted">—</span>}
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {publishable && (
-                        <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
-                                data-test={`draft-publish-${d.draftId}`}
-                                onClick={() => { publish(d).catch(() => undefined); }}>
-                          Publish now
-                        </button>
-                      )}
-                      {publishable && !scheduled && (
-                        <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                                data-test={`draft-schedule-${d.draftId}`}
-                                onClick={() => openSchedule(d)}>
-                          Schedule…
-                        </button>
-                      )}
-                      {publishable && scheduled && (
-                        <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                                data-test={`draft-cancel-schedule-${d.draftId}`}
-                                onClick={() => { cancelSchedule(d.draftId).catch(() => undefined); }}>
-                          Cancel schedule
-                        </button>
-                      )}
-                      <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                              data-test={`draft-inspect-${d.draftId}`}
-                              onClick={() => openPreview(d)}>
-                        Inspect
-                      </button>
-                      <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
-                              data-test={`draft-discard-${d.draftId}`}
-                              onClick={() => {
-                                confirmThenRun(
-                                  `Discard draft "${d.title ?? 'Untitled'}"? The captured values will be lost.`,
-                                  () => { remove(d.draftId).catch(() => undefined); });
-                              }}>
-                        Discard
-                      </button>
-                    </div>
+                  <td className="ea-text-muted ea-text-xs ea-text-right"
+                      title={d.updatedAt}>
+                    {new Date(d.updatedAt).toLocaleDateString()}
+                  </td>
+                  <td className="ea-text-right">
+                    <RowMenu items={menuItems} />
                   </td>
                 </tr>
                 {rowErr && (
                   <tr key={`${d.draftId}-err`}>
                     <td></td>
-                    <td colSpan={5}>
+                    <td colSpan={6}>
                       <div className="ea-chip ea-chip--danger"
                            data-test={`draft-row-error-${d.draftId}`}>
                         {rowErr.message}
