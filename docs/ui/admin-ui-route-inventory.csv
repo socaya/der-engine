@@ -52,9 +52,9 @@ route,component,group_id,group_label,nav_label,nav_status,kind,redirect_to,role,
 /referral/inbox,ReferralInbox,,Data,Referrals,contextual,implemented,,,,,,,,contextualise,,
 /referral/inbox/:inboxId,ReferralDetail,,,,,implemented,,,,,,,,needs-review,,
 /metadata,Navigate,,,,,redirect,/dhis2/metadata,,,,,,,redirect,redirect→/dhis2/metadata,
-/recovery,EARecoveryTools,,System,Recovery,contextual,implemented,,,,,,,,contextualise,,
-/backup,BackupList,,System,Backup,implemented,implemented,,,,,,,,keep,,
-/restore,RestoreList,,System,Restore,contextual,implemented,,,,,,,,contextualise,,
+/recovery,EARecoveryTools,,System,Recovery,contextual,implemented,,,,,,,compact-table-+-strings,contextualise,,phase-4B-access-system
+/backup,BackupList,,System,Backup,implemented,implemented,,,,,,,compact-table-+-strings,keep,,phase-4B-access-system
+/restore,RestoreList,,System,Restore,contextual,implemented,,,,,,,compact-table-+-strings,contextualise,,phase-4B-access-system
 /evaluation,EAEvaluationReports,,System,Evaluation,contextual,implemented,,,,,,,,contextualise,,
 /apps,AppCatalogue,,System,Apps,implemented,implemented,,,,,,,compact-table-+-strings,keep,,phase-4B-apps-compliance
 /apps/catalogue,Navigate,,,,,redirect,/apps,,,,,,,redirect,redirect→/apps,
@@ -79,15 +79,15 @@ route,component,group_id,group_label,nav_label,nav_status,kind,redirect_to,role,
 /network/settings,NetworkSettings,,Devices,Network settings,contextual,implemented,,,,,,,,contextualise,,
 /network/messaging,DeviceMessaging,,Devices,Device messaging,implemented,implemented,,,,,,,,keep,,
 /network/mesh,MeshTopology,,Devices,Mesh topology,implemented,implemented,,,,,,,,keep,,
-/system/hardware,Hardware,,System,Host hardware,contextual,implemented,,,,,,,,contextualise,,
+/system/hardware,Hardware,,System,Host hardware,contextual,implemented,,,,,,,compact-table-+-strings,contextualise,,phase-4B-access-system
 /fleet,Fleet,,,,,implemented,,,,,,,,needs-review,,
 /testing,Testing,,System,Testing,contextual,implemented,,,,,,,,contextualise,,
 /packaging,Packaging,,System,Packaging,contextual,implemented,,,,,,,,contextualise,,
 /compliance,Compliance,,System,Compliance,implemented,implemented,,,,,,,compact-table-+-strings,keep,,phase-4B-apps-compliance
 /dashboard,Navigate,,,,,redirect,/,,,,,,,redirect,redirect→/,
 /admin-tasks,AdminTasks,,Home,Admin tasks,contextual,implemented,,,,,,,,contextualise,,
-/system/information,SystemInformation,,Home,System info,contextual,implemented,,,,,,,,contextualise,,
-/system/apps,SystemApps,,System,Installed apps,contextual,implemented,,,,,,,,contextualise,,
+/system/information,SystemInformation,,Home,System info,contextual,implemented,,,,,,,compact-table-+-strings,contextualise,,phase-4B-access-system
+/system/apps,SystemApps,,System,Installed apps,contextual,implemented,,,,,,,compact-table-+-strings,contextualise,,phase-4B-access-system
 /integration,Navigate,,,,,redirect,/dhis2,,,,,,,redirect,redirect→/dhis2,
 /integration/connection,Navigate,,,,,redirect,/dhis2,,,,,,,redirect,redirect→/dhis2,
 /integration/organisation-unit,Navigate,,,,,redirect,/dhis2/organisation-unit,,,,,,,redirect,redirect→/dhis2/organisation-unit,
@@ -114,16 +114,16 @@ route,component,group_id,group_label,nav_label,nav_status,kind,redirect_to,role,
 /data/events/:eventId,DataEventDetail,,,,,implemented,,,,,,,,needs-review,,
 /data/tracker,DataTracker,,Data,Tracker,implemented,implemented,,,,,,,compact-table-+-strings,keep,,phase-4B-data-tables
 /data/tracker/tei/:teiUid,DataTeiDetail,,,,,implemented,,,,,,,,needs-review,,
-/data/drafts,CapDrafts,,Data,Drafts,implemented,implemented,,,,,,,,keep,,
+/data/drafts,CapDrafts,,Data,Drafts,implemented,implemented,,,,,,,compact-table-+-strings,keep,,phase-4B-access-system
 /data/maintenance,CapMaintenance,,Data,Maintenance,implemented,implemented,,,,,,,,keep,,
-/access/mappings,CapUserMappings,,Access,DHIS2 mappings,contextual,implemented,,,,,,,,contextualise,,
-/access/roles,CapRoles,,Access,Roles,implemented,implemented,,,,,,,,keep,,
+/access/mappings,CapUserMappings,,Access,DHIS2 mappings,contextual,implemented,,,,,,,compact-table-+-strings,contextualise,,phase-4B-access-system
+/access/roles,CapRoles,,Access,Roles,implemented,implemented,,,,,,,compact-table-+-strings,keep,,phase-4B-access-system
 /access/roles/new,RoleEditorPage,,,,,implemented,,,,,,,,needs-review,,
 /access/roles/:roleId,RoleEditorPage,,,,,implemented,,,,,,,,needs-review,,
-/access/authorities,CapAuthorities,,Access,Authorities,implemented,implemented,,,,,,,,keep,,
+/access/authorities,CapAuthorities,,Access,Authorities,implemented,implemented,,,,,,,compact-table-+-strings,keep,,phase-4B-access-system
 /access/authorities/:authority,AuthorityDetailPage,,,,,implemented,,,,,,,,needs-review,,
-/access/sessions,CapSessions,,Access,Sessions,contextual,implemented,,,,,,,,contextualise,,
-/access/credentials,CapCredentials,,Access,Credentials,contextual,implemented,,,,,,,,contextualise,,
+/access/sessions,CapSessions,,Access,Sessions,contextual,implemented,,,,,,,compact-table-+-strings,contextualise,,phase-4B-access-system
+/access/credentials,CapCredentials,,Access,Credentials,contextual,implemented,,,,,,,compact-table-+-strings,contextualise,,phase-4B-access-system
 /access/dhis2-mappings,Dhis2Mappings,,,,,implemented,,,,,,,,needs-review,,
 /devices/enrolment,CapDeviceEnrolment,,Devices,Device enrolment,contextual,implemented,,,,,,,,contextualise,,
 /devices/ownership,CapOwnership,,Devices,Ownership,contextual,implemented,,,,,,,,contextualise,,
