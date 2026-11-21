@@ -111,7 +111,7 @@ export function DataManagement(): JSX.Element {
                </Link>
              }>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense ea-table--selectable">
+          <table className="ea-table ea-table--dense ea-table--selectable ea-table--nowrap">
             <thead><tr>
               <th className="ea-col-w-32"></th>
               <th>Data type</th>

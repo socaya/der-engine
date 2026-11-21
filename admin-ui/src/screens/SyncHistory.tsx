@@ -98,7 +98,7 @@ export function SyncHistory(): JSX.Element {
                </div>
              }>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>
+          <table className="ea-table ea-table--dense ea-table--selectable ea-table--nowrap" style={{ width: '100%' }}>
             <thead><tr>
               <th className="ea-col-w-32"></th>
               <th className="ea-col-w-180">What was synced</th>

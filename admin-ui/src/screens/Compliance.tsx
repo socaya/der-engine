@@ -120,7 +120,7 @@ export function Compliance(): JSX.Element {
 
       <Panel title={`Retention policies · ${policies.length}`}>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense">
+          <table className="ea-table ea-table--dense ea-table--nowrap">
             <thead><tr>
               <th>Category</th><th>Keep (days)</th><th>Last purge</th>
               <th>Last removed</th><th>Description</th>
@@ -172,7 +172,7 @@ export function Compliance(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Requested</th><th>Subject</th><th>Status</th>
                 <th>Receipt (SHA-256)</th>
@@ -218,7 +218,7 @@ export function Compliance(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>At</th><th>Rows</th><th>Chain head (SHA-256)</th><th>Uploaded</th>
               </tr></thead>
@@ -240,7 +240,7 @@ export function Compliance(): JSX.Element {
 
       <Panel title={`Data residency rules · ${rules.length}`}>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense">
+          <table className="ea-table ea-table--dense ea-table--nowrap">
             <thead><tr>
               <th>Host pattern</th><th>Allow</th><th>Note</th><th>Updated</th>
             </tr></thead>

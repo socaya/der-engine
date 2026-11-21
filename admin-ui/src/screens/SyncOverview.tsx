@@ -168,7 +168,7 @@ export function SyncOverview(): JSX.Element {
       <Panel title="Recent activity"
              action={<Link to="/sync/history" className="ea-link-btn">View all history</Link>}>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense">
+          <table className="ea-table ea-table--dense ea-table--nowrap">
             <thead><tr>
               <th className="ea-col-w-32"></th>
               <th className="ea-col-w-180">Activity</th>
