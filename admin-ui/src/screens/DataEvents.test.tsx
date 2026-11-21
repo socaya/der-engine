@@ -230,14 +230,19 @@ describe('DataEvents', () => {
         .toBeInTheDocument());
   });
 
-  it('Lineage button on a row opens the lineage drawer', async () => {
+  it('clicking a row opens the lineage drawer (Phase-4B compact table)', async () => {
+    /* Phase-4B compact-table pass: the trailing Lineage button
+     * column was removed; the whole row now opens the Lineage
+     * drawer on click. The drawer is the canonical "all details
+     * of this row" surface. */
     renderWithProviders(<DataEvents />);
     await waitFor(() =>
-      expect(screen.getByTestId('data-events-lineage-ev-1'))
+      expect(screen.getByTestId('data-events-row-ev-1'))
         .toBeInTheDocument());
     const user = userEvent.setup();
-    await user.click(screen.getByTestId('data-events-lineage-ev-1'));
-    expect(screen.getByTestId('data-events-row-ev-1')).toBeInTheDocument();
+    const row = screen.getByTestId('data-events-row-ev-1');
+    await user.click(row.querySelectorAll('td')[1]);
+    expect(row).toBeInTheDocument();
   });
 
   it('chipToneForStatus arms — rows with each status surface their tone', async () => {

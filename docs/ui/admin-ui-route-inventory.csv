@@ -108,11 +108,11 @@ route,component,group_id,group_label,nav_label,nav_status,kind,redirect_to,role,
 /workflows/assignments,CapStepAssignments,,Workflows,Assignments,contextual,implemented,,,,,,,,contextualise,,
 /referral/history,CapReferralHistory,,Data,Referral history,contextual,implemented,,,,,,,,contextualise,,
 /data,DataManagement,,Data,Overview,implemented,implemented,,,,,,,rewritten-strings,keep,,phase-4B-first-pass
-/data/aggregate,DataAggregate,,Data,Aggregate,implemented,implemented,,,,,,,,keep,,
+/data/aggregate,DataAggregate,,Data,Aggregate,implemented,implemented,,,,,,,compact-table-+-strings,keep,,phase-4B-data-tables
 /data/aggregate/:valueId,DataAggregateDetail,,,,,implemented,,,,,,,,needs-review,,
-/data/events,DataEvents,,Data,Events,implemented,implemented,,,,,,,,keep,,
+/data/events,DataEvents,,Data,Events,implemented,implemented,,,,,,,compact-table-+-strings,keep,,phase-4B-data-tables
 /data/events/:eventId,DataEventDetail,,,,,implemented,,,,,,,,needs-review,,
-/data/tracker,DataTracker,,Data,Tracker,implemented,implemented,,,,,,,,keep,,
+/data/tracker,DataTracker,,Data,Tracker,implemented,implemented,,,,,,,compact-table-+-strings,keep,,phase-4B-data-tables
 /data/tracker/tei/:teiUid,DataTeiDetail,,,,,implemented,,,,,,,,needs-review,,
 /data/drafts,CapDrafts,,Data,Drafts,implemented,implemented,,,,,,,,keep,,
 /data/maintenance,CapMaintenance,,Data,Maintenance,implemented,implemented,,,,,,,,keep,,

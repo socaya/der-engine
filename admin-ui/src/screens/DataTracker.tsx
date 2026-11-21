@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
   Breadcrumbs, LastPulledChip, LocalVsCentralBadge,
@@ -9,7 +9,6 @@ import {
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { UiIcon } from '../components/UiIcon';
 import { MetadataPicker } from '../components/MetadataPicker';
-import { WorkflowPicker } from '../components/WorkflowPicker';
 import { CentralPayloadDrawer } from '../components/CentralPayloadDrawer';
 import { PayloadLineageDrawer } from '../components/PayloadLineageDrawer';
 import { DateRangePicker } from '../components/DateRangePicker';
@@ -211,13 +210,13 @@ export function DataTracker(): JSX.Element {
         title={`${filtered.length.toLocaleString()} row${
           filtered.length === 1 ? '' : 's'} shown`}
         action={
-          <>
-            <input className="ea-input" style={{ maxWidth: 160 }} type="search"
+          <div className="ea-data-filterbar" role="group" aria-label="Filters">
+            <input className="ea-input ea-input--compact" type="search"
                     placeholder="Search"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     data-test="data-tracker-search" />
-            <select className="ea-input" style={{ maxWidth: 140 }}
+            <select className="ea-input ea-input--compact"
                      value={kind}
                      onChange={(e) => setKind(e.target.value as typeof kind)}
                      data-test="data-tracker-kind">
@@ -232,23 +231,12 @@ export function DataTracker(): JSX.Element {
                              placeholder="Any program"
                              dataTest="data-tracker-program" />
             {!scopedTeiUid && (
-              <input className="ea-input" style={{ maxWidth: 180 }} type="text"
+              <input className="ea-input ea-input--compact" type="text"
                       placeholder="TEI UID"
                       value={teiUidFilter}
                       onChange={(e) => setTeiUidFilter(e.target.value)}
                       data-test="data-tracker-teiuid" />
             )}
-            <WorkflowPicker
-              value={workflowId ?? ''}
-              onChange={setWorkflowId}
-              boundKind={[
-                'PROGRAM', 'PROGRAM_SECTION',
-                'PROGRAM_STAGE', 'PROGRAM_STAGE_SECTION',
-                'TRACKED_ENTITY_TYPE', 'TRACKED_ENTITY_ATTRIBUTE',
-                'DATA_ELEMENT',
-              ]}
-              placeholder="Any workflow"
-              dataTest="data-tracker-workflow" />
             <DateRangePicker
               from={occurredFrom}
               to={occurredTo}
@@ -257,14 +245,16 @@ export function DataTracker(): JSX.Element {
                 setOccurredTo(to);
               }}
               dataTest="data-tracker-occurred" />
-            <select className="ea-input" style={{ maxWidth: 100 }}
+            <select className="ea-input ea-input--compact"
                      value={limit}
                      onChange={(e) => setLimit(Number(e.target.value))}
                      data-test="data-tracker-limit">
               {[50, 100, 200, 500].map((n) =>
                 <option key={n} value={n}>{n} max</option>)}
             </select>
-          </>
+            {/* Workflow picker dropped: workflow scoping still reachable
+                via the ScopedFilterChip above (URL params). */}
+          </div>
         }
       >
         {filtered.length === 0 ? (
@@ -292,7 +282,6 @@ function TrackerTable(
     { rows: ReadonlyArray<edgeApi.LocalTrackerRow>;
       onZoomTei(teiUid: string): void }
 ): JSX.Element {
-  const navigate = useNavigate();
   const [lineage, setLineage] = useState<{
     kind: 'tei' | 'enrollment' | 'tracker-event';
     id: string;
@@ -303,20 +292,21 @@ function TrackerTable(
         <PayloadLineageDrawer kind={lineage.kind} rowId={lineage.id}
                                onClose={() => setLineage(null)} />
       )}
-      <table className="ea-table ea-table--dense ea-table--clickable"
+      <table className="ea-table ea-table--dense ea-table--clickable ea-table--nowrap"
              data-test="data-tracker-table">
+        {/* Phase-4B compact columns: Workflow + Org unit removed
+            (available in the per-row Lineage drawer). Kind +
+            Row (identifier) + TEI lead; Updated moved to the right.
+            Every cell is single-line via .ea-table--nowrap. */}
         <thead><tr>
-          <th className="ea-col-w-110">Updated</th>
           <th className="ea-col-w-90">Kind</th>
           <th>Row</th>
           <th className="ea-col-w-140">TEI</th>
           <th>Program</th>
-          <th className="ea-col-w-100">Org unit</th>
-          <th className="ea-col-w-100">Status / Date</th>
-          <th className="ea-col-w-180">Workflow</th>
+          <th className="ea-col-w-110">Status</th>
           <th className="ea-col-w-140">Sync state</th>
           <th className="ea-text-right" style={{ width: 50 }}>v</th>
-          <th className="ea-col-w-90"></th>
+          <th className="ea-col-w-110 ea-text-right">Updated</th>
         </tr></thead>
         <tbody>
           {rows.map((r) => (
@@ -325,16 +315,15 @@ function TrackerTable(
                 onClick={(e) => {
                   const target = e.target as HTMLElement;
                   if (target.closest('a,button')) return;
-                  // Only TEI rows have a detail page today;
-                  // enrolment/event rows navigate to TEI view instead.
-                  const uid = r.kind === 'TEI' ? r.rowId : r.teiUid;
-                  if (uid) navigate(`/data/tracker/tei/${uid}`);
+                  /* Row click opens Lineage drawer (Phase-4B). */
+                  setLineage({
+                    kind: r.kind === 'TEI'        ? 'tei'
+                        : r.kind === 'ENROLLMENT' ? 'enrollment'
+                        :                           'tracker-event',
+                    id: r.rowId,
+                  });
                 }}
-                style={{ cursor: r.kind === 'TEI' || r.teiUid
-                                   ? 'pointer' : 'default' }}>
-              <td className="ea-text-muted" title={r.sortTs ?? ''}>
-                {r.sortTs ? fmtAgo(r.sortTs) : '—'}
-              </td>
+                style={{ cursor: 'pointer' }}>
               <td>
                 <span className={`ea-chip ea-chip--${chipToneForKind(r.kind)}`}>
                   {r.kind}
@@ -364,70 +353,29 @@ function TrackerTable(
                     {r.teTypeName ?? r.teType ?? 'Tracked entity'}
                   </span>
                 ) : r.programName ? (
-                  <>
-                    <div className="ea-fw-medium">{r.programName}</div>
+                  <span>
+                    <span className="ea-fw-medium">{r.programName}</span>
                     {r.programStageName && (
-                      <div className="ea-text-muted ea-text-2xs"
-                           >
-                        {r.programStageName}
-                      </div>
+                      <span className="ea-text-muted ea-text-2xs"
+                            style={{ marginLeft: 6 }}>
+                        · {r.programStageName}
+                      </span>
                     )}
-                  </>
+                  </span>
                 ) : (
                   <span className="ea-mono ea-text-2xs">
                     {r.programUid ?? '—'}
                   </span>
                 )}
               </td>
-              <td className="ea-mono ea-text-2xs"
-                  title={r.orgUnitUid ?? ''}>
-                {r.orgUnitUid}
-              </td>
               <td>
                 {r.status ? (
-                  <>
-                    <span className={`ea-chip ea-chip--${chipToneForStatus(r.status)}`}>
-                      {r.status}
-                    </span>
-                    {(r.enrollmentDate || r.occurredDate) && (
-                      <div className="ea-text-muted"
-                           style={{ fontSize: 10, marginTop: 2 }}>
-                        {r.enrollmentDate ?? r.occurredDate}
-                      </div>
-                    )}
-                  </>
+                  <span className={`ea-chip ea-chip--${chipToneForStatus(r.status)}`}
+                        title={r.enrollmentDate ?? r.occurredDate ?? ''}>
+                    {r.status}
+                  </span>
                 ) : (
                   <span className="ea-text-muted">—</span>
-                )}
-              </td>
-              <td title={r.workflowRunId
-                          ? `Open workflow run in Workflows module — `
-                            + `${r.workflowKind ?? 'USER'} · ${r.workflowBusinessKey ?? ''}`
-                          : '(no workflow run attached)'}>
-                {r.workflowRunId ? (
-                  /* §2.3.108 R-AC — explicit ↗ disclosure. */
-                  <Link to={`/workflows/monitoring/runs/${r.workflowRunId}`}
-                        data-cross-module="Workflows"
-                        style={{ textDecoration: 'none',
-                                  color: 'var(--der-primary-ink)',
-                                  display: 'inline-flex',
-                                  alignItems: 'center', gap: 4 }}>
-                    {r.workflowKind === 'SYSTEM' && (
-                      <span className="ea-chip ea-chip--neutral"
-                            style={{ marginRight: 2 }}>SYS</span>
-                    )}
-                    <span className="ea-text-xs">
-                      {r.workflowName ?? r.workflowRunId.slice(0, 8)}
-                    </span>
-                    <span aria-hidden="true"
-                          style={{ fontSize: 10,
-                                    color: 'var(--der-ink-500)' }}>↗</span>
-                  </Link>
-                ) : (
-                  <span className="ea-text-muted"
-                        style={{ fontStyle: 'italic' }}>
-                    untagged
-                  </span>
                 )}
               </td>
               <td><TrackerSyncChip row={r} /></td>
@@ -436,21 +384,9 @@ function TrackerTable(
                             fontVariantNumeric: 'tabular-nums' }}>
                 {r.version}
               </td>
-              <td>
-                <button type="button"
-                         className="ea-btn ea-btn--ghost ea-btn--sm"
-                         onClick={(e) => {
-                           e.stopPropagation();
-                           setLineage({
-                             kind: r.kind === 'TEI'        ? 'tei'
-                                 : r.kind === 'ENROLLMENT' ? 'enrollment'
-                                 :                           'tracker-event',
-                             id: r.rowId,
-                           });
-                         }}
-                         data-test={`data-tracker-lineage-${r.rowId}`}>
-                  Lineage
-                </button>
+              <td className="ea-text-muted ea-text-right"
+                  title={r.sortTs ?? ''}>
+                {r.sortTs ? fmtAgo(r.sortTs) : '—'}
               </td>
             </tr>
           ))}

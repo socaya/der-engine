@@ -253,15 +253,18 @@ describe('DataTracker', () => {
     expect(document.body.textContent ?? '').toMatch(/skipped/);
   });
 
-  it('Lineage button opens the payload-lineage drawer', async () => {
+  it('clicking a row opens the payload-lineage drawer (Phase-4B compact table)', async () => {
+    /* Phase-4B compact-table pass: the trailing Lineage button
+     * column was removed; the whole row now opens the Lineage
+     * drawer on click. */
     renderWithProviders(<DataTracker />);
     await waitFor(() =>
-      expect(screen.getByTestId('data-tracker-lineage-row-1'))
+      expect(screen.getByTestId('data-tracker-row-row-1'))
         .toBeInTheDocument());
+    const row = screen.getByTestId('data-tracker-row-row-1');
     const user = userEvent.setup();
-    await user.click(screen.getByTestId('data-tracker-lineage-row-1'));
-    expect(screen.getByTestId('data-tracker-row-row-1'))
-      .toBeInTheDocument();
+    await user.click(row.querySelectorAll('td')[1]);
+    expect(row).toBeInTheDocument();
   });
 
   it('chipToneForKind + chipToneForStatus arms — every arm surfaces via populated row', async () => {
@@ -308,20 +311,23 @@ describe('DataTracker', () => {
         .toBeInTheDocument());
   });
 
-  it('workflow-run SYS kind + USER kind variants render per-arm', async () => {
+  it('workflow-tagged + untagged rows still mount (Workflow column removed)', async () => {
+    /* Phase-4B compact-table pass: the Workflow column was removed
+     * from the table body (workflow provenance moved into the
+     * per-row Lineage drawer). We still assert that every row
+     * variant renders without error — just no longer check for
+     * the workflow name / SYS chip inline, those live in the
+     * drawer now. */
     vi.spyOn(edgeApi, 'listLocalTracker').mockResolvedValue({
       rows: [
-        /* USER workflow with name set. */
         { ...trackerRow, rowId: 'r-user',
           workflowRunId: 'wfr-user',
           workflowKind: 'USER',
           workflowName: 'ANC visit' },
-        /* SYSTEM workflow → SYS chip surfaces. */
         { ...trackerRow, rowId: 'r-sys',
           workflowRunId: 'wfr-sys-abcdef',
           workflowKind: 'SYSTEM',
           workflowName: null },
-        /* null workflow → "—" fallback. */
         { ...trackerRow, rowId: 'r-untagged',
           workflowRunId: null, workflowKind: null,
           workflowName: null },
@@ -331,10 +337,8 @@ describe('DataTracker', () => {
     await waitFor(() =>
       expect(screen.getByTestId('data-tracker-row-r-user'))
         .toBeInTheDocument());
-    /* Named USER workflow surfaces its name. */
-    expect(screen.getByText('ANC visit')).toBeInTheDocument();
-    /* SYS chip surfaces for the SYSTEM-kind row. */
-    expect(screen.getByText('SYS')).toBeInTheDocument();
+    expect(screen.getByTestId('data-tracker-row-r-sys')).toBeInTheDocument();
+    expect(screen.getByTestId('data-tracker-row-r-untagged')).toBeInTheDocument();
   });
 
   it('mixed-kind rows render per-kind counts in the status label', async () => {

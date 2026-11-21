@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
   Breadcrumbs, LastPulledChip, LocalVsCentralBadge,
@@ -9,7 +9,6 @@ import {
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { UiIcon } from '../components/UiIcon';
 import { MetadataPicker } from '../components/MetadataPicker';
-import { WorkflowPicker } from '../components/WorkflowPicker';
 import { CentralPayloadDrawer } from '../components/CentralPayloadDrawer';
 import { PayloadLineageDrawer } from '../components/PayloadLineageDrawer';
 import { DateRangePicker } from '../components/DateRangePicker';
@@ -188,8 +187,8 @@ export function DataEvents(): JSX.Element {
         title={`${filtered.length.toLocaleString()} row${
           filtered.length === 1 ? '' : 's'} shown`}
         action={
-          <>
-            <input className="ea-input" style={{ maxWidth: 160 }} type="search"
+          <div className="ea-data-filterbar" role="group" aria-label="Filters">
+            <input className="ea-input ea-input--compact" type="search"
                     placeholder="Search"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
@@ -204,22 +203,13 @@ export function DataEvents(): JSX.Element {
                              onChange={setProgramStage}
                              placeholder="Any stage"
                              dataTest="data-events-stage" />
-            <select className="ea-input" style={{ maxWidth: 140 }}
+            <select className="ea-input ea-input--compact"
                      value={statusFilter}
                      onChange={(e) => setStatusFilter(e.target.value)}
                      data-test="data-events-status">
               {['ALL', 'ACTIVE', 'COMPLETED', 'VISITED', 'SCHEDULE', 'OVERDUE', 'SKIPPED']
                 .map((s) => <option key={s} value={s}>{s === 'ALL' ? 'All statuses' : s}</option>)}
             </select>
-            <WorkflowPicker
-              value={workflowId ?? ''}
-              onChange={setWorkflowId}
-              boundKind={[
-                'PROGRAM', 'PROGRAM_STAGE', 'PROGRAM_STAGE_SECTION',
-                'DATA_ELEMENT',
-              ]}
-              placeholder="Any workflow"
-              dataTest="data-events-workflow" />
             <DateRangePicker
               from={occurredFrom}
               to={occurredTo}
@@ -228,14 +218,17 @@ export function DataEvents(): JSX.Element {
                 setOccurredTo(to);
               }}
               dataTest="data-events-occurred" />
-            <select className="ea-input" style={{ maxWidth: 100 }}
+            <select className="ea-input ea-input--compact"
                      value={limit}
                      onChange={(e) => setLimit(Number(e.target.value))}
                      data-test="data-events-limit">
               {[50, 100, 200, 500].map((n) =>
                 <option key={n} value={n}>{n} max</option>)}
             </select>
-          </>
+            {/* Workflow picker dropped from the inline filter bar:
+                workflow scoping still reachable via the ScopedFilterChip
+                above (workflowId/workflowRunId URL params). */}
+          </div>
         }
       >
         {filtered.length === 0 ? (
@@ -255,7 +248,6 @@ export function DataEvents(): JSX.Element {
 function EventsTable(
   { rows }: { rows: ReadonlyArray<edgeApi.LocalEventRow> }
 ): JSX.Element {
-  const navigate = useNavigate();
   const [lineageId, setLineageId] = useState<string | null>(null);
   return (
     <div className="ea-table-wrap">
@@ -263,19 +255,20 @@ function EventsTable(
         <PayloadLineageDrawer kind="event" rowId={lineageId}
                                onClose={() => setLineageId(null)} />
       )}
-      <table className="ea-table ea-table--dense ea-table--clickable"
+      <table className="ea-table ea-table--dense ea-table--clickable ea-table--nowrap"
              data-test="data-events-table">
+        {/* Phase-4B compact columns: Workflow + Org unit removed
+            (available in the per-row Lineage drawer). Program +
+            Stage lead; Occurred moved to the right. Every cell is
+            single-line via .ea-table--nowrap. */}
         <thead><tr>
-          <th style={{ width: 130 }}>Occurred</th>
           <th>Program</th>
           <th>Stage</th>
-          <th className="ea-col-w-120">Org unit</th>
-          <th className="ea-col-w-90">Status</th>
-          <th className="ea-col-w-180">Workflow</th>
+          <th className="ea-col-w-100">Status</th>
           <th className="ea-text-right" style={{ width: 60 }}>Vals</th>
-          <th className="ea-text-right" style={{ width: 60 }}>v</th>
+          <th className="ea-text-right" style={{ width: 50 }}>v</th>
           <th className="ea-col-w-140">Sync state</th>
-          <th className="ea-col-w-90"></th>
+          <th className="ea-col-w-110 ea-text-right">Occurred</th>
         </tr></thead>
         <tbody>
           {rows.map((r) => (
@@ -284,12 +277,10 @@ function EventsTable(
                 onClick={(e) => {
                   const target = e.target as HTMLElement;
                   if (target.closest('a,button')) return;
-                  navigate(`/data/events/${r.eventId}`);
+                  /* Row click opens Lineage drawer (Phase-4B). */
+                  setLineageId(r.eventId);
                 }}
                 style={{ cursor: 'pointer' }}>
-              <td className="ea-text-muted" title={r.occurredAt ?? ''}>
-                {r.occurredAt ? fmtAgo(r.occurredAt) : '—'}
-              </td>
               <td title={r.programUid}>
                 {r.programName ? (
                   <span className="ea-fw-medium">{r.programName}</span>
@@ -308,41 +299,10 @@ function EventsTable(
                   </span>
                 )}
               </td>
-              <td className="ea-mono ea-text-2xs"
-                  title={r.orgUnitUid}>{r.orgUnitUid}</td>
               <td>
                 <span className={`ea-chip ea-chip--${chipToneForStatus(r.status)}`}>
                   {r.status}
                 </span>
-              </td>
-              <td title={r.workflowRunId
-                          ? `Open workflow run in Workflows module — `
-                            + `${r.workflowKind ?? 'USER'} · ${r.workflowBusinessKey ?? ''}`
-                          : '(no workflow run attached)'}>
-                {r.workflowRunId ? (
-                  /* §2.3.108 R-AC — explicit ↗ disclosure. */
-                  <Link to={`/workflows/monitoring/runs/${r.workflowRunId}`}
-                        data-cross-module="Workflows"
-                        style={{ textDecoration: 'none',
-                                  color: 'var(--der-primary-ink)',
-                                  display: 'inline-flex',
-                                  alignItems: 'center', gap: 4 }}>
-                    {r.workflowKind === 'SYSTEM' && (
-                      <span className="ea-chip ea-chip--neutral"
-                            style={{ marginRight: 2 }}>SYS</span>
-                    )}
-                    <span className="ea-text-xs">
-                      {r.workflowName ?? r.workflowRunId.slice(0, 8)}
-                    </span>
-                    <span aria-hidden="true"
-                          style={{ fontSize: 10,
-                                    color: 'var(--der-ink-500)' }}>↗</span>
-                  </Link>
-                ) : (
-                  <span className="ea-text-muted" style={{ fontStyle: 'italic' }}>
-                    untagged
-                  </span>
-                )}
               </td>
               <td className="ea-mono"
                   style={{ textAlign: 'right',
@@ -355,17 +315,9 @@ function EventsTable(
                 {r.eventVersion}
               </td>
               <td><SyncStateChip row={r} /></td>
-              <td>
-                <button type="button"
-                         className="ea-btn ea-btn--ghost ea-btn--sm"
-                         onClick={(e) => {
-                           /* §2.3.120 R-AQ — see DataTracker.tsx. */
-                           e.stopPropagation();
-                           setLineageId(r.eventId);
-                         }}
-                         data-test={`data-events-lineage-${r.eventId}`}>
-                  Lineage
-                </button>
+              <td className="ea-text-muted ea-text-right"
+                  title={r.occurredAt ?? ''}>
+                {r.occurredAt ? fmtAgo(r.occurredAt) : '—'}
               </td>
             </tr>
           ))}

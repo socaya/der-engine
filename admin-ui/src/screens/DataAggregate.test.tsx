@@ -179,17 +179,19 @@ describe('DataAggregate', () => {
     expect(screen.getAllByText('Local only').length).toBeGreaterThan(0);
   });
 
-  it('row-level workflow-link branches — SYSTEM kind chip + untagged fallback', async () => {
+  it('untagged dataset falls back to the italic "untagged" label', async () => {
+    /* Phase-4B compact-table pass: Workflow column removed from the
+     * row (workflow provenance moved into the per-row Lineage
+     * drawer). The SYS chip assertion no longer applies to the row
+     * itself; it's rendered inside the drawer when opened. We still
+     * assert the dataset-column "untagged" fallback renders. */
     vi.spyOn(edgeApi, 'listLocalAggregate').mockResolvedValue({
       pipeline,
       rows: [
-        /* SYSTEM-kind row: SYS chip prefix + workflowName fallback
-         * to runId.slice(0, 8) when name is null. */
         { ...rowAggregate, valueId: 'v-sys',
           workflowRunId: 'wfr-system-abcdef',
           workflowKind: 'SYSTEM',
           workflowName: null },
-        /* Untagged row: workflowRunId=null → "untagged" muted span. */
         { ...rowAggregate, valueId: 'v-untagged',
           workflowRunId: null, workflowId: null, workflowName: null,
           dataSetUid: null, dataSetName: null },
@@ -199,45 +201,26 @@ describe('DataAggregate', () => {
     await waitFor(() =>
       expect(screen.getByTestId('data-aggregate-row-v-sys'))
         .toBeInTheDocument());
-    /* The SYS chip surfaces inside the row. */
-    expect(screen.getByText('SYS')).toBeInTheDocument();
-    /* Untagged rows render the italic "untagged" label — appears
-     * twice (dataSet column + workflow column). */
-    expect(screen.getAllByText('untagged').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('untagged')).toBeInTheDocument();
   });
 
-  it('clicking a non-link row cell navigates to the row detail page', async () => {
+  it('clicking a row opens the lineage drawer (Phase-4B compact table)', async () => {
+    /* Phase-4B compact-table pass: row click opens the per-row
+     * Lineage drawer instead of navigating to the detail page.
+     * The /data/aggregate/:id detail route still exists for direct
+     * links; only the in-table behaviour changed. The legacy
+     * `data-aggregate-lineage-*` button column was removed since
+     * the whole row is now the lineage trigger. */
     renderWithProviders(<DataAggregate />);
     await waitFor(() =>
       expect(screen.getByTestId('data-aggregate-row-val-1'))
         .toBeInTheDocument());
     const row = screen.getByTestId('data-aggregate-row-val-1');
-    /* Click a plain td — the onClick handler navigates. We can't
-     * easily assert on the new route without wiring useNavigate
-     * mock, but we can at least prove the handler runs (and the
-     * closest('a,button') branch returns neither). */
     const user = userEvent.setup();
     const cells = row.querySelectorAll('td');
-    /* The 7th td is a plain value cell (no link, no button). */
-    await user.click(cells[6]);
-    /* Row still mounted — navigate() is a no-op in MemoryRouter
-     * without a sub-route for /data/aggregate/val-1, but the
-     * handler fires without throwing. */
+    /* Click any non-link cell — handler opens the drawer. */
+    await user.click(cells[2]);
     expect(row).toBeInTheDocument();
-  });
-
-  it('Lineage button on a row opens the payload-lineage drawer', async () => {
-    renderWithProviders(<DataAggregate />);
-    await waitFor(() =>
-      expect(screen.getByTestId('data-aggregate-lineage-val-1'))
-        .toBeInTheDocument());
-    const user = userEvent.setup();
-    await user.click(screen.getByTestId('data-aggregate-lineage-val-1'));
-    /* The drawer mounts (lineageId state becomes non-null).
-     * PayloadLineageDrawer's own tests cover its internals; here
-     * we just prove the open path fires. */
-    expect(screen.getByTestId('data-aggregate-row-val-1'))
-      .toBeInTheDocument();
   });
 
   it('Pull-from-Central dialog — submit happy path renders Imported / Done close', async () => {
