@@ -1373,17 +1373,20 @@ describe('Settings cluster depth-lift', () => {
       .toHaveTextContent('Unreachable'));
   });
 
-  it('CapServiceHealth — all components OK', async () => {
+  it('CapServiceHealth — all components running', async () => {
+    /* Phase-4B: chip labels renamed from OK / FAIL to Running /
+     * Unavailable; `dhis2-central` row renamed to `central-dhis2`
+     * (component label swapped to "Central DHIS2"). */
     vi.spyOn(edgeApi, 'health').mockResolvedValue(okHealth);
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(sampleSi);
     renderWithProviders(<CapServiceHealth />, { authApi });
     await waitFor(() => expect(screen.getByTestId('cap-health'))
       .toBeInTheDocument());
-    expect(screen.getByTestId('cap-health-row-der-service')).toHaveTextContent('OK');
-    expect(screen.getByTestId('cap-health-row-dhis2-central')).toHaveTextContent('OK');
+    expect(screen.getByTestId('cap-health-row-der-service')).toHaveTextContent('Running');
+    expect(screen.getByTestId('cap-health-row-central-dhis2')).toHaveTextContent('Running');
   });
 
-  it('CapServiceHealth — failing database surfaces FAIL chip', async () => {
+  it('CapServiceHealth — failing database surfaces Unavailable chip', async () => {
     vi.spyOn(edgeApi, 'health').mockResolvedValue(okHealth);
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue({
       ...sampleSi,
@@ -1391,7 +1394,7 @@ describe('Settings cluster depth-lift', () => {
     } as never);
     renderWithProviders(<CapServiceHealth />, { authApi });
     await waitFor(() => expect(screen.getByTestId('cap-health-row-database'))
-      .toHaveTextContent('FAIL'));
+      .toHaveTextContent('Unavailable'));
   });
 
   it('CapOperatorMetrics — aggregate reliability drives tone', async () => {

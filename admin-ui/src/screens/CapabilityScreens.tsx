@@ -4918,10 +4918,10 @@ export function CapServiceHealth(): JSX.Element {
       }
     });
   }, []);
-  if (err) return <ErrorBlock title="Health probe failed" testId="err-health-probe-failed">{err}</ErrorBlock>;
+  if (err) return <ErrorBlock title="Health check failed" testId="err-health-probe-failed">{err}</ErrorBlock>;
   if (!h || !si) return <LoadingBlock testId="loading" />;
   const dot = (ok: boolean | undefined): JSX.Element =>
-    <Status tone={ok ? 'success' : 'danger'}>{ok ? 'OK' : 'FAIL'}</Status>;
+    <Status tone={ok ? 'success' : 'danger'}>{ok ? 'Running' : 'Unavailable'}</Status>;
 
   const components = [
     { name: 'DER service', ok: isDerUp(h.status),
@@ -4929,9 +4929,9 @@ export function CapServiceHealth(): JSX.Element {
     { name: 'Database',
       ok: si.database.configured && !si.database.probeError,
       detail: si.database.probeError ?? si.database.product ?? '—' },
-    { name: 'Scheduler', ok: si.scheduler.started,
+    { name: 'Sync service', ok: si.scheduler.started,
       detail: si.scheduler.standbyMode ? 'standby' : 'running' },
-    { name: 'DHIS2 central', ok: si.dhis2.probeReachable,
+    { name: 'Central DHIS2', ok: si.dhis2.probeReachable,
       detail: si.dhis2.reason ?? si.dhis2.centralVersion ?? '—' },
     { name: 'Storage', ok: si.storage.status === 'OK',
       detail: si.storage.status ?? '—' },
@@ -4943,29 +4943,29 @@ export function CapServiceHealth(): JSX.Element {
       ? 'warning'
       : 'danger';
   const statusLabel = failingComponents.length === 0
-    ? `All ${components.length} components OK`
-    : `${failingComponents.length} / ${components.length} failing`;
+    ? `All ${components.length} components running`
+    : `${failingComponents.length} of ${components.length} unavailable`;
 
   return (
     <div className="ea-screen" data-test="cap-health">
       <HealthTabBar />
       <SyncStatusBar
         tone={tone}
-        title="Service health"
+        title="System health"
         statusLabel={statusLabel}
-        subtitle={`Component status captured at ${si.timestamp}.  Overall health: ${h.status}.`}
+        subtitle={`Component state at ${si.timestamp}. Overall: ${h.status}.`}
         actions={
           <>
             <Link to="/monitoring/metrics"
                   className="ea-btn ea-btn--ghost ea-btn--sm"
-                  data-cross-module="System"
+                  data-cross-module="Administration"
                   data-test="cap-health-open-metrics">
               <UiIcon icon="analytics" size={14} />
               <span>Metrics</span>
             </Link>
             <Link to="/monitoring/storage"
                   className="ea-btn ea-btn--ghost ea-btn--sm"
-                  data-cross-module="System"
+                  data-cross-module="Administration"
                   data-test="cap-health-open-storage">
               <UiIcon icon="storage" size={14} />
               <span>Storage</span>
@@ -4973,12 +4973,7 @@ export function CapServiceHealth(): JSX.Element {
           </>
         }
       />
-      <Panel title="Components"
-             action={
-               <span className="ea-text-muted ea-text-xs">
-                 {components.length} components probed
-               </span>
-             }>
+      <Panel title={`${components.length} component${components.length === 1 ? '' : 's'}`}>
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense ea-table--nowrap" data-test="cap-health-components">
             <thead><tr>
@@ -5009,7 +5004,7 @@ export function CapStorage(): JSX.Element {
     edgeApi.systemInfo().then(setSi)
       .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
   }, []);
-  if (err) return <ErrorBlock title="Storage probe failed" testId="err-storage-probe-failed">{err}</ErrorBlock>;
+  if (err) return <ErrorBlock title="Storage check failed" testId="err-storage-probe-failed">{err}</ErrorBlock>;
   if (!si) return <LoadingBlock testId="loading" />;
   const s = si.storage;
   const used = (s.totalBytes ?? 0) - (s.usableBytes ?? 0);
@@ -5023,9 +5018,9 @@ export function CapStorage(): JSX.Element {
   const statusLabel = s.status === 'OK'
     ? 'Healthy'
     : s.status === 'WARN'
-      ? 'Low space warning'
+      ? 'Low disk space'
       : s.status === 'REJECT'
-        ? 'Writes blocked'
+        ? 'Writes blocked — disk almost full'
         : (s.status ?? 'Unknown');
 
   return (
@@ -5038,10 +5033,10 @@ export function CapStorage(): JSX.Element {
         actions={
           <Link to="/monitoring/health"
                 className="ea-btn ea-btn--ghost ea-btn--sm"
-                data-cross-module="System"
+                data-cross-module="Administration"
                 data-test="cap-storage-open-health">
             <UiIcon icon="health" size={14} />
-            <span>Service health</span>
+            <span>System health</span>
           </Link>
         }
       />
@@ -5052,29 +5047,29 @@ export function CapStorage(): JSX.Element {
                   : s.status === 'WARN' ? 'info'
                     : s.status === 'REJECT' ? 'danger' : 'muted'} />
           <Stat label="Used" value={fmtBytes(used)} />
-          <Stat label="Usable" value={fmtBytes(s.usableBytes)} />
-          <Stat label="Utilisation"
+          <Stat label="Free" value={fmtBytes(s.usableBytes)} />
+          <Stat label="Free share"
                 value={pct(s.usableBytes ?? 0, s.totalBytes ?? 0)}
                 tone={s.status === 'REJECT' ? 'danger'
                   : s.status === 'WARN' ? 'info' : 'success'} />
         </div>
       </Panel>
-      <Panel title="Thresholds">
+      <Panel title="Volume settings">
         <dl className="ea-def-list" data-test="cap-storage-thresholds">
           <div className="ea-def-row">
-            <dt>Root</dt>
+            <dt>Mount point</dt>
             <dd className="ea-mono">{s.root ?? '—'}</dd>
           </div>
           <div className="ea-def-row">
-            <dt>Total</dt>
+            <dt>Volume total</dt>
             <dd>{fmtBytes(s.totalBytes)}</dd>
           </div>
           <div className="ea-def-row">
-            <dt>Warn below</dt>
+            <dt>Warn when free &lt;</dt>
             <dd>{fmtBytes(s.warnBytes)}</dd>
           </div>
           <div className="ea-def-row">
-            <dt>Reject below</dt>
+            <dt>Block writes when free &lt;</dt>
             <dd>{fmtBytes(s.rejectBytes)}</dd>
           </div>
         </dl>
