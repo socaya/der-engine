@@ -225,45 +225,51 @@ export function Metadata(): JSX.Element {
       {!rows && !err && <LoadingBlock testId="loading" />}
 
       {rows && (
-        <Panel action={
-          <>
-            <select className="ea-input" style={{ maxWidth: 220 }}
-                    value={activeDomain}
-                    onChange={(e) => setActiveDomain(e.target.value)}
-                    data-test="metadata-category"
-                    aria-label="Metadata category">
-              {DOMAIN_GROUPS.map((g) => (
-                <option key={g.domain} value={g.domain}>
-                  {g.domain} ({(domainCounts[g.domain] ?? 0).toLocaleString()})
-                </option>
-              ))}
-            </select>
-            <select className="ea-input" style={{ maxWidth: 260 }}
-                    value={tabKey}
-                    onChange={(e) => setTabKey(e.target.value)}
-                    data-test="metadata-resource"
-                    aria-label="Metadata resource">
-              {activeDomainGroup.resources.map((r) => (
-                <option key={r.key} value={r.key}>
-                  {r.label} — {counts[r.key] ?? '…'}
-                </option>
-              ))}
-            </select>
-            <input className="ea-input" style={{ maxWidth: 240 }}
-                   type="search" placeholder="Search by name, ID or code"
-                   value={query} onChange={(e) => setQuery(e.target.value)} />
-            <span className="ea-text-muted ea-text-xs">
-              {query
-                ? `${filtered.length.toLocaleString()} match${filtered.length === 1 ? '' : 'es'} on this page`
-                : `${pageTotal.toLocaleString()} items`}
-            </span>
-          </>
-        }>
+        <Panel
+          title={
+            query
+              ? `${filtered.length.toLocaleString()} match${filtered.length === 1 ? '' : 'es'}`
+              : `${pageTotal.toLocaleString()} item${pageTotal === 1 ? '' : 's'}`
+          }
+          action={
+            <div className="ea-data-filterbar" role="group" aria-label="Filters">
+              <select className="ea-input ea-input--compact"
+                      value={activeDomain}
+                      onChange={(e) => setActiveDomain(e.target.value)}
+                      data-test="metadata-category"
+                      aria-label="Metadata category">
+                {DOMAIN_GROUPS.map((g) => (
+                  <option key={g.domain} value={g.domain}>
+                    {g.domain} ({(domainCounts[g.domain] ?? 0).toLocaleString()})
+                  </option>
+                ))}
+              </select>
+              <select className="ea-input ea-input--compact"
+                      value={tabKey}
+                      onChange={(e) => setTabKey(e.target.value)}
+                      data-test="metadata-resource"
+                      aria-label="Metadata resource">
+                {activeDomainGroup.resources.map((r) => (
+                  <option key={r.key} value={r.key}>
+                    {r.label} — {counts[r.key] ?? '…'}
+                  </option>
+                ))}
+              </select>
+              <input className="ea-input ea-input--compact"
+                     type="search" placeholder="Search by name, ID or code"
+                     value={query} onChange={(e) => setQuery(e.target.value)} />
+            </div>
+          }>
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense ea-table--selectable">
+            <table className="ea-table ea-table--dense ea-table--selectable ea-table--nowrap">
               <thead><tr>
-                <th>Name</th><th>ID</th><th>Code</th><th>Short name</th>
-                <th>Last updated</th><th>Mirror</th><th style={{ width: 36 }}></th>
+                <th>Name</th>
+                <th className="ea-col-w-140">ID</th>
+                <th className="ea-col-w-110">Code</th>
+                <th>Short name</th>
+                <th className="ea-col-w-100">Status</th>
+                <th className="ea-col-w-110 ea-text-right">Last updated</th>
+                <th className="ea-col-w-48" aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {filtered.map((r) => (
@@ -274,8 +280,13 @@ export function Metadata(): JSX.Element {
                     <td className="ea-mono ea-text-sm">{r.id}</td>
                     <td className="ea-text-muted ea-mono ea-text-sm">{r.code ?? '—'}</td>
                     <td className="ea-text-muted">{r.shortName ?? '—'}</td>
-                    <td className="ea-mono">{r.lastUpdated ? fmtDate(r.lastUpdated) : '—'}</td>
-                    <td><Dot tone="success" /> mirrored</td>
+                    <td>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Dot tone="success" />
+                        <span className="ea-text-xs">Local</span>
+                      </span>
+                    </td>
+                    <td className="ea-mono ea-text-right">{r.lastUpdated ? fmtDate(r.lastUpdated) : '—'}</td>
                     <td className="ea-text-right">
                       <RowMenu items={[
                         { label: 'Open details', to: `/dhis2/metadata/${r.resource}/${r.id}` },
@@ -285,7 +296,7 @@ export function Metadata(): JSX.Element {
                 ))}
                 {filtered.length === 0 && (
                   <tr><td colSpan={7} className="ea-text-muted" style={{ padding: 24, textAlign: 'center' }}>
-                    {query ? 'No metadata matches that search on this page.' : 'No metadata mirrored for this resource.'}
+                    {query ? 'No metadata matches that search on this page.' : 'No metadata available locally for this resource.'}
                   </td></tr>
                 )}
               </tbody>

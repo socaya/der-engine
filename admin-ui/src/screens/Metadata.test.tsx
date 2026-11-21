@@ -105,20 +105,26 @@ describe('Metadata (list)', () => {
   });
 
   it('renders empty-state row when the resource has zero items', async () => {
+    /* Phase-4B: empty copy renamed from "No metadata mirrored for
+     * this resource" to "No metadata available locally for this
+     * resource" per the terminology glossary ("mirror" is internal
+     * jargon). */
     vi.mocked(mockedApi.metadataList).mockImplementation(async (resource: string) =>
       listResponse(resource, []) as never);
     renderList();
-    await waitFor(() => expect(screen.getByText(/No metadata mirrored for this resource/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/No metadata available locally for this resource/)).toBeInTheDocument());
   });
 
   it('search field filters current page rows and shows match count', async () => {
+    /* Phase-4B: match-count caption is now the Panel title
+     * "N match(es)" (no longer "N match[es] on this page"). */
     renderList();
     await waitFor(() => expect(screen.getByTestId('meta-row-UID-1')).toBeInTheDocument());
     const search = screen.getByPlaceholderText(/Search by name/);
     fireEvent.change(search, { target: { value: 'UID-1' } });
     expect(screen.getByTestId('meta-row-UID-1')).toBeInTheDocument();
     expect(screen.queryByTestId('meta-row-UID-2')).toBeNull();
-    expect(screen.getByText(/1 match on this page/)).toBeInTheDocument();
+    expect(screen.getByText(/^1 match$/)).toBeInTheDocument();
   });
 
   it('search with no matches shows the "No metadata matches" empty row', async () => {

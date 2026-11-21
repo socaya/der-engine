@@ -140,20 +140,23 @@ export function UsersDashboard(): JSX.Element {
 
       <Panel title={`${filtered.length} user${filtered.length === 1 ? '' : 's'}`}
              action={
-               <input className="ea-input" style={{ maxWidth: 240 }} type="search"
-                      placeholder="Search by name or username"
-                      value={query} onChange={(e) => setQuery(e.target.value)} />
+               <div className="ea-data-filterbar" role="group" aria-label="Filters">
+                 <input className="ea-input ea-input--compact" type="search"
+                        placeholder="Search by name or username"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)} />
+               </div>
              }>
         <div className="ea-table-wrap">
-          <table className="ea-table ea-table--dense ea-table--selectable">
+          <table className="ea-table ea-table--dense ea-table--selectable ea-table--nowrap">
             <thead><tr>
               <th style={{ width: 36 }}></th>
               <th>Display name</th>
-              <th>Username</th>
+              <th className="ea-col-w-140">Username</th>
               <th>Roles</th>
-              <th style={{ width: 150 }}>DHIS2 mapping</th>
-              <th style={{ width: 170 }}>Central permissions verified</th>
-              <th className="ea-col-w-110">Last login</th>
+              <th className="ea-col-w-140">DHIS2 mapping</th>
+              <th className="ea-col-w-110">Verified</th>
+              <th className="ea-col-w-110 ea-text-right">Last login</th>
               <th className="ea-col-w-48" aria-label="Actions"></th>
             </tr></thead>
             <tbody>
@@ -206,7 +209,7 @@ export function UsersDashboard(): JSX.Element {
                         {verified ? 'Verified' : 'Pending'}
                       </span>
                     </td>
-                    <td className="ea-text-muted">—</td>
+                    <td className="ea-text-muted ea-text-right">—</td>
                     <td className="ea-text-right">
                       <RowMenu items={[
                         { label: 'Open details', to: `/provisioning/users/${u.userId}` },

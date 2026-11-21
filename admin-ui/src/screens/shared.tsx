@@ -1289,6 +1289,10 @@ export interface RowMenuItem {
   readonly to?: string;        // Link navigation instead of callback.
   readonly danger?: boolean;   // Red tone (destructive actions).
   readonly disabled?: boolean;
+  /** Optional `data-test` attribute on the rendered menuitem — lets
+   *  existing per-item test probes (e.g. `snapshot-row-9-retire`)
+   *  keep matching once the inline button is folded into a RowMenu. */
+  readonly dataTest?: string;
 }
 
 /** §2.3.107 R-AB — labelled "Related" dropdown used in screen
@@ -1547,6 +1551,7 @@ export function RowMenu({ items, label = 'Actions' }: {
               <Link key={i} to={it.to} style={style}
                     ref={setItemRef as React.Ref<HTMLAnchorElement>}
                     onClick={() => close(false)}
+                    data-test={it.dataTest}
                     {...commonAriaProps}>
                 {it.label}
               </Link>
@@ -1557,6 +1562,7 @@ export function RowMenu({ items, label = 'Actions' }: {
                     ref={setItemRef as React.Ref<HTMLButtonElement>}
                     disabled={it.disabled}
                     aria-disabled={it.disabled}
+                    data-test={it.dataTest}
                     {...commonAriaProps}
                     onClick={(e) => {
                       e.stopPropagation();

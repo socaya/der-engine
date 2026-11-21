@@ -91,9 +91,20 @@ export function SignIn(): JSX.Element {
           <div className="ea-sign-in-brand" aria-hidden="true">
             <img
               className="ea-sign-in-logo-img"
-              src="/brand/der-icon-navy.svg"
-              alt="DER"
-              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              src="/admin/assets/der-logo.svg"
+              alt="DER — DHIS2 Edge Runtime"
+              onError={(e) => {
+                /* Fall back to the single-colour icon-only mark if
+                 * the full brand lockup fails to load (e.g. when
+                 * served from a stripped-down dev shell). */
+                const img = e.currentTarget as HTMLImageElement;
+                if (!img.dataset.fellback) {
+                  img.dataset.fellback = 'true';
+                  img.src = '/brand/der-icon-navy.svg';
+                } else {
+                  img.style.display = 'none';
+                }
+              }}
             />
           </div>
           <div className="ea-sign-in-wordmark" aria-hidden="true">

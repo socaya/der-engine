@@ -469,7 +469,11 @@ code{font-family:var(--der-font-mono);font-size:var(--fs-sm)}
 
 /* ---------- Main area ---------- */
 .ea-main{grid-area:main;min-width:0}
-.ea-main-inner{max-width:none;margin:0;padding:10px}
+.ea-main-inner{
+  max-width:none;
+  margin:0;
+  /* padding: 10px; */
+}
 
 /* ============ Typography ============ */
 h1{
@@ -1053,23 +1057,19 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
 .ea-sign-in-card{
   position:relative;z-index:1;
   width:432px;max-width:100%;
-  /* Frosted-glass surface over the uploaded background:
-   *   - 42% opaque white → the image is clearly visible through the
-   *     card while form copy remains legible thanks to the auto
-   *     dark overlay applied to the backdrop.
-   *   - 18 px backdrop blur + saturate(1.3) gives the characteristic
-   *     glass softening of the colours behind.
-   *   - Thin white-at-50% border fakes the frosted edge, and a
-   *     1 px inset white top highlight catches the "lit top" look. */
-  background:rgba(255,255,255,0.42);
-  -webkit-backdrop-filter:saturate(1.3) blur(18px);
-  backdrop-filter:saturate(1.3) blur(18px);
-  border:1px solid rgba(255,255,255,0.5);
+  /* Lighter glass — enough to tint and separate from the image
+   * without blurring the photo into a wash. 28% opaque white +
+   * 6 px backdrop blur (was 42% + 18 px) lets the uploaded
+   * background clearly read through the card while form copy
+   * stays legible thanks to the auto dark overlay behind. */
+  background:rgba(255,255,255,0.28);
+  -webkit-backdrop-filter:saturate(1.2) blur(6px);
+  backdrop-filter:saturate(1.2) blur(6px);
+  border:1px solid rgba(255,255,255,0.55);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.65),
     0 24px 60px -24px rgba(10,26,54,0.45),
     0 2px 8px rgba(10,26,54,0.12);
-  /* Deepen the body copy a touch so it reads on the frosted panel. */
   color:var(--der-ink-900, #0f172a);
 }
 /* When no custom background is set, give the card a crisp opaque
@@ -1092,15 +1092,21 @@ dd{margin:0;color:var(--der-ink-900);font-size:var(--fs-md);font-weight:500}
   background:var(--der-primary);
   color:#fff;font-weight:700;font-size:var(--fs-md);letter-spacing:0.5px;
 }
-.ea-sign-in-logo-img{width:56px;height:56px;object-fit:contain;display:block}
+/* Full brand lockup — der-logo.svg at ~ 180 px wide is tall enough
+ * to read clearly without dominating the card. On narrow viewports
+ * the max-width:80% keeps it from touching the card gutter. */
+.ea-sign-in-logo-img{
+  width:auto;height:72px;max-width:80%;
+  object-fit:contain;display:block;
+}
 .ea-sign-in-wordmark{
   text-align:center;
-  color:var(--der-ink-400, #64748b);
-  font-size:var(--fs-xs, 11px);
+  color:var(--der-ink-500, #475569);
+  font-size:var(--fs-sm, 12px);
   text-transform:uppercase;
-  letter-spacing:2px;
+  letter-spacing:2.5px;
   font-weight:600;
-  margin:0 0 var(--sp-4);
+  margin:var(--sp-1) 0 var(--sp-5);
 }
 .ea-sign-in-title{
   font-size:var(--fs-xl);font-weight:700;text-align:center;
