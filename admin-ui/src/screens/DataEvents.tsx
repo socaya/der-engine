@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
-  Breadcrumbs, LastPulledChip, LocalVsCentralBadge,
-  Panel, ScopedFilterChip, SyncStatusBar,
+  Breadcrumbs, LastPulledChip,
+  Panel, ScopedFilterChip, SyncStatusBar, SyncPath,
   fmtAgo, usePaged, TablePager,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
@@ -314,7 +314,11 @@ function EventsTable(
                             fontVariantNumeric: 'tabular-nums' }}>
                 {r.eventVersion}
               </td>
-              <td><SyncStateChip row={r} /></td>
+              <td>
+                <SyncPath
+                  state={r.syncState}
+                  dataTest={`data-events-chip-${r.syncState ?? 'UNKNOWN'}`} />
+              </td>
               <td className="ea-text-muted ea-text-right"
                   title={r.occurredAt ?? ''}>
                 {r.occurredAt ? fmtAgo(r.occurredAt) : '—'}
@@ -339,66 +343,9 @@ function chipToneForStatus(status: edgeApi.LocalEventRow['status']): string {
   }
 }
 
-function SyncStateChip(
-  { row }: { row: edgeApi.LocalEventRow }
-): JSX.Element {
-  const state = row.syncState;
-  const badge = <LocalVsCentralBadge state={state} size="xs" />;
-  if (state === null || state === undefined) {
-    return (
-      <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-        {badge}
-      </span>
-    );
-  }
-  const { tone, label, to } = chipShape(state, row.operationId);
-  const chip = (
-    <span className={`ea-chip ea-chip--${tone}`}
-          data-test={`data-events-chip-${state}`}>
-      {label}
-    </span>
-  );
-  const pair = (
-    <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center',
-                     flexWrap: 'wrap' }}>
-      {badge}
-      {chip}
-    </span>
-  );
-  return to
-    ? <Link to={to} style={{ textDecoration: 'none' }}>{pair}</Link>
-    : pair;
-}
-
-function chipShape(state: edgeApi.LocalDataSyncState, operationId: string | null)
-: { tone: 'neutral' | 'info' | 'success' | 'warning' | 'danger';
-    label: string; to?: string } {
-  switch (state) {
-    case 'PENDING':
-      return { tone: 'info', label: 'Pending push', to: '/data/queue' };
-    case 'IN_FLIGHT':
-      return { tone: 'info', label: 'Sending…', to: '/data/queue' };
-    case 'RETRYABLE':
-      return { tone: 'warning', label: 'Retrying', to: '/data/queue' };
-    case 'CENTRAL_ACCEPTED':
-      return { tone: 'success', label: 'Synced' };
-    case 'CENTRAL_REJECTED':
-      return { tone: 'danger', label: 'Rejected',
-               to: operationId ? `/sync/attention/${operationId}` : '/sync/attention' };
-    case 'CONFLICT_REVIEW':
-      return { tone: 'warning', label: 'Conflict',
-               to: operationId ? `/sync/attention/${operationId}` : '/sync/attention' };
-    case 'REQUIRES_APPROVAL':
-      return { tone: 'warning', label: 'Approval', to: '/data/queue' };
-    case 'QUARANTINED':
-      return { tone: 'danger', label: 'Quarantined',
-               to: operationId ? `/sync/attention/${operationId}` : '/sync/attention' };
-    case 'UNKNOWN_OUTCOME':
-      return { tone: 'warning', label: 'Unknown', to: '/sync/attention' };
-    default:
-      return { tone: 'neutral', label: state };
-  }
-}
+/* Per-screen SyncStateChip + chipShape replaced by the shared
+ * SyncPath component (shared.tsx). The `data-events-chip-{STATE}`
+ * contract is preserved on SyncPath via its `dataTest` prop. */
 
 /** §2.3.91 R-C/2.1 — scope picker + progress for the central-DHIS2
  *  events pull. Operator supplies program / orgUnit (+ optional

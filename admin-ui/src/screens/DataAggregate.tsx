@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
-  Breadcrumbs, LastPulledChip, LocalVsCentralBadge,
-  Panel, ScopedFilterChip, SyncStatusBar,
+  Breadcrumbs, LastPulledChip,
+  Panel, ScopedFilterChip, SyncStatusBar, SyncPath,
   fmtAgo, usePaged, TablePager,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
@@ -309,7 +309,11 @@ function AggregateTable(
                             fontVariantNumeric: 'tabular-nums' }}>
                 {r.valueVersion}
               </td>
-              <td><SyncStateChip row={r} /></td>
+              <td>
+                <SyncPath
+                  state={r.syncState}
+                  dataTest={`data-aggregate-chip-${r.syncState ?? 'UNKNOWN'}`} />
+              </td>
               <td className="ea-text-muted ea-text-right"
                   title={r.submittedAt ?? ''}>
                 {r.submittedAt ? fmtAgo(r.submittedAt) : '—'}
@@ -322,70 +326,13 @@ function AggregateTable(
   );
 }
 
-function SyncStateChip(
-  { row }: { row: edgeApi.LocalAggregateRow }
-): JSX.Element {
-  const state = row.syncState;
-  /* NFR-25 — pair every row with an unambiguous local/central badge
-   * so operators don't have to decode the state-machine vocabulary. */
-  const badge = <LocalVsCentralBadge state={state} size="xs" />;
-  if (state === null || state === undefined) {
-    return (
-      <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-        {badge}
-      </span>
-    );
-  }
-  const { tone, label, to } = chipShape(state, row.operationId);
-  const chip = (
-    <span className={`ea-chip ea-chip--${tone}`}
-          data-test={`data-aggregate-chip-${state}`}>
-      {label}
-    </span>
-  );
-  const pair = (
-    <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center',
-                     flexWrap: 'wrap' }}>
-      {badge}
-      {chip}
-    </span>
-  );
-  return to
-    ? <Link to={to}
-            style={{ textDecoration: 'none' }}>{pair}</Link>
-    : pair;
-}
-
-function chipShape(state: edgeApi.LocalDataSyncState,
-                     operationId: string | null)
-: { tone: 'neutral' | 'info' | 'success' | 'warning' | 'danger';
-    label: string; to?: string } {
-  switch (state) {
-    case 'PENDING':
-      return { tone: 'info', label: 'Pending push', to: '/data/queue' };
-    case 'IN_FLIGHT':
-      return { tone: 'info', label: 'Sending…', to: '/data/queue' };
-    case 'RETRYABLE':
-      return { tone: 'warning', label: 'Retrying', to: '/data/queue' };
-    case 'CENTRAL_ACCEPTED':
-      return { tone: 'success', label: 'Synced' };
-    case 'CENTRAL_REJECTED':
-      return { tone: 'danger', label: 'Rejected',
-               to: operationId ? `/sync/attention/${operationId}` : '/sync/attention' };
-    case 'CONFLICT_REVIEW':
-      return { tone: 'warning', label: 'Conflict',
-               to: operationId ? `/sync/attention/${operationId}` : '/sync/attention' };
-    case 'REQUIRES_APPROVAL':
-      return { tone: 'warning', label: 'Approval', to: '/data/queue' };
-    case 'QUARANTINED':
-      return { tone: 'danger', label: 'Quarantined',
-               to: operationId ? `/sync/attention/${operationId}` : '/sync/attention' };
-    case 'UNKNOWN_OUTCOME':
-      return { tone: 'warning', label: 'Unknown', to: '/sync/attention' };
-    default:
-      return { tone: 'neutral', label: state };
-  }
-}
+/* The old per-screen `SyncStateChip` + `chipShape` pair rendered
+ * a `<LocalVsCentralBadge>` + ea-chip combo that wrapped onto two
+ * visual lines in the compact DER Soft UI table. Replaced with the
+ * shared `SyncPath` component (`[DER-icon] → [DHIS2-icon] label`
+ * on a single line); see shared.tsx. The `data-aggregate-chip-{STATE}`
+ * contract is preserved on SyncPath's outer span via its `dataTest`
+ * prop. */
 
 /** §2.3.86 R-C/1.4 — scope picker + progress for the central-DHIS2
  *  pull. Operator supplies dataSet / orgUnit / period, server-side

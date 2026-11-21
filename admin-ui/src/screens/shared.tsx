@@ -702,6 +702,93 @@ export function LocalVsCentralBadge(
   );
 }
 
+/** Compact per-row sync visualisation used in the data tables.
+ *
+ *  Renders four pieces inline on a single line:
+ *     [DER icon] → [DHIS2 icon]  Label
+ *
+ *  Each icon carries a coloured dot in its top-right corner that
+ *  reflects the pipeline state — DER is always success (data is
+ *  stored locally the moment the row appears); DHIS2 is success
+ *  once CENTRAL_ACCEPTED, otherwise the tone of the current state
+ *  (muted when pending, warning when retrying/review/approval,
+ *  danger when rejected/quarantined).
+ *
+ *  Pairs with (and supersedes) the old pair of
+ *  LocalVsCentralBadge + separate sync-state chip, which wrapped
+ *  onto two visual rows in the compact DER Soft UI tables. */
+export function SyncPath(
+  { state, dataTest }:
+    { state: edgeApi.LocalDataSyncState | null | undefined;
+      /** Optional `data-test` attribute carried on the outer span.
+       *  The data screens pass `data-{area}-chip-{STATE}` so the
+       *  existing test contract keeps working after the chip was
+       *  replaced by the icon path. */
+      dataTest?: string },
+): JSX.Element {
+  const onCentral = isCentralAccepted(state);
+  const { tone, label } = syncPathDisplay(state);
+  const dhis2Tone: 'success' | 'muted' | 'warning' | 'danger' =
+    onCentral ? 'success'
+      : tone === 'danger' ? 'danger'
+      : tone === 'warning' ? 'warning'
+      : 'muted';
+  const title = onCentral
+    ? 'Stored locally on DER and accepted by Central DHIS2.'
+    : 'Stored locally on DER. Not yet accepted by Central DHIS2.';
+  return (
+    <span className="ea-sync-path"
+          title={title}
+          data-test={dataTest}>
+      <span className="ea-sync-path-node ea-sync-path-node--success"
+            aria-label="Stored on DER">
+        <img src={SYNC_PATH_DER_ICON}
+             alt="" aria-hidden="true"
+             className="ea-sync-path-icon" />
+      </span>
+      <span className="ea-sync-path-arrow" aria-hidden="true">→</span>
+      <span className={'ea-sync-path-node ea-sync-path-node--' + dhis2Tone}
+            aria-label={onCentral
+              ? 'Accepted by Central DHIS2'
+              : 'Not yet accepted by Central DHIS2'}>
+        <img src={SYNC_PATH_DHIS2_ICON}
+             alt="" aria-hidden="true"
+             className="ea-sync-path-icon" />
+      </span>
+      <span className={'ea-sync-path-label ea-sync-path-label--' + tone}>
+        {label}
+      </span>
+    </span>
+  );
+}
+
+/* Admin UI prefixes brand assets with `__DER_ADMIN_BASE__` so the same
+ * bundle serves cleanly from `/admin/` in production and `/` in dev.
+ * We reproduce the pattern NetworkNode uses so SyncPath works in both
+ * modes without a separate hook. */
+const SYNC_PATH_ADMIN_BASE: string =
+  typeof __DER_ADMIN_BASE__ !== 'undefined' ? __DER_ADMIN_BASE__ : '/';
+const SYNC_PATH_DER_ICON   = SYNC_PATH_ADMIN_BASE + 'assets/der-icon.svg';
+const SYNC_PATH_DHIS2_ICON = SYNC_PATH_ADMIN_BASE + 'assets/dhis2-logo.svg';
+
+function syncPathDisplay(state: edgeApi.LocalDataSyncState | null | undefined):
+  { tone: 'success' | 'info' | 'muted' | 'warning' | 'danger';
+    label: string } {
+  switch (state) {
+    case 'CENTRAL_ACCEPTED':   return { tone: 'success', label: 'Synced' };
+    case 'PENDING':            return { tone: 'info',    label: 'Pending push' };
+    case 'IN_FLIGHT':          return { tone: 'info',    label: 'Sending' };
+    case 'RETRYABLE':          return { tone: 'warning', label: 'Retrying' };
+    case 'CENTRAL_REJECTED':   return { tone: 'danger',  label: 'Rejected' };
+    case 'CONFLICT_REVIEW':    return { tone: 'warning', label: 'Conflict' };
+    case 'REQUIRES_APPROVAL':  return { tone: 'warning', label: 'Approval' };
+    case 'QUARANTINED':        return { tone: 'danger',  label: 'Quarantined' };
+    case 'UNKNOWN_OUTCOME':    return { tone: 'warning', label: 'Unknown' };
+    case null: case undefined: return { tone: 'muted',   label: 'Local only' };
+    default:                   return { tone: 'muted',   label: String(state) };
+  }
+}
+
 export const JOURNAL_ENTITY_TYPES: ReadonlyArray<string> = [
   'AGGREGATE_DATA_VALUE',
   'EVENT',

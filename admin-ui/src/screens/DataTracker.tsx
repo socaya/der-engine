@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import {
-  Breadcrumbs, LastPulledChip, LocalVsCentralBadge,
-  Panel, ScopedFilterChip, SyncStatusBar,
+  Breadcrumbs, LastPulledChip,
+  Panel, ScopedFilterChip, SyncStatusBar, SyncPath,
   fmtAgo, usePaged, TablePager,
 } from './shared';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
@@ -335,14 +335,20 @@ function TrackerTable(
               </td>
               <td>
                 {r.teiUid ? (
-                  <button type="button"
-                          className="ea-btn ea-btn--ghost ea-btn--sm"
-                          style={{ fontFamily: 'var(--der-mono)',
-                                     fontSize: 11 }}
-                          onClick={() => onZoomTei(r.teiUid as string)}
-                          title="Scope to this TEI">
+                  /* Plain link — scoping to this TEI stays a regular
+                   * anchor (not a button) so the whole row reads as
+                   * a table record per the "no buttons in row cells,
+                   * clickable links only" ask. */
+                  <a href="#tei"
+                     className="ea-mono ea-text-2xs ea-sync-path-link"
+                     title="Scope to this TEI"
+                     onClick={(e) => {
+                       e.preventDefault();
+                       e.stopPropagation();
+                       onZoomTei(r.teiUid as string);
+                     }}>
                     {r.teiUid}
-                  </button>
+                  </a>
                 ) : (
                   <span className="ea-text-muted">—</span>
                 )}
@@ -378,7 +384,11 @@ function TrackerTable(
                   <span className="ea-text-muted">—</span>
                 )}
               </td>
-              <td><TrackerSyncChip row={r} /></td>
+              <td>
+                <SyncPath
+                  state={r.syncState}
+                  dataTest={`data-tracker-chip-${r.syncState ?? 'UNKNOWN'}`} />
+              </td>
               <td className="ea-text-muted"
                   style={{ textAlign: 'right',
                             fontVariantNumeric: 'tabular-nums' }}>
@@ -396,68 +406,9 @@ function TrackerTable(
   );
 }
 
-/** §2.3.94 R-C/3.2 — same vocabulary as Aggregate / Events sync
- *  chips, parameterised by the tracker row's syncState + opId. */
-function TrackerSyncChip(
-  { row }: { row: edgeApi.LocalTrackerRow }
-): JSX.Element {
-  const state = row.syncState;
-  const badge = <LocalVsCentralBadge state={state} size="xs" />;
-  if (state === null || state === undefined) {
-    return (
-      <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-        {badge}
-      </span>
-    );
-  }
-  const { tone, label, to } = chipShape(state, row.operationId);
-  const chip = (
-    <span className={`ea-chip ea-chip--${tone}`}
-          data-test={`data-tracker-chip-${state}`}>
-      {label}
-    </span>
-  );
-  const pair = (
-    <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center',
-                     flexWrap: 'wrap' }}>
-      {badge}
-      {chip}
-    </span>
-  );
-  return to
-    ? <Link to={to} style={{ textDecoration: 'none' }}>{pair}</Link>
-    : pair;
-}
-
-function chipShape(state: edgeApi.LocalDataSyncState, operationId: string | null)
-: { tone: 'neutral' | 'info' | 'success' | 'warning' | 'danger';
-    label: string; to?: string } {
-  switch (state) {
-    case 'PENDING':
-      return { tone: 'info', label: 'Pending push', to: '/data/queue' };
-    case 'IN_FLIGHT':
-      return { tone: 'info', label: 'Sending…', to: '/data/queue' };
-    case 'RETRYABLE':
-      return { tone: 'warning', label: 'Retrying', to: '/data/queue' };
-    case 'CENTRAL_ACCEPTED':
-      return { tone: 'success', label: 'Synced' };
-    case 'CENTRAL_REJECTED':
-      return { tone: 'danger', label: 'Rejected',
-               to: operationId ? `/sync/attention/${operationId}` : '/sync/attention' };
-    case 'CONFLICT_REVIEW':
-      return { tone: 'warning', label: 'Conflict',
-               to: operationId ? `/sync/attention/${operationId}` : '/sync/attention' };
-    case 'REQUIRES_APPROVAL':
-      return { tone: 'warning', label: 'Approval', to: '/data/queue' };
-    case 'QUARANTINED':
-      return { tone: 'danger', label: 'Quarantined',
-               to: operationId ? `/sync/attention/${operationId}` : '/sync/attention' };
-    case 'UNKNOWN_OUTCOME':
-      return { tone: 'warning', label: 'Unknown', to: '/sync/attention' };
-    default:
-      return { tone: 'neutral', label: state };
-  }
-}
+/* TrackerSyncChip + chipShape removed — replaced by the shared
+ * SyncPath component in shared.tsx. The `data-tracker-chip-{STATE}`
+ * contract is preserved via SyncPath's `dataTest` prop. */
 
 function chipToneForKind(kind: edgeApi.LocalTrackerRow['kind']): string {
   switch (kind) {

@@ -1692,6 +1692,66 @@ kbd{
 .ea-table--nowrap td .ea-chip,
 .ea-table--nowrap td button,
 .ea-table--nowrap td a{white-space:nowrap}
+
+/* ============================================================
+   SyncPath — per-row DER→DHIS2 icon strip used in data tables
+   ------------------------------------------------------------
+   Visual: [DER-icon]  →  [DHIS2-icon]  Label
+   All on one line (inline-flex, nowrap). Each icon node has a
+   tiny coloured tone dot in its top-right corner that mirrors
+   the leg's state (DER always success, DHIS2 success when
+   CENTRAL_ACCEPTED, otherwise muted/warning/danger).
+   ============================================================ */
+.ea-sync-path{
+  display:inline-flex;align-items:center;gap:6px;
+  white-space:nowrap;
+  font-size:12px;
+  color:var(--der-ink-700, #334155);
+}
+.ea-sync-path-node{
+  position:relative;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;
+  background:var(--der-surface-hover, #f1f5f9);
+  border-radius:4px;
+  flex-shrink:0;
+}
+.ea-sync-path-icon{width:14px;height:14px;object-fit:contain;display:block}
+/* Tone dot pinned to the icon node's top-right corner. */
+.ea-sync-path-node::after{
+  content:'';
+  position:absolute;top:-2px;right:-2px;
+  width:8px;height:8px;border-radius:50%;
+  border:1.5px solid var(--der-surface, #fff);
+}
+.ea-sync-path-node--success::after{background:var(--der-success, #16a34a)}
+.ea-sync-path-node--warning::after{background:var(--der-warning, #d97706)}
+.ea-sync-path-node--danger::after {background:var(--der-danger,  #dc2626)}
+.ea-sync-path-node--info::after   {background:var(--der-primary, #1d4ed8)}
+.ea-sync-path-node--muted::after  {background:var(--der-ink-300, #94a3b8)}
+
+.ea-sync-path-arrow{
+  color:var(--der-ink-300, #94a3b8);
+  font-size:14px;line-height:1;user-select:none;
+  padding:0 2px;
+}
+.ea-sync-path-label{
+  font-weight:600;letter-spacing:0;line-height:1.2;
+}
+.ea-sync-path-label--success{color:var(--der-success-ink, #166534)}
+.ea-sync-path-label--warning{color:var(--der-warning-ink, #9a3412)}
+.ea-sync-path-label--danger {color:var(--der-danger-ink,  #991b1b)}
+.ea-sync-path-label--info   {color:var(--der-primary-ink, #1e3a8a)}
+.ea-sync-path-label--muted  {color:var(--der-ink-500,     #475569)}
+
+/* Plain in-cell link used in the compact tables (TEI link in
+ * tracker, etc.) — anchor-style, no button chrome. */
+.ea-sync-path-link{
+  color:var(--der-primary-ink, #1e3a8a);
+  text-decoration:none;
+}
+.ea-sync-path-link:hover{text-decoration:underline}
+.ea-sync-path-link:focus-visible{outline:2px solid var(--der-primary);outline-offset:2px}
 /* Panels take their own vertical rhythm from PanelHead + table margins;
  * trailing <p> inside a panel body would otherwise double-margin. */
 .ea-panel-body > p{margin:0}
