@@ -6,6 +6,14 @@ import {
 } from './shared';
 import { useRuntimeStatus } from '../components/RuntimeStatusProvider';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
+import { UiIcon, type UiIconId } from '../components/UiIcon';
+
+/* Admin UI prefixes brand assets with __DER_ADMIN_BASE__ so the same
+ * bundle serves cleanly from /admin/ in production and / in dev. */
+const ADMIN_BASE: string =
+  typeof __DER_ADMIN_BASE__ !== 'undefined' ? __DER_ADMIN_BASE__ : '/';
+const DHIS2_ICON = ADMIN_BASE + 'assets/dhis2-icon.svg';
+const DER_ICON   = ADMIN_BASE + 'assets/der-icon.svg';
 
 /**
  * Overview — DER Admin landing page.
@@ -131,7 +139,10 @@ export function Workspace(): JSX.Element {
           UI: no bordered chips. Status is colour-only text. ── */}
       <section className="ea-overview-header">
         <div className="ea-overview-heading">
-          <h1 className="ea-overview-title">DER Server</h1>
+          <h1 className="ea-overview-title">
+            <img src={DER_ICON} alt="" className="ea-overview-title-mark" aria-hidden="true" />
+            DER Server
+          </h1>
           <p className="ea-overview-sub">
             Local data capture and synchronisation with Central DHIS2.
           </p>
@@ -160,11 +171,10 @@ export function Workspace(): JSX.Element {
         </ErrorBlock>
       )}
 
-      {/* ── Block 2 — four-cell status summary. Soft UI: hairline
-          dividers between cells, top-edge tone accent, no bordered
-          cards. ── */}
+      {/* ── Block 2 — four-cell status summary with DER icons. ── */}
       <div className="ea-overview-status" data-test="workspace-status-row">
         <StatusCell
+          icon="health"
           label="Local server"
           value={derStatusLabel}
           tone={derTone}
@@ -172,6 +182,7 @@ export function Workspace(): JSX.Element {
           to="/monitoring/health"
         />
         <StatusCell
+          icon="aggregate"
           label="Local capture"
           value={captureLabel}
           tone={captureTone}
@@ -181,6 +192,7 @@ export function Workspace(): JSX.Element {
           to="/data"
         />
         <StatusCell
+          brandImg={DHIS2_ICON}
           label="Central DHIS2"
           value={dhis2StatusLabel}
           tone={dhis2Tone}
@@ -192,6 +204,7 @@ export function Workspace(): JSX.Element {
           to="/dhis2/compat"
         />
         <StatusCell
+          icon="data-queue"
           label="Sync queue"
           value={
             totalConflicts > 0 ? `${totalConflicts} to review`
@@ -234,6 +247,7 @@ export function Workspace(): JSX.Element {
           </header>
 
           <SummaryRow
+            icon="cog"
             label="Workflows"
             metric={`${activeWf} / ${totalWf} active`}
             to="/workflows"
@@ -243,6 +257,7 @@ export function Workspace(): JSX.Element {
             ]}
           />
           <SummaryRow
+            icon="storage"
             label="Storage"
             metric={si ? `${fmtBytes(storageUsed)} used` : 'Unknown'}
             to="/monitoring/storage"
@@ -255,6 +270,7 @@ export function Workspace(): JSX.Element {
             ]}
           />
           <SummaryRow
+            icon="tablet"
             label="Devices"
             metric={`${approvedDevices.length} approved`}
             to="/devices"
@@ -317,20 +333,40 @@ export function Workspace(): JSX.Element {
           </header>
           <nav className="ea-overview-actions" data-test="workspace-quick-actions">
             <Link to="/data" className="ea-overview-action">
-              <span className="ea-overview-action-title">View captured data</span>
-              <span className="ea-overview-action-sub">Aggregate, events and tracker records</span>
+              <span className="ea-overview-action-glyph" aria-hidden="true">
+                <UiIcon icon="aggregate" size={18} />
+              </span>
+              <span className="ea-overview-action-body">
+                <span className="ea-overview-action-title">View captured data</span>
+                <span className="ea-overview-action-sub">Aggregate, events and tracker records</span>
+              </span>
             </Link>
             <Link to="/sync" className="ea-overview-action">
-              <span className="ea-overview-action-title">Check synchronisation</span>
-              <span className="ea-overview-action-sub">Pending, in progress, accepted, conflicts</span>
+              <span className="ea-overview-action-glyph" aria-hidden="true">
+                <UiIcon icon="data-queue" size={18} />
+              </span>
+              <span className="ea-overview-action-body">
+                <span className="ea-overview-action-title">Check synchronisation</span>
+                <span className="ea-overview-action-sub">Pending, in progress, accepted, conflicts</span>
+              </span>
             </Link>
             <Link to="/devices" className="ea-overview-action">
-              <span className="ea-overview-action-title">Manage devices</span>
-              <span className="ea-overview-action-sub">Registered clients and network peers</span>
+              <span className="ea-overview-action-glyph" aria-hidden="true">
+                <UiIcon icon="tablet" size={18} />
+              </span>
+              <span className="ea-overview-action-body">
+                <span className="ea-overview-action-title">Manage devices</span>
+                <span className="ea-overview-action-sub">Registered clients and network peers</span>
+              </span>
             </Link>
             <Link to="/dhis2/compat" className="ea-overview-action">
-              <span className="ea-overview-action-title">Test DHIS2 connection</span>
-              <span className="ea-overview-action-sub">Live probe against Central DHIS2</span>
+              <span className="ea-overview-action-glyph" aria-hidden="true">
+                <img src={DHIS2_ICON} alt="" className="ea-overview-action-brand" />
+              </span>
+              <span className="ea-overview-action-body">
+                <span className="ea-overview-action-title">Test DHIS2 connection</span>
+                <span className="ea-overview-action-sub">Live probe against Central DHIS2</span>
+              </span>
             </Link>
           </nav>
         </section>
@@ -344,6 +380,9 @@ export function Workspace(): JSX.Element {
 type Tone = 'success' | 'warning' | 'danger' | 'muted' | 'primary' | 'teal';
 
 function StatusCell(props: {
+  /** DER icon id OR an explicit brand image path (e.g. DHIS2 tile). */
+  icon?: UiIconId;
+  brandImg?: string;
   label: string;
   value: string;
   tone: Tone;
@@ -357,6 +396,13 @@ function StatusCell(props: {
       title={props.detail}
       data-test={`status-cell-${props.label.toLowerCase().replace(/\s+/g, '-')}`}
     >
+      <span className="ea-overview-status-glyph" aria-hidden="true">
+        {props.brandImg
+          ? <img src={props.brandImg} alt="" className="ea-overview-status-glyph-img" />
+          : props.icon
+            ? <UiIcon icon={props.icon} size={18} />
+            : null}
+      </span>
       <span className="ea-overview-status-label">{props.label}</span>
       <span className="ea-overview-status-value">
         <Dot tone={props.tone as 'success' | 'warning' | 'danger' | 'muted'} />
@@ -391,6 +437,7 @@ function LegendSwatch({ tone, label }: { tone: Tone; label: string }): JSX.Eleme
  *  secondary summaries (Workflows / Storage / Devices) share this
  *  component so they look like one summary rather than three panels. */
 function SummaryRow(props: {
+  icon?: UiIconId;
   label: string;
   metric: string;
   to: string;
@@ -401,6 +448,11 @@ function SummaryRow(props: {
   return (
     <div className="ea-overview-summary-row">
       <div className="ea-overview-summary-head">
+        {props.icon && (
+          <span className="ea-overview-summary-icon" aria-hidden="true">
+            <UiIcon icon={props.icon} size={14} />
+          </span>
+        )}
         <span className="ea-overview-summary-label">{props.label}</span>
         <Link to={props.to} className="ea-overview-summary-link">View →</Link>
       </div>
@@ -460,77 +512,116 @@ function bucketJobsByDay(jobs: ReadonlyArray<edgeApi.JobRun>, days: number): Rea
 }
 
 function SyncActivityChart({ days, max }: { days: ReadonlyArray<DayBucket>; max: number }): JSX.Element {
+  /* Professional stacked-bar chart on the DER token palette.
+   * viewBox uses pixel-equivalent units (0..CHART_W × 0..CHART_H)
+   * instead of percentage units so stroke widths render crisply
+   * and y-axis tick labels can sit outside the plot area. */
   const safeMax = Math.max(1, max);
-  const h = 180;
-  const w = 100;
-  const barW = 100 / days.length;
+  const CHART_W = 560;
+  const CHART_H = 200;
+  const PAD_L = 36;   /* left gutter for y-tick labels */
+  const PAD_R = 8;
+  const PAD_T = 8;
+  const PAD_B = 22;   /* bottom gutter for day labels */
+  const plotW = CHART_W - PAD_L - PAD_R;
+  const plotH = CHART_H - PAD_T - PAD_B;
+  const barW = (plotW / days.length) * 0.56;
+  const gap  = (plotW / days.length) * 0.44;
+
+  /* Y-axis tick values — nice round numbers up to safeMax. */
+  const tickValues = niceTicks(safeMax, 4);
+  const yScale = (v: number): number => PAD_T + plotH - (v / safeMax) * plotH;
+
   return (
     <div className="ea-overview-chart">
       <svg
         role="img"
         aria-label="Synchronisation activity for the last 7 days, stacked bar chart"
-        viewBox={`0 0 ${w} ${h}`}
-        preserveAspectRatio="none"
-        height={h}
+        viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+        preserveAspectRatio="xMidYMid meet"
+        style={{ width: '100%', height: 'auto', maxHeight: 220 }}
       >
-        {[0, 0.25, 0.5, 0.75, 1].map((f) => (
-          <line
-            key={f}
-            x1="0" x2={w}
-            y1={h - f * (h - 20) - 10}
-            y2={h - f * (h - 20) - 10}
-            stroke="currentColor"
-            strokeWidth={f === 0 ? 0.3 : 0.15}
-            opacity={f === 0 ? 0.6 : 0.3}
-          />
-        ))}
-        {days.map((d, i) => {
-          const total = d.ok + d.fail + d.conflict;
-          if (total === 0) return null;
-          const x = i * barW + barW * 0.18;
-          const width = barW * 0.64;
-          const inner = h - 20;
-          const unit = (v: number) => (v / safeMax) * inner;
-          const hOk = unit(d.ok);
-          const hFail = unit(d.fail);
-          const hConf = unit(d.conflict);
-          let y = h - 10 - hOk;
+        {/* Y-axis gridlines + tick labels */}
+        {tickValues.map((t) => {
+          const y = yScale(t);
           return (
-            <g key={i}>
-              {d.ok > 0 && (
-                <rect x={x} y={y} width={width} height={hOk}
-                      fill="var(--der-success, #16a34a)">
-                  <title>{d.dayLabel} · succeeded {d.ok}</title>
-                </rect>
-              )}
-              {d.fail > 0 && (() => {
-                const yy = y - hFail;
-                y = yy;
-                return (
-                  <rect x={x} y={yy} width={width} height={hFail}
-                        fill="var(--der-danger, #dc2626)">
-                    <title>{d.dayLabel} · failed {d.fail}</title>
-                  </rect>
-                );
-              })()}
-              {d.conflict > 0 && (() => {
-                const yy = y - hConf;
-                return (
-                  <rect x={x} y={yy} width={width} height={hConf}
-                        fill="var(--der-warning, #d97706)">
-                    <title>{d.dayLabel} · conflict/deferred {d.conflict}</title>
-                  </rect>
-                );
-              })()}
+            <g key={t}>
+              <line x1={PAD_L} x2={CHART_W - PAD_R} y1={y} y2={y}
+                    stroke="var(--der-border-subtle, #eef0f4)"
+                    strokeWidth="1"
+                    shapeRendering="crispEdges" />
+              <text x={PAD_L - 6} y={y + 3}
+                    fontSize="10" textAnchor="end"
+                    fill="var(--der-ink-400, #7585a0)">
+                {t}
+              </text>
             </g>
           );
         })}
+
+        {/* Bars — 3 segments per day (success / failed / conflict) */}
+        {days.map((d, i) => {
+          const x = PAD_L + i * (barW + gap) + gap / 2;
+          let yCursor = PAD_T + plotH;
+          const segments: JSX.Element[] = [];
+          const push = (value: number, fill: string, tooltip: string): void => {
+            if (value <= 0) return;
+            const hSeg = (value / safeMax) * plotH;
+            yCursor -= hSeg;
+            segments.push(
+              <rect key={fill + value} x={x} y={yCursor}
+                    width={barW} height={hSeg}
+                    fill={fill} rx={2}>
+                <title>{tooltip}</title>
+              </rect>
+            );
+          };
+          push(d.ok, 'var(--der-success)', `${d.dayLabel} · succeeded ${d.ok}`);
+          push(d.fail, 'var(--der-danger)', `${d.dayLabel} · failed ${d.fail}`);
+          push(d.conflict, 'var(--der-warning)', `${d.dayLabel} · conflict ${d.conflict}`);
+
+          /* Day label underneath */
+          return (
+            <g key={i}>
+              {segments.length > 0 ? segments : (
+                <rect x={x} y={PAD_T + plotH - 2}
+                      width={barW} height={2}
+                      fill="var(--der-border-subtle, #eef0f4)" />
+              )}
+              <text x={x + barW / 2}
+                    y={CHART_H - 6}
+                    fontSize="11"
+                    textAnchor="middle"
+                    fill="var(--der-ink-500, #5a6a85)">
+                {d.dayLabel}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Baseline axis */}
+        <line x1={PAD_L} x2={CHART_W - PAD_R}
+              y1={PAD_T + plotH} y2={PAD_T + plotH}
+              stroke="var(--der-border, #d8dee8)"
+              strokeWidth="1"
+              shapeRendering="crispEdges" />
       </svg>
-      <div className="ea-overview-chart-xaxis">
-        {days.map((d, i) => (
-          <span key={i} className="ea-overview-chart-xlabel">{d.dayLabel}</span>
-        ))}
-      </div>
     </div>
   );
+}
+
+/** Produce ~`steps` round tick values covering [0, max]. */
+function niceTicks(max: number, steps: number): number[] {
+  if (max <= 0) return [0];
+  const roughStep = max / steps;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
+  const normalised = roughStep / magnitude;
+  const niceStep = (normalised <= 1 ? 1
+    : normalised <= 2 ? 2
+    : normalised <= 5 ? 5 : 10) * magnitude;
+  const out: number[] = [];
+  for (let v = 0; v <= max + 0.0001; v += niceStep) {
+    out.push(Math.round(v * 1e6) / 1e6);
+  }
+  return out;
 }
