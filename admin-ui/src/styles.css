@@ -501,13 +501,11 @@ pre{
 }
 
 /* ============ Screen container ============ */
-/* Balanced breathing room on every DER admin screen. `.ea-main-inner`
- * has zero padding by design (edge-to-edge shell); the per-screen
- * container provides the gutter so every page gets consistent
- * horizontal and vertical breathing room without the gutter being
- * applied twice when screens compose. */
-.ea-screen{display:flex;flex-direction:column;gap:var(--sp-4);padding:16px 24px}
-@media(max-width:768px){.ea-screen{padding:12px 16px}}
+/* The outer .ea-main-inner provides the content gutter (10 px
+ * per direct request); screens no longer add their own horizontal
+ * or vertical padding so the breathing room is applied once, not
+ * twice. */
+.ea-screen{display:flex;flex-direction:column;gap:var(--sp-4);padding:0}
 /* Flat screen sections — no boxed background. Section grouping is
    achieved through typography (H2 + thin border via .ea-panel-head),
    not via card chrome. */
