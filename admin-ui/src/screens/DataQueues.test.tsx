@@ -123,7 +123,7 @@ describe('DataQueues', () => {
       expect(screen.getByText('Central unavailable')).toBeInTheDocument());
   });
 
-  it('backlog with Needs attention → danger tone label + attention count', async () => {
+  it('backlog with Needs review → danger tone label + attention count', async () => {
     stubAll();
     vi.spyOn(edgeApi, 'listJournalOperations').mockResolvedValue([
       { operationId: 'op-conflict-1', entityType: 'DATA_VALUE',

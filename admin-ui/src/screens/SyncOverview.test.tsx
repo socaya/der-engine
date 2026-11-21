@@ -148,9 +148,9 @@ describe('SyncOverview — status-bar tone branches', () => {
   });
 
   it('shows "Needs review" when stats surface CONFLICT_REVIEW rows', async () => {
-    /* Phase 4B terminology: renamed from "Needs attention" to match
-     * the sidebar nav label on /sync/attention ("Needs review") so
-     * the chip and the nav stop disagreeing. */
+    /* Phase 4B terminology: renamed from "Needs attention" to
+     * "Needs review" so the status chip matches the sidebar nav
+     * label on /sync/attention. */
     wireHappyPath({
       stats: { EVENT: { CONFLICT_REVIEW: 3, PENDING: 0 }, TEI: { RETRYABLE: 1 } },
     });

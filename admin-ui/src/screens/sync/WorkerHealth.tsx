@@ -60,7 +60,7 @@ export function WorkerHealthScreen(): JSX.Element {
                     cross-module jump moves to an explicit "Open in
                     Sync" link so interactivity + target are both
                     visible, not inferred from blue text on a number. */}
-                <span>Needs attention{' '}
+                <span>Needs review{' '}
                   <strong style={{ color: 'var(--der-danger-ink)' }}>
                     {attention.toLocaleString()}
                   </strong>

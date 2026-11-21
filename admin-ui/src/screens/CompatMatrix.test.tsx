@@ -85,8 +85,10 @@ describe('CompatMatrix', () => {
     vi.mocked(mockedApi.compatHistory).mockResolvedValue({ snapshots: [] });
     renderScreen();
     await waitFor(() => expect(screen.getByTestId('matrix-row-V2_44')).toBeInTheDocument());
-    // Reliability is 0% when zero snapshots.
-    expect(screen.getByText(/0% reliability/)).toBeInTheDocument();
+    // Reachability score is 0% when zero snapshots recorded.
+    // Phase 4B: wording changed from "0% reliability" to
+    // "0% reachable" to describe what the ratio actually measures.
+    expect(screen.getByText(/0% reachable/)).toBeInTheDocument();
   });
 
   it('renders populated overview with the version matrix and active profile marker', async () => {
@@ -195,7 +197,9 @@ describe('CompatMatrix', () => {
     });
     renderScreen();
     await waitFor(() => expect(screen.getByText(/Central unreachable/)).toBeInTheDocument());
-    // Reliability label uses singular "probe" when exactly one.
-    expect(screen.getByText(/1 probe$/)).toBeInTheDocument();
+    // Reachability label uses singular "check" when exactly one.
+    // Phase 4B: wording changed from "probe" to "check" for
+    // plain-language consistency with the glossary.
+    expect(screen.getByText(/1 check$/)).toBeInTheDocument();
   });
 });

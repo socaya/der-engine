@@ -71,11 +71,11 @@ export function CompatMatrix(): JSX.Element {
             <span>·</span>
             <span>Profile <strong>{snap.profileName ?? '—'}</strong></span>
             <span>·</span>
-            <span>Probe RTT <strong>{snap.probeDurationMs != null ? `${snap.probeDurationMs} ms` : '—'}</strong></span>
+            <span>Response time <strong>{snap.probeDurationMs != null ? `${snap.probeDurationMs} ms` : '—'}</strong></span>
             <span>·</span>
-            <span>Captured <strong>{fmtAgo(snap.capturedAt)}</strong></span>
+            <span>Last check <strong>{fmtAgo(snap.capturedAt)}</strong></span>
             <span>·</span>
-            <span>{reliability}% reliability over last {history.length} probe{history.length === 1 ? '' : 's'}</span>
+            <span>{reliability}% reachable over last {history.length} check{history.length === 1 ? '' : 's'}</span>
           </>
         }
         actions={
@@ -147,7 +147,7 @@ export function CompatMatrix(): JSX.Element {
       </Panel>
 
       <Panel title="Live profile capabilities"
-             action={<span className="ea-text-muted">from the latest probe</span>}>
+             action={<span className="ea-text-muted">from the latest check</span>}>
         {!snap.capabilities ? (
           <p className="ea-text-muted">
             Probe hasn&apos;t returned a capabilities snapshot yet.
@@ -196,8 +196,8 @@ function SnapshotHistoryPanel({ history }: { history: edgeApi.CompatSnapshot[] }
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense">
             <thead><tr>
-              <th>Snapshot</th><th>Captured</th><th>Central version</th>
-              <th>Profile</th><th>Reachable</th><th>RTT</th><th>Note</th>
+              <th>Snapshot</th><th>Checked at</th><th>Central version</th>
+              <th>Profile</th><th>Reachable</th><th>Response time</th><th>Note</th>
             </tr></thead>
             <tbody>
               {slice.map((s) => (

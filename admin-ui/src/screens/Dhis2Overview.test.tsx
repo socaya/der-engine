@@ -264,10 +264,14 @@ describe('Dhis2Overview', () => {
     expect(payload.patToken).toBe('d2pat_abc');
   });
 
-  it('shows drift tile copy when fingerprints differ', async () => {
+  it('shows metadata-changes tile copy when fingerprints differ', async () => {
+    /* Phase 4B terminology: "Drift detected" renamed to
+     * "Metadata changes detected" per
+     * docs/ui/admin-ui-terminology.md. */
     vi.mocked(mockedApi.drift).mockResolvedValue(drift(true));
     renderScreen();
-    await waitFor(() => expect(screen.getByText(/Drift detected/)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/Metadata changes detected/)).toBeInTheDocument());
   });
 
   it('reports PAT auth kind in the status bar when PAT is set', async () => {

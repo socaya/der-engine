@@ -921,7 +921,7 @@ export function detailEntries(detail: string | null | undefined): ReadonlyArray<
 // Backend state is detailed — operators see 6 states.
 // ────────────────────────────────────────────────────────────────────
 
-export type OperatorState = 'Waiting' | 'Sending' | 'Sent' | 'Retrying' | 'Rejected' | 'Needs attention';
+export type OperatorState = 'Waiting' | 'Sending' | 'Sent' | 'Retrying' | 'Rejected' | 'Needs review';
 
 const BACKEND_TO_OPERATOR: Readonly<Record<string, OperatorState>> = {
   PENDING: 'Waiting',
@@ -939,9 +939,9 @@ const BACKEND_TO_OPERATOR: Readonly<Record<string, OperatorState>> = {
   REJECTED: 'Rejected',
   FAILED: 'Rejected',
   FAILURE: 'Rejected',
-  CONFLICT_REVIEW: 'Needs attention',
-  CONFLICT: 'Needs attention',
-  REQUIRES_REVIEW: 'Needs attention',
+  CONFLICT_REVIEW: 'Needs review',
+  CONFLICT: 'Needs review',
+  REQUIRES_REVIEW: 'Needs review',
 };
 
 export function operatorState(backend: string | null | undefined): OperatorState {
@@ -954,7 +954,7 @@ export function operatorStateTone(s: OperatorState): 'success' | 'warning' | 'da
   switch (s) {
     case 'Sent': return 'success';
     case 'Rejected': return 'danger';
-    case 'Needs attention': return 'warning';
+    case 'Needs review': return 'warning';
     case 'Sending': return 'info';
     case 'Retrying': return 'warning';
     case 'Waiting': return 'muted';

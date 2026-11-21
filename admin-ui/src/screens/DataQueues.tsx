@@ -104,14 +104,14 @@ export function DataQueues(): JSX.Element {
   if (!ops) return <LoadingBlock testId="loading" />;
 
   const stateCounts: Record<OperatorState, number> = {
-    Waiting: 0, Sending: 0, Sent: 0, Retrying: 0, Rejected: 0, 'Needs attention': 0,
+    Waiting: 0, Sending: 0, Sent: 0, Retrying: 0, Rejected: 0, 'Needs review': 0,
   };
   for (const it of items) stateCounts[it.state] += 1;
 
   const centralReachable = sysInfo?.dhis2?.probeReachable ?? false;
   const workerEnabled = worker?.enabled ?? false;
   const unsent = stateCounts.Waiting + stateCounts.Sending + stateCounts.Retrying;
-  const needsAttention = stateCounts['Needs attention'] + stateCounts.Rejected;
+  const needsAttention = stateCounts['Needs review'] + stateCounts.Rejected;
 
   let statusLabel: string;
   let tone: SyncStatusTone;
@@ -137,7 +137,7 @@ export function DataQueues(): JSX.Element {
         onSelect: () => { push.trigger('JOURNAL_WORKER_DRAIN').catch(() => undefined); },
       });
     }
-    if (state === 'Needs attention') {
+    if (state === 'Needs review') {
       items.push({ label: 'Open attention item', to: '/sync/attention' });
     }
     return items;
@@ -176,7 +176,7 @@ export function DataQueues(): JSX.Element {
             <span>·</span>
             <span>Sent <strong>{stateCounts.Sent}</strong></span>
             {stateCounts.Retrying > 0 && (<><span>·</span><span>Retrying <strong>{stateCounts.Retrying}</strong></span></>)}
-            {needsAttention > 0 && (<><span>·</span><span>Needs attention <strong style={{ color: 'var(--der-danger-ink)' }}>{needsAttention}</strong></span></>)}
+            {needsAttention > 0 && (<><span>·</span><span>Needs review <strong style={{ color: 'var(--der-danger-ink)' }}>{needsAttention}</strong></span></>)}
             {lastPurge?.observedAt && (<>
               <span>·</span>
               <span data-test="data-last-cleaned">
@@ -239,7 +239,7 @@ export function DataQueues(): JSX.Element {
                          onChange={(e) => setFilterStatus(e.target.value)}>
                    <option value="ACTIVE">Active (hide Sent)</option>
                    <option value="ALL">All statuses</option>
-                   {(['Waiting', 'Sending', 'Sent', 'Retrying', 'Rejected', 'Needs attention'] as OperatorState[])
+                   {(['Waiting', 'Sending', 'Sent', 'Retrying', 'Rejected', 'Needs review'] as OperatorState[])
                      .map((s) => <option key={s} value={s}>{s}</option>)}
                  </select>
                  <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
@@ -360,7 +360,7 @@ export function DataDetail(): JSX.Element {
 
   const state = operatorState(op.state);
   const pushing = push.state === 'triggering' || push.state === 'running';
-  const isErrorState = state === 'Rejected' || state === 'Retrying' || state === 'Needs attention';
+  const isErrorState = state === 'Rejected' || state === 'Retrying' || state === 'Needs review';
   // The server reuses the `last_error` column for the last DHIS2 response
   // body regardless of success/failure, so treat it as a response unless
   // the operator-facing state is actually a failure.
@@ -396,7 +396,7 @@ export function DataDetail(): JSX.Element {
                 {push.state === 'running' ? 'Pushing…' : 'Push now'}
               </button>
             )}
-            {state === 'Needs attention' && (
+            {state === 'Needs review' && (
               <Link to="/sync/attention" className="ea-btn ea-btn--primary ea-btn--sm"
                      data-cross-module="Sync">
                 Open attention item

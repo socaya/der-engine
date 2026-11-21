@@ -92,7 +92,7 @@ export function DataManagement(): JSX.Element {
             <span>Data captured locally and tracked by DER.</span>
             {totalPending > 0 && (<>
               <span>·</span>
-              <span>Waiting to send <strong>{totalPending.toLocaleString()}</strong></span>
+              <span>Waiting to synchronise <strong>{totalPending.toLocaleString()}</strong></span>
             </>)}
             {drafts !== null && drafts > 0 && (<>
               <span>·</span>
@@ -117,7 +117,7 @@ export function DataManagement(): JSX.Element {
               <th>Data type</th>
               <th>Backend key</th>
               <th className="ea-col-w-110">Records</th>
-              <th className="ea-col-w-140">Waiting to send</th>
+              <th className="ea-col-w-140">Waiting to synchronise</th>
               <th className="ea-col-w-140">Last activity</th>
               <th className="ea-col-w-48" aria-label="Actions"></th>
             </tr></thead>

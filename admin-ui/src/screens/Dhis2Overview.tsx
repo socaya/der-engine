@@ -88,11 +88,11 @@ export function Dhis2Overview(): JSX.Element {
             <span>·</span>
             <span>Profile <strong>{c.profileName ?? '—'}</strong></span>
             <span>·</span>
-            <span>RTT <strong>{si.dhis2.probeDurationMs != null ? `${si.dhis2.probeDurationMs} ms` : '—'}</strong></span>
+            <span>Response time <strong>{si.dhis2.probeDurationMs != null ? `${si.dhis2.probeDurationMs} ms` : '—'}</strong></span>
             <span>·</span>
             <span>Auth <strong>{authKind === 'PAT' ? 'PAT (Bearer)' : authKind === 'Basic' ? 'Basic' : 'none'}</strong></span>
             <span>·</span>
-            <span>Last probe <strong>{c.capturedAt ? fmtAgo(c.capturedAt) : '—'}</strong></span>
+            <span>Last check <strong>{c.capturedAt ? fmtAgo(c.capturedAt) : '—'}</strong></span>
           </>
         }
         actions={
@@ -149,7 +149,7 @@ export function Dhis2Overview(): JSX.Element {
               <span className="ea-field-hint">
                 {cfg.passwordSet
                   ? 'A password is already set. Leave blank to keep it unchanged.'
-                  : 'Stored encrypted (AES-256-GCM via SecretEnvelope) when der.security.secret-key is configured.'}
+                  : 'Stored encrypted at rest.'}
               </span>
             </label>
             <label className="ea-field">
@@ -264,7 +264,7 @@ export function Dhis2Overview(): JSX.Element {
             <div className="ea-link-tile-body">
               <div className="ea-link-tile-title">Compatibility</div>
               <div className="ea-link-tile-desc">
-                Last probe {c.capturedAt ? fmtAgo(c.capturedAt) : '—'}.
+                Last check {c.capturedAt ? fmtAgo(c.capturedAt) : '—'}.
               </div>
             </div>
           </Link>
@@ -285,9 +285,11 @@ export function Dhis2Overview(): JSX.Element {
           <Link to="/dhis2/metadata-drift" className="ea-link-tile">
             <div className="ea-link-tile-icon" aria-hidden="true">≠</div>
             <div className="ea-link-tile-body">
-              <div className="ea-link-tile-title">Metadata drift</div>
+              <div className="ea-link-tile-title">Metadata changes</div>
               <div className="ea-link-tile-desc">
-                {drift ? 'Drift detected — review before next sync.' : 'Fingerprints match central.'}
+                {drift
+                  ? 'Metadata changes detected — review before next sync.'
+                  : 'Local metadata matches Central.'}
               </div>
             </div>
           </Link>
@@ -295,13 +297,13 @@ export function Dhis2Overview(): JSX.Element {
       </section>
 
       <section>
-        <div className="ea-section-title">Probe details</div>
+        <div className="ea-section-title">Connection check details</div>
         <dl className="ea-def-list">
-          <div className="ea-def-row"><dt>Compiled default URL</dt>
+          <div className="ea-def-row"><dt>Default base URL</dt>
             <dd className="ea-mono">{si.dhis2.centralBaseUrl ?? '—'}</dd></div>
-          <div className="ea-def-row"><dt>Observed version</dt>
+          <div className="ea-def-row"><dt>Observed Central DHIS2 version</dt>
             <dd>{si.dhis2.centralVersion ?? '—'}</dd></div>
-          <div className="ea-def-row"><dt>Captured at</dt>
+          <div className="ea-def-row"><dt>Last checked</dt>
             <dd className="ea-mono">{si.dhis2.capturedAt ? fmtDate(si.dhis2.capturedAt) : '—'}</dd></div>
           <div className="ea-def-row"><dt>Reason</dt>
             <dd>{si.dhis2.reason ?? '—'}</dd></div>

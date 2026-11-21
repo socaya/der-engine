@@ -469,7 +469,7 @@ code{font-family:var(--der-font-mono);font-size:var(--fs-sm)}
 
 /* ---------- Main area ---------- */
 .ea-main{grid-area:main;min-width:0}
-.ea-main-inner{max-width:none;margin:0 /* padding:16px 24px removed per request */ }
+.ea-main-inner{max-width:none;margin:0;padding:10px}
 
 /* ============ Typography ============ */
 h1{
@@ -501,7 +501,13 @@ pre{
 }
 
 /* ============ Screen container ============ */
-.ea-screen{display:flex;flex-direction:column;gap:var(--sp-4)}
+/* Balanced breathing room on every DER admin screen. `.ea-main-inner`
+ * has zero padding by design (edge-to-edge shell); the per-screen
+ * container provides the gutter so every page gets consistent
+ * horizontal and vertical breathing room without the gutter being
+ * applied twice when screens compose. */
+.ea-screen{display:flex;flex-direction:column;gap:var(--sp-4);padding:16px 24px}
+@media(max-width:768px){.ea-screen{padding:12px 16px}}
 /* Flat screen sections — no boxed background. Section grouping is
    achieved through typography (H2 + thin border via .ea-panel-head),
    not via card chrome. */
@@ -1866,7 +1872,10 @@ kbd{
    subtle horizontal rules.
    ============================================================ */
 
-.ea-overview{color:var(--der-ink-900, #0f172a);padding:16px 24px}
+/* Overview container — inherits the padding from .ea-screen so
+ * the horizontal gutter stays consistent with every other DER
+ * admin screen. */
+.ea-overview{color:var(--der-ink-900, #0f172a)}
 
 /* Header — one row, minimal chrome */
 .ea-overview-header{

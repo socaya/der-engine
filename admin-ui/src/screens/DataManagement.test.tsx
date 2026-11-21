@@ -99,8 +99,9 @@ describe('DataManagement', () => {
     expect(screen.getByTestId('data-type-row-AGGREGATE_DATA_VALUE'))
       .toBeInTheDocument();
     expect(screen.getByTestId('data-type-row-EVENT')).toBeInTheDocument();
-    /* Waiting-to-send surfaces in both subtitle + column header. */
-    expect(screen.getAllByText(/Waiting to send/).length)
+    /* Phase 4B: "Waiting to send" → "Waiting to synchronise"
+     * (terminology glossary + SyncOverview consistency). */
+    expect(screen.getAllByText(/Waiting to synchronise/).length)
       .toBeGreaterThan(0);
   });
 

@@ -67,10 +67,10 @@ export function SyncOverview(): JSX.Element {
     : 0;
 
   // Status wording aligns with docs/ui/admin-ui-terminology.md:
-  //  - "Needs review" (not "Needs attention") — matches the nav
-  //    label on /sync/attention, so the sidebar and the status chip
-  //    stop disagreeing about the same state.
-  //  - "Sync service paused" (not bare "Paused") — tells the operator
+  //  - "Needs review" (was "Needs attention") — matches the sidebar
+  //    nav label on /sync/attention so the status chip and the
+  //    primary nav stop disagreeing about the same state.
+  //  - "Sync service paused" (was bare "Paused") — tells the operator
   //    which service is paused, per the plan's `Worker paused` rule.
   //  - "Waiting to synchronise" — glossary status for queued items.
   let tone: SyncStatusTone;

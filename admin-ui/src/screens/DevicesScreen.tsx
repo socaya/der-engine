@@ -390,8 +390,8 @@ function RowActions(
 
 function sourceLabel(s: edgeApi.DeviceSource): string {
   return s === 'DHIS2_FLEET'
-      ? 'DHIS2 fleet registry (edge_device) — a bearer-token enrolled device'
-      : 'Local-LAN mesh (network_client) — observed on the Access Point';
+      ? 'Enrolled device (registered with DER via bearer token)'
+      : 'Local-network client (seen on the access point)';
 }
 function sourceShort(s: edgeApi.DeviceSource): string {
   return s === 'DHIS2_FLEET' ? 'Fleet' : 'LAN';
@@ -443,7 +443,7 @@ function ApprovalPolicyPanel({ api }: {
           {' · '}
           <span className="ea-policy-strip-desc">
             {required
-              ? 'Only APPROVED devices can run client apps or write.'
+              ? 'Only approved devices can run client apps or submit data.'
               : 'Any enrolled device can run client apps; approval is advisory only.'}
           </span>
         </div>

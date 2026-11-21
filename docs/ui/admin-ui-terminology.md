@@ -85,6 +85,29 @@ these into a single word.
 6. Error states must name: what failed, effect on local data, next safe action.
 7. Avoid childish paraphrases (`Things waiting to go`, `Forms and stuff`). Keep accurate technical nouns and verbs.
 
+## Additions from the first per-screen pass
+
+| Preferred UI term | Short description | Internal/legacy wording replaced |
+|---|---|---|
+| **Needs review** | Records that cannot be centrally accepted without a human decision. | `Needs attention` (used across Sync, Data queue, Data landing) |
+| **Sync service paused** | The background Sync Service is not currently draining the queue. | bare `Paused` |
+| **Waiting to synchronise** | In the Sync queue awaiting the next pass. | `waiting` / `Waiting to send` |
+| **Response time** | Round-trip time of a probe/check. | `RTT`, `Probe RTT` |
+| **Last check** | Timestamp of the most recent probe. | `Last probe`, `Captured`, `Captured at` |
+| **Connection check details** | Panel grouping the last probe's observed URL, version, timestamp and reason. | `Probe details` |
+| **Default base URL** | URL that DER falls back to when no connection override is saved. | `Compiled default URL` |
+| **Observed Central DHIS2 version** | Version reported by the last probe response. | `Observed version` |
+| **Metadata changes detected** | The local snapshot diverges from Central. | `Drift detected` |
+| **Local metadata matches Central** | No differences detected since the last check. | `Fingerprints match central` |
+| **N reachable over last N check(s)** | Reachability ratio with scope and sample size. | `N% reliability over last N probe(s)` |
+| **Enrolled device** | Device registered with DER via bearer token. | `DHIS2 fleet registry (edge_device) — a bearer-token enrolled device` |
+| **Local-network client** | Device observed on the access point. | `Local-LAN mesh (network_client) — observed on the Access Point` |
+
+The `OperatorState` TypeScript literal `'Needs attention'` was
+renamed to `'Needs review'` across the admin-ui so the type and
+the display string stay in sync. The server contract (`CONFLICT_REVIEW`,
+`CENTRAL_REJECTED`, etc.) is unchanged; the rename is UI-only.
+
 ## Scope of this document
 
 This file is incremental. Each per-screen simplification pass should:

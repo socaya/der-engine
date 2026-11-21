@@ -170,9 +170,48 @@ increments:
 | SignIn unit tests | 11 | 11 (unchanged — all still green) |
 | AdminShell unit tests | 11 | 11 (unchanged — all still green) |
 
+## Phase 4B — first per-screen rewrite pass
+
+Per-screen string rewrites now landed for **8 of the ~140 routes**
+(`action=rewritten-strings` in the inventory CSV):
+
+| Route | Screen | Key wording changes |
+|---|---|---|
+| `/` | Workspace | Soft-UI consolidated Overview (see earlier pass). |
+| `/sign-in` | SignIn | Wordmark lockup + modernisation (see earlier pass). |
+| `/sync` | SyncOverview | `Needs attention` → `Needs review`; `Paused` → `Sync service paused`; `N waiting` → `N waiting to synchronise`; tooltip "Worker is paused …" → "Sync service is paused …"; link "N need(s) attention" → "N need(s) review". |
+| `/dhis2` | Dhis2Overview | `RTT` → `Response time`; `Last probe` → `Last check`; removed `AES-256-GCM via SecretEnvelope …` form narration; `Metadata drift` tile → `Metadata changes`; `Drift detected` → `Metadata changes detected`; `Fingerprints match central` → `Local metadata matches Central`; `Probe details` → `Connection check details`; `Compiled default URL` → `Default base URL`; `Observed version` → `Observed Central DHIS2 version`; `Captured at` → `Last checked`. |
+| `/dhis2/compat` | CompatMatrix | `Probe RTT` → `Response time`; `Captured` → `Last check`; `N% reliability over last N probes` → `N% reachable over last N check(s)`; `Captured`/`RTT` columns → `Checked at`/`Response time`. |
+| `/data` | DataManagement | `Waiting to send` → `Waiting to synchronise` (status + column). |
+| `/data/queue` | DataQueues | `Needs attention` operator state → `Needs review` (type literal + display). |
+| `/devices` | DevicesScreen | `DHIS2 fleet registry (edge_device) — a bearer-token enrolled device` → `Enrolled device (registered with DER via bearer token)`; `Local-LAN mesh (network_client) — observed on the Access Point` → `Local-network client (seen on the access point)`; `Only APPROVED devices can run client apps or write.` → `Only approved devices can run client apps or submit data.`. |
+
+The `OperatorState` TypeScript string literal `'Needs attention'`
+was renamed to `'Needs review'` across the admin-ui so the type
+and the display label stay synchronised. Server contract
+(`CONFLICT_REVIEW`, `CENTRAL_REJECTED`, etc.) is unchanged — the
+rename is UI-only.
+
+The matching test suites were updated for every string change:
+`Workspace.test.tsx`, `SignIn.test.tsx`, `SyncOverview.test.tsx`,
+`Dhis2Overview.test.tsx`, `CompatMatrix.test.tsx`,
+`DataManagement.test.tsx`. **1750/1750 admin-ui unit tests pass.**
+
+Padding adjustments:
+- `.ea-main-inner` removed first, then restored at `padding:10px`
+  per iteration with the reviewer.
+- `.ea-screen` gained `padding:16px 24px` (12px 16px on narrow
+  viewports) so every DER screen has balanced horizontal gutter
+  without the shell having to apply it twice.
+
 ## Open gates
 
-The next session should pick up from the Phase 4B inventory. A
-good first batch is Devices + Workflows, because they both have
-the same "list + detail + diagnostics" shape and share the
-Devices-vs-Network ownership question the plan flags under R07.
+Next up (not yet started in this session):
+- Per-screen rewrite for the remaining ~130 routes. The eight
+  rewritten this pass are the highest-jargon-density landings
+  (Sync, DHIS2, Data, Devices + Overview + SignIn); the rest
+  are progressively lower-impact.
+- Plan Phase 1 (8→6 nav collapse) — unchanged; still deferred
+  because collapsing touches 139 routes + legacy bookmarks.
+- Plan §12 usability sessions with ≥5 participants per role —
+  still deferred; engineering environment, no participants.
