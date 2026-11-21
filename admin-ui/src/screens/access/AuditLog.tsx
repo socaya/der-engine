@@ -325,92 +325,36 @@ export function SecurityAuditTrail(): JSX.Element {
         }
       />
 
-      <Panel title="Filters"
-             action={
-               <div style={{ display: 'flex', gap: 6 }}>
-                 <button type="button"
-                         className="ea-btn ea-btn--ghost ea-btn--sm"
-                         data-test="audit-trail-quick-24h"
-                         onClick={() => quickRange(24)}>Last 24h</button>
-                 <button type="button"
-                         className="ea-btn ea-btn--ghost ea-btn--sm"
-                         data-test="audit-trail-quick-7d"
-                         onClick={() => quickRange(24 * 7)}>Last 7d</button>
-                 <button type="button"
-                         className="ea-btn ea-btn--ghost ea-btn--sm"
-                         data-test="audit-trail-quick-30d"
-                         onClick={() => quickRange(24 * 30)}>Last 30d</button>
-               </div>
-             }>
-        <div className="ea-audit-filters">
-          <label className="ea-field">
-            <span className="ea-field-label">From</span>
-            <input type="datetime-local" className="ea-input"
-                   data-test="audit-trail-from"
-                   value={draftFrom} onChange={(e) => setDraftFrom(e.target.value)} />
-          </label>
-          <label className="ea-field">
-            <span className="ea-field-label">To</span>
-            <input type="datetime-local" className="ea-input"
-                   data-test="audit-trail-to"
-                   value={draftTo} onChange={(e) => setDraftTo(e.target.value)} />
-          </label>
-          <label className="ea-field">
-            <span className="ea-field-label">Actor uid</span>
-            <input className="ea-input ea-mono"
-                   data-test="audit-trail-actor"
-                   value={draftActor}
-                   placeholder="UUID"
-                   onChange={(e) => setDraftActor(e.target.value)} />
-          </label>
-          <label className="ea-field">
-            <span className="ea-field-label">Subject uid</span>
-            <input className="ea-input ea-mono"
-                   data-test="audit-trail-subject"
-                   value={draftSubject}
-                   placeholder="UUID"
-                   onChange={(e) => setDraftSubject(e.target.value)} />
-          </label>
-        </div>
-        {knownTypes.length > 0 && (
-          <div className="ea-field" style={{ marginTop: 8 }}>
-            <span className="ea-field-label">Event types (seen on this page)</span>
-            <div className="ea-inline-list" data-test="audit-trail-types">
-              {knownTypes.map((t) => {
-                const active = draftEventTypes.has(t);
-                return (
-                  <li key={t}
-                      className={'ea-mono' + (active ? ' ea-chip--primary' : '')}
-                      data-test={`audit-trail-type-${t}`}
-                      onClick={() => toggleType(t)}
-                      style={{ cursor: 'pointer',
-                               background: active ? 'var(--der-primary-soft)' : undefined,
-                               borderColor: active ? 'var(--der-primary)' : undefined }}>
-                    {t}
-                  </li>
-                );
-              })}
-            </div>
-          </div>
-        )}
-        <div className="ea-mapping-form-actions">
-          <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
-                  data-test="audit-trail-clear"
-                  onClick={clearFilters}>Clear</button>
-          <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
-                  data-test="audit-trail-apply"
-                  onClick={applyFilters}>Apply</button>
-        </div>
-      </Panel>
-
       {err && (
         <ErrorBlock title="Audit page failed"
                      testId="err-audit-trail-page">{err}</ErrorBlock>
       )}
 
+      {/* Phase-4B: the old "Filters" Panel took half the viewport
+          before the Events table appeared. Collapsed the quick-range
+          buttons + Clear / Apply + Prev / Next into the Events
+          Panel's single-row filter bar; the detailed From/To/Actor/
+          Subject/Event-types fields live in a collapsible <details>
+          block that opens on demand. */}
       <Panel title="Events"
              action={
-               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+               <div className="ea-data-filterbar" role="group" aria-label="Filters">
+                 <button type="button"
+                         className="ea-btn ea-btn--ghost ea-btn--sm"
+                         data-test="audit-trail-quick-24h"
+                         onClick={() => { quickRange(24); applyFilters(); }}>24h</button>
+                 <button type="button"
+                         className="ea-btn ea-btn--ghost ea-btn--sm"
+                         data-test="audit-trail-quick-7d"
+                         onClick={() => { quickRange(24 * 7); applyFilters(); }}>7d</button>
+                 <button type="button"
+                         className="ea-btn ea-btn--ghost ea-btn--sm"
+                         data-test="audit-trail-quick-30d"
+                         onClick={() => { quickRange(24 * 30); applyFilters(); }}>30d</button>
+                 <button type="button"
+                         className="ea-btn ea-btn--ghost ea-btn--sm"
+                         data-test="audit-trail-clear"
+                         onClick={clearFilters}>Clear</button>
                  <button type="button"
                          className="ea-btn ea-btn--ghost ea-btn--sm"
                          data-test="audit-trail-prev"
@@ -423,6 +367,68 @@ export function SecurityAuditTrail(): JSX.Element {
                          onClick={nextPage}>Next →</button>
                </div>
              }>
+        <details className="ea-audit-advanced"
+                 data-test="audit-trail-advanced">
+          <summary className="ea-audit-advanced-summary">
+            Advanced filters{activeFilterCount > 0 && ` (${activeFilterCount} active)`}
+          </summary>
+          <div className="ea-audit-filters">
+            <label className="ea-field">
+              <span className="ea-field-label">From</span>
+              <input type="datetime-local" className="ea-input"
+                     data-test="audit-trail-from"
+                     value={draftFrom} onChange={(e) => setDraftFrom(e.target.value)} />
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">To</span>
+              <input type="datetime-local" className="ea-input"
+                     data-test="audit-trail-to"
+                     value={draftTo} onChange={(e) => setDraftTo(e.target.value)} />
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Actor uid</span>
+              <input className="ea-input ea-mono"
+                     data-test="audit-trail-actor"
+                     value={draftActor}
+                     placeholder="UUID"
+                     onChange={(e) => setDraftActor(e.target.value)} />
+            </label>
+            <label className="ea-field">
+              <span className="ea-field-label">Subject uid</span>
+              <input className="ea-input ea-mono"
+                     data-test="audit-trail-subject"
+                     value={draftSubject}
+                     placeholder="UUID"
+                     onChange={(e) => setDraftSubject(e.target.value)} />
+            </label>
+          </div>
+          {knownTypes.length > 0 && (
+            <div className="ea-field" style={{ marginTop: 8 }}>
+              <span className="ea-field-label">Event types (seen on this page)</span>
+              <div className="ea-inline-list" data-test="audit-trail-types">
+                {knownTypes.map((t) => {
+                  const active = draftEventTypes.has(t);
+                  return (
+                    <li key={t}
+                        className={'ea-mono' + (active ? ' ea-chip--primary' : '')}
+                        data-test={`audit-trail-type-${t}`}
+                        onClick={() => toggleType(t)}
+                        style={{ cursor: 'pointer',
+                                 background: active ? 'var(--der-primary-soft)' : undefined,
+                                 borderColor: active ? 'var(--der-primary)' : undefined }}>
+                      {t}
+                    </li>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          <div className="ea-mapping-form-actions">
+            <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
+                    data-test="audit-trail-apply"
+                    onClick={applyFilters}>Apply filters</button>
+          </div>
+        </details>
         {events == null
           ? <LoadingBlock testId="audit-trail-loading" />
           : events.length === 0

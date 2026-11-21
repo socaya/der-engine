@@ -1698,6 +1698,40 @@ kbd{
 .ea-table--nowrap td .ea-chip,
 .ea-table--nowrap td button,
 .ea-table--nowrap td a{white-space:nowrap}
+/* RowMenu panel (details > div[role=menu]) is position:absolute and
+ * pops OUT of its td. The `overflow:hidden` above would clip it
+ * unless we opt the menu's parent cell + the trigger details back
+ * into visible overflow. */
+.ea-table--nowrap td:has(.ea-row-menu),
+.ea-table--nowrap td .ea-row-menu{overflow:visible}
+
+/* Collapsible "Advanced filters" disclosure, used on /audit/trail +
+ * anywhere else a secondary filter form shouldn't eat vertical
+ * space by default. */
+.ea-audit-advanced{
+  margin:0 0 8px;
+  border:1px solid var(--der-border-subtle, #e5e7eb);
+  background:var(--der-surface-hover, #f8fafc);
+}
+.ea-audit-advanced-summary{
+  list-style:none;cursor:pointer;
+  padding:6px 10px;
+  font-size:12px;font-weight:600;color:var(--der-ink-700, #334155);
+}
+.ea-audit-advanced-summary::-webkit-details-marker{display:none}
+.ea-audit-advanced-summary::marker{content:''}
+.ea-audit-advanced-summary::before{
+  content:'›';display:inline-block;margin-right:6px;
+  transition:transform 0.1s ease;
+}
+.ea-audit-advanced[open] > .ea-audit-advanced-summary::before{
+  transform:rotate(90deg);
+}
+.ea-audit-advanced > .ea-audit-filters,
+.ea-audit-advanced > .ea-field,
+.ea-audit-advanced > .ea-mapping-form-actions{
+  padding:8px 10px;
+}
 
 /* ============================================================
    SyncPath — per-row DER→DHIS2 icon strip used in data tables
