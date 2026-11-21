@@ -1021,7 +1021,7 @@ describe('EA-AUD-01 AuditVerify', () => {
     } as never} />);
     /* Auto-run fires on mount — no click needed. */
     await waitFor(() => expect(screen.getByTestId('aud01-status-chip'))
-      .toHaveTextContent(/Chain intact/));
+      .toHaveTextContent(/Audit log intact/));
     expect(screen.getByTestId('aud01-total')).toHaveTextContent('10');
   });
 
@@ -1033,10 +1033,10 @@ describe('EA-AUD-01 AuditVerify', () => {
       }),
     } as never} />);
     await waitFor(() => expect(screen.getByTestId('aud01-status-chip'))
-      .toHaveTextContent(/Broken/));
+      .toHaveTextContent(/Tampering detected/));
     expect(screen.getByTestId('aud01-break-id')).toHaveTextContent('7');
     expect(screen.getByTestId('aud01-break-reason'))
-      .toHaveTextContent(/Row-hash mismatch/);
+      .toHaveTextContent(/Row check failed/);
     expect(screen.getByTestId('aud01-open-trail-at-break'))
       .toHaveAttribute('href', '/audit/trail');
   });
@@ -1065,10 +1065,12 @@ describe('EA-AUD-01 AuditVerify', () => {
     } as never} />);
     await userEvent.click(screen.getByTestId('aud01-run'));
     await waitFor(() => expect(screen.getByTestId('aud01-status-chip'))
-      .toHaveTextContent('Chain intact'));
+      .toHaveTextContent('Audit log intact'));
   });
 
-  it('broken run shows the danger Status chip', async () => {
+  it('tampered run shows the danger Status chip', async () => {
+    /* Phase-4B: "Broken" chip renamed to "Tampering detected"
+     * per the terminology glossary. */
     renderWithProviders(<EAAuditVerify api={{
       verifyAuditChain: vi.fn().mockResolvedValue({
         ok: false, totalRows: 100, firstBreakAuditId: 42, firstBreakReason: 'MISMATCH',
@@ -1076,7 +1078,7 @@ describe('EA-AUD-01 AuditVerify', () => {
     } as never} />);
     await userEvent.click(screen.getByTestId('aud01-run'));
     await waitFor(() => expect(screen.getByTestId('aud01-status-chip'))
-      .toHaveTextContent('Broken'));
+      .toHaveTextContent('Tampering detected'));
   });
 });
 

@@ -2163,27 +2163,27 @@ export function EAAuditVerify({ api = edgeApi }:
         ? 'success'
         : 'danger';
   const statusLabel = busy
-    ? 'Verifying…'
+    ? 'Checking…'
     : resp == null
-      ? 'Not yet verified'
+      ? 'Not yet checked'
       : resp.ok
         ? `Intact · ${resp.totalRows.toLocaleString()} row${resp.totalRows === 1 ? '' : 's'}`
-        : `Broken · ${resp.totalRows.toLocaleString()} row${resp.totalRows === 1 ? '' : 's'} scanned`;
+        : `Tampered · ${resp.totalRows.toLocaleString()} row${resp.totalRows === 1 ? '' : 's'} scanned`;
 
   return (
     <div className="ea-screen" data-test="aud01">
       <SyncStatusBar
         tone={tone}
-        title="Hash chain integrity"
+        title="Audit verification"
         statusLabel={statusLabel}
         actions={
           <>
             <Link to="/audit/trail"
                   className="ea-btn ea-btn--ghost ea-btn--sm"
-                  data-cross-module="Security &amp; Audit"
+                  data-cross-module="Access"
                   data-test="aud01-open-trail">
               <UiIcon icon="audit" size={14} />
-              <span>Audit trail</span>
+              <span>Audit log</span>
             </Link>
             <button type="button"
                     className="ea-btn ea-btn--primary ea-btn--sm"
@@ -2191,23 +2191,23 @@ export function EAAuditVerify({ api = edgeApi }:
                     disabled={busy}
                     onClick={() => { run().catch(() => undefined); }}>
               <UiIcon icon="refresh" size={14} />
-              <span>{busy ? 'Verifying…' : 'Re-verify'}</span>
+              <span>{busy ? 'Checking…' : 'Check again'}</span>
             </button>
           </>
         }
       />
 
       {error && (
-        <ErrorBlock title="Verify failed" testId="aud01-error">{error}</ErrorBlock>
+        <ErrorBlock title="Check failed" testId="aud01-error">{error}</ErrorBlock>
       )}
 
       {resp && (
-        <Panel title="Verification result"
+        <Panel title="Integrity check"
                action={
                  <span data-test="aud01-status-chip">
                    {resp.ok
-                     ? <Status tone="success">Chain intact</Status>
-                     : <Status tone="danger">Broken</Status>}
+                     ? <Status tone="success">Audit log intact</Status>
+                     : <Status tone="danger">Tampering detected</Status>}
                  </span>
                }>
           <dl className="ea-def-list" data-test="aud01-result">
@@ -2217,7 +2217,7 @@ export function EAAuditVerify({ api = edgeApi }:
                   data-test="aud01-total">{resp.totalRows.toLocaleString()}</dd>
             </div>
             <div className="ea-def-row">
-              <dt>Last verified</dt>
+              <dt>Last checked</dt>
               <dd className="ea-mono ea-text-xs">
                 {lastVerifiedAt ? lastVerifiedAt.toLocaleString() : '—'}
               </dd>
@@ -2225,7 +2225,7 @@ export function EAAuditVerify({ api = edgeApi }:
             {!resp.ok && (
               <>
                 <div className="ea-def-row">
-                  <dt>First broken row</dt>
+                  <dt>First affected row</dt>
                   <dd data-test="aud01-break-id">
                     <code className="ea-mono">{resp.firstBreakAuditId}</code>
                     {resp.firstBreakAuditId != null && (
@@ -2234,9 +2234,9 @@ export function EAAuditVerify({ api = edgeApi }:
                         <Link to="/audit/trail"
                               className="ea-link-btn"
                               style={{ marginLeft: 8, fontSize: 12 }}
-                              data-cross-module="Security &amp; Audit"
+                              data-cross-module="Access"
                               data-test="aud01-open-trail-at-break">
-                          View in audit trail →
+                          View in Audit log →
                         </Link>
                       </>
                     )}
@@ -2247,9 +2247,9 @@ export function EAAuditVerify({ api = edgeApi }:
                   <dd data-test="aud01-break-reason">
                     <Status tone="danger">
                       {resp.firstBreakReason === 'PREV_HASH_MISMATCH'
-                        ? 'Previous-hash mismatch'
+                        ? 'Previous-record check failed'
                         : resp.firstBreakReason === 'ROW_HASH_MISMATCH'
-                          ? 'Row-hash mismatch'
+                          ? 'Row check failed'
                           : resp.firstBreakReason}
                     </Status>
                   </dd>

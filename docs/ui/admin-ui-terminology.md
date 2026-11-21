@@ -108,6 +108,40 @@ renamed to `'Needs review'` across the admin-ui so the type and
 the display string stay in sync. The server contract (`CONFLICT_REVIEW`,
 `CENTRAL_REJECTED`, etc.) is unchanged; the rename is UI-only.
 
+## Additions from the second per-screen pass (Sync cluster + DHIS2 + Audit + Devices)
+
+| Preferred UI term | Short description | Internal/legacy wording replaced |
+|---|---|---|
+| **Sync service** | The background service that drains the Sync Queue. | "Worker" (screen title); `Sync Worker` (nav kept for continuity) |
+| **Sync queue breakdown** | Table of sync-queue items grouped by state. | "Queue breakdown" |
+| **Sync service tuning** | Live knobs on the sync loop (batch size, back-off). | "Worker tune" |
+| **Needs review** (status chip) | Records that cannot be centrally accepted without a decision. | "Needs your attention" screen title |
+| **N items to review** | Count of records awaiting review. | "N attention items" |
+| **Review item not found** | 404 for a given review record. | "Attention item not found" |
+| **Retry synchronisation** | Queue a rejected or retried record again. | "Retry (re-journal)" |
+| **Review list failed** | Error block when `/conflicts` lookup fails. | "Attention list failed" |
+| **Synchronisation policy** | Page controlling Sync Queue + schedule behaviour. | "Sync policy" |
+| **Record types DER sends to Central DHIS2** | Panel subtitle for Outbound writes. | "Entity types that DER pushes to DHIS2 central" |
+| **Local matches Central** | Status label when the local metadata snapshot equals Central's. | "In sync" |
+| **Changes detected** | Status label when the local snapshot diverges from Central's. | "Drift detected" |
+| **About metadata changes** | Info popover title explaining the metadata diff. | "About metadata drift" |
+| **Metadata check failed** | Error block when the drift probe fails. | "Drift probe failed" |
+| **Integrity check** (DriftInspector panel) | Side-by-side checksum comparison. | "Fingerprints" |
+| **Check again** | Button label on DriftInspector + Audit verification. | "Recompute drift" / "Re-verify" |
+| **Changes — {entity}** | Drill-down panel title. | "Drift detail — {entity}" |
+| **Audit log** | Nav label + page title for security event history. | "Audit trail" (nav); "security_audit stream · hash-chained" (subtitle) |
+| **Audit verification** | Page title for the integrity check page. | "Hash chain integrity" |
+| **Verify integrity** | Action link from Audit log to the verification screen. | "Hash chain" |
+| **Audit log intact** | Success chip on Audit verification. | "Chain intact" |
+| **Tampering detected** | Danger chip on Audit verification. | "Broken" |
+| **First affected row** | Row where the first integrity failure was found. | "First broken row" |
+| **Previous-record check failed** / **Row check failed** | Humanised failure reasons. | "Previous-hash mismatch" / "Row-hash mismatch" |
+| **Tamper-evident security event history** | Subtitle for Audit log. | "security_audit stream · hash-chained" |
+| **Approval policy** (strip) | Device approval mode shown as a one-line info strip. | "Approval policy" (full Panel chrome) |
+| **Only approved devices can submit data.** | Strict-mode summary. | "Only approved devices can run client apps or submit data." |
+| **Any enrolled device can submit data — approval is advisory only.** | Permissive-mode summary. | "Any enrolled device can run client apps; approval is advisory only." |
+| **All statuses / All sources** (device filters) | Compact select options. | 7 chip buttons (Needs approval / Approved / Revoked / All / DHIS2 fleet / LAN client / All sources) |
+
 ## Scope of this document
 
 This file is incremental. Each per-screen simplification pass should:

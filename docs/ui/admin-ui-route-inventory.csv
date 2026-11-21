@@ -12,18 +12,18 @@ route,component,group_id,group_label,nav_label,nav_status,kind,redirect_to,role,
 /dhis2/compat,CompatMatrix,,DHIS2,Compatibility check,implemented,implemented,,,,,,,rewritten-strings,keep,,phase-4B-first-pass
 /dhis2/metadata,Metadata,,DHIS2,Metadata catalogue,implemented,implemented,,,,,,,,keep,,
 /dhis2/metadata/:resource/:id,MetadataDetail,,,,,implemented,,,,,,,,needs-review,,
-/dhis2/metadata-drift,DriftInspector,,DHIS2,Metadata changes,contextual,implemented,,,,,,,,contextualise,,
+/dhis2/metadata-drift,DriftInspector,,DHIS2,Metadata changes,contextual,implemented,,,,,,,rewritten-strings,contextualise,,phase-4B-sync-dhis2-audit
 /dhis2/metadata-sync,CapMetadataSync,,DHIS2,Metadata sync,contextual,implemented,,,,,,,,contextualise,,
 /compat,Navigate,,,,,redirect,/dhis2/compat,,,,,,,redirect,redirect→/dhis2/compat,
 /compat/history,Navigate,,,,,redirect,/dhis2/compat,,,,,,,redirect,redirect→/dhis2/compat,
 /sync/jobs,Navigate,,,,,redirect,/sync/history,,,,,,,redirect,redirect→/sync/history,
 /sync/jobs/trigger,EAJobTrigger,,,,,implemented,,,,,,,,needs-review,,
 /sync/drift,Navigate,,,,,redirect,/dhis2/metadata-drift,,,,,,,redirect,redirect→/dhis2/metadata-drift,
-/sync/attention,ConflictList,,Sync,Needs review,implemented,implemented,,,,,,,,keep,,
-/sync/attention/:operationId,AttentionDetailScreen,,,,,implemented,,,,,,,,needs-review,,
+/sync/attention,ConflictList,,Sync,Needs review,implemented,implemented,,,,,,,rewritten-strings,keep,,phase-4B-sync-dhis2-audit
+/sync/attention/:operationId,AttentionDetailScreen,,,,,implemented,,,,,,,rewritten-strings,needs-review,,phase-4B-sync-dhis2-audit
 /journal/conflicts,Navigate,,,,,redirect,/sync/attention,,,,,,,redirect,redirect→/sync/attention,
 /conflicts/:id,ConflictBookmarkForward,,,,,implemented,,,,,,,,needs-review,,
-/sync/worker,WorkerHealthScreen,,Sync,Worker,implemented,implemented,,,,,,,,keep,,
+/sync/worker,WorkerHealthScreen,,Sync,Worker,implemented,implemented,,,,,,,rewritten-strings,keep,,phase-4B-sync-dhis2-audit
 /journal/worker,Navigate,,,,,redirect,/sync/worker,,,,,,,redirect,redirect→/sync/worker,
 /approvals,ApprovalQueue,,Workflows,Approvals,contextual,implemented,,,,,,,,contextualise,,
 /approvals/:operationId,ApprovalDetail,,,,,implemented,,,,,,,,needs-review,,
@@ -41,14 +41,14 @@ route,component,group_id,group_label,nav_label,nav_status,kind,redirect_to,role,
 /metadata/snapshots/:a/diff/:b,SnapshotDiff,,,,,implemented,,,,,,,,needs-review,,
 /workflows/:id/advanced,WorkflowDesignerRoute,,,,,implemented,,,,,,,,needs-review,,
 /workflows/:id,WorkflowForm,,,,,implemented,,,,,,,,needs-review,,
-/devices,DevicesScreen,,Devices,Devices,implemented,implemented,,,,,,,rewritten-strings,keep,,phase-4B-first-pass
+/devices,DevicesScreen,,Devices,Devices,implemented,implemented,,,,,,,rewritten-strings,keep,,phase-4B-sync-dhis2-audit
 /devices/:deviceId,DeviceDetail,,,,,implemented,,,,,,,,needs-review,,
 /fleet,Navigate,,,,,redirect,/devices,,,,,,,redirect,redirect→/devices,
 /network/clients,Navigate,,,,,redirect,/devices?source=LAN_CLIENT,,,,,,,redirect,redirect→/devices?source=LAN_CLIENT,
 /analytics,FacilityAnalytics,,System,Analytics,contextual,implemented,,,,,,,,contextualise,,
-/audit/verify,EAAuditVerify,,Access,Audit integrity,implemented,implemented,,,,,,,,keep,,
-/audit/trail,SecurityAuditTrail,,Access,Audit log,implemented,implemented,,,,,,,,keep,,
-/audit/events,AuditEvents,,Access,Security events,implemented,implemented,,,,,,,,keep,,
+/audit/verify,EAAuditVerify,,Access,Audit integrity,implemented,implemented,,,,,,,rewritten-strings,keep,,phase-4B-sync-dhis2-audit
+/audit/trail,SecurityAuditTrail,,Access,Audit log,implemented,implemented,,,,,,,rewritten-strings,keep,,phase-4B-sync-dhis2-audit
+/audit/events,AuditEvents,,Access,Security events,implemented,implemented,,,,,,,rewritten-strings,keep,,phase-4B-sync-dhis2-audit
 /referral/inbox,ReferralInbox,,Data,Referrals,contextual,implemented,,,,,,,,contextualise,,
 /referral/inbox/:inboxId,ReferralDetail,,,,,implemented,,,,,,,,needs-review,,
 /metadata,Navigate,,,,,redirect,/dhis2/metadata,,,,,,,redirect,redirect→/dhis2/metadata,
@@ -93,7 +93,7 @@ route,component,group_id,group_label,nav_label,nav_status,kind,redirect_to,role,
 /integration/organisation-unit,Navigate,,,,,redirect,/dhis2/organisation-unit,,,,,,,redirect,redirect→/dhis2/organisation-unit,
 /integration/program-rules,Navigate,,,,,redirect,/dhis2/program-rules,,,,,,,redirect,redirect→/dhis2/program-rules,
 /sync,SyncOverview,,Sync,Overview,implemented,implemented,,,,,,,rewritten-strings,keep,,phase-4B-first-pass
-/sync/history,SyncHistory,,Sync,History,implemented,implemented,,,,,,,,keep,,
+/sync/history,SyncHistory,,Sync,History,implemented,implemented,,,,,,,rewritten-strings,keep,,phase-4B-sync-dhis2-audit
 /sync/history/:runId,SyncHistoryDetail,,,,,implemented,,,,,,,,needs-review,,
 /sync/queues,Navigate,,,,,redirect,/data/queue,,,,,,,redirect,redirect→/data/queue,
 /sync/metadata,Navigate,,,,,redirect,/dhis2/metadata-sync,,,,,,,redirect,redirect→/dhis2/metadata-sync,
@@ -103,7 +103,7 @@ route,component,group_id,group_label,nav_label,nav_status,kind,redirect_to,role,
 /data/queue/:operationId,DataDetail,,,,,implemented,,,,,,,,needs-review,,
 /sync/schedule,CapSyncSchedule,,Sync,Schedule,implemented,implemented,,,,,,,,keep,,
 /sync/settings,Navigate,,Sync,Settings,contextual,redirect,/dhis2/compat,,,,,,,redirect,redirect→/dhis2/compat,
-/sync/policy,SyncPolicyScreen,,Sync,Policy,implemented,implemented,,,,,,,,keep,,
+/sync/policy,SyncPolicyScreen,,Sync,Policy,implemented,implemented,,,,,,,rewritten-strings,keep,,phase-4B-sync-dhis2-audit
 /workflows/runs,CapWorkflowRuns,,Workflows,Runs,contextual,implemented,,,,,,,,contextualise,,
 /workflows/assignments,CapStepAssignments,,Workflows,Assignments,contextual,implemented,,,,,,,,contextualise,,
 /referral/history,CapReferralHistory,,Data,Referral history,contextual,implemented,,,,,,,,contextualise,,

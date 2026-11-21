@@ -296,12 +296,12 @@ export function SecurityAuditTrail(): JSX.Element {
     <div className="ea-screen" data-test="audit-trail">
       <SyncStatusBar
         tone="info"
-        title="Audit trail"
+        title="Audit log"
         statusLabel={events == null ? 'Loading…'
           : `${events.length} row${events.length === 1 ? '' : 's'} · page ${prevCursors.length + 1}`}
         subtitle={
           <>
-            <span>security_audit stream · hash-chained</span>
+            <span>Tamper-evident security event history</span>
             {activeFilterCount > 0 && (<><span>·</span>
               <span>{activeFilterCount} filter{activeFilterCount === 1 ? '' : 's'} active</span>
             </>)}
@@ -310,10 +310,10 @@ export function SecurityAuditTrail(): JSX.Element {
         actions={
           <>
             <Link to="/audit/verify" className="ea-btn ea-btn--ghost ea-btn--sm"
-                  data-cross-module="Security"
+                  data-cross-module="Access"
                   data-test="audit-trail-open-verify">
               <UiIcon icon="audit" size={14} />
-              <span>Hash chain</span>
+              <span>Verify integrity</span>
             </Link>
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
                     data-test="audit-trail-export-csv"

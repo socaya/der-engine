@@ -204,14 +204,45 @@ Padding adjustments:
   viewports) so every DER screen has balanced horizontal gutter
   without the shell having to apply it twice.
 
+## Phase 4B — second per-screen pass (Sync cluster + DHIS2 + Audit + Devices tables)
+
+Ten more routes marked `action=rewritten-strings`,
+`evidence=phase-4B-sync-dhis2-audit` in the inventory CSV:
+
+| Route | Key changes |
+|---|---|
+| `/sync/worker` | Screen title "Worker" → "Sync service"; status "Paused" → "Sync service paused"; "Waiting" → "Waiting to synchronise"; pause/resume confirm copy; "Worker tune" panel → "Sync service tuning"; "Apply tune" → "Apply changes"; "Queue breakdown" → "Sync queue breakdown". |
+| `/sync/attention` | "Needs your attention" → "Needs review"; status/panel titles updated; error title. |
+| `/sync/attention/:op` | Strategy labels tightened (Accept local version / Reject local version / Retry synchronisation); "Attention item not found" → "Review item not found". |
+| `/sync/history` | Filter bar wrapped in `.ea-data-filterbar` + `.ea-input--compact` for single-row layout; "All statuses" dropdown → "All outcomes". |
+| `/sync/policy` | PageHeader title → "Synchronisation policy" with clearer subtitle; panel subtitles rewritten; audit-log reference updated. |
+| `/dhis2/metadata-drift` | Error title + status label + InfoPopover + button labels + panel titles all renamed per the Metadata-changes glossary rows. |
+| `/audit/trail` | Title "Audit trail" → "Audit log"; subtitle "security_audit stream · hash-chained" → "Tamper-evident security event history"; verify link "Hash chain" → "Verify integrity". |
+| `/audit/verify` | Title "Hash chain integrity" → "Audit verification"; statusLabel wording; panel "Verification result" → "Integrity check"; chips "Chain intact / Broken" → "Audit log intact / Tampering detected"; "First broken row" → "First affected row"; "Previous-hash mismatch / Row-hash mismatch" → "Previous-record check failed / Row check failed"; action button "Re-verify" → "Check again". |
+| `/audit/events` | Audit-events sub-page (no content strings touched in this pass). |
+| `/devices` | **Full tables + filters standards pass:** `ApprovalPolicyPanel` collapsed from a Panel into a single-line `.ea-info-strip`; "Filter" chip-button bank (7 buttons) replaced with two `.ea-input--compact` select dropdowns; search sits in the same `.ea-data-filterbar`; table uses `.ea-table--nowrap` single-line rows with ellipsis; Device cell flattened from stacked name+UUID+UA to inline name + short UUID + tooltip; Network column shows only IP (MAC in tooltip); client-side pagination via `usePaged(filtered, 25)` + `TablePager` added. |
+
+Test suites updated:
+- `MoreScreens.test.tsx` — `AttentionDetailScreen` strategy
+  preview regex ("applied without pushing" → "applied without
+  sending it again"); `DriftInspector` assertions ("drift
+  detected" / "in sync" → "changes detected" / "local matches
+  central").
+- `EACoreScreens.test.tsx` — `EAAuditVerify` chip assertions
+  ("Chain intact" → "Audit log intact"; "Broken" → "Tampering
+  detected"; "Row-hash mismatch" → "Row check failed").
+
+**1749/1749 admin-ui unit tests PASS.**
+
 ## Open gates
 
 Next up (not yet started in this session):
-- Per-screen rewrite for the remaining ~130 routes. The eight
-  rewritten this pass are the highest-jargon-density landings
-  (Sync, DHIS2, Data, Devices + Overview + SignIn); the rest
-  are progressively lower-impact.
-- Plan Phase 1 (8→6 nav collapse) — unchanged; still deferred
-  because collapsing touches 139 routes + legacy bookmarks.
+- Per-screen rewrite for the remaining ~120 routes. 17 routes
+  now carry `action=rewritten-strings` after two passes —
+  Overview, SignIn, Sync, DHIS2 Overview, Compatibility check,
+  Data landing, Outbound queue, Devices, three Data detail
+  tables, five Sync-cluster screens, Metadata-changes, two
+  Audit screens.
+- Plan Phase 1 (8→6 nav collapse) — still deferred.
 - Plan §12 usability sessions with ≥5 participants per role —
   still deferred; engineering environment, no participants.
