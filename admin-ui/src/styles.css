@@ -468,7 +468,7 @@ code{font-family:var(--der-font-mono);font-size:var(--fs-sm)}
 .ea-headerbar-signout:hover{color:var(--der-ink-900);background:var(--der-raised)}
 
 /* ---------- Main area ---------- */
-.ea-main{grid-area:main;min-width:0}
+.ea-main{grid-area:main;min-width:0;padding:10px}
 .ea-main-inner{
   max-width:none;
   margin:0;

@@ -1,7 +1,7 @@
 route,component,group_id,group_label,nav_label,nav_status,kind,redirect_to,role,api_calls,primary_task,content_owner,duplicate_of,action,classification,implementation_status,evidence
 /sign-in,SignIn,,,,,implemented,,,,,,,rewritten-strings,needs-review,,phase-4B-first-pass
 /,Workspace,,Home,Home,implemented,implemented,,,,,,,rewritten-strings,keep,,phase-4B-first-pass
-/provisioning/users,UsersDashboard,,Access,Users,implemented,implemented,,,,,,,,keep,,
+/provisioning/users,UsersDashboard,,Access,Users,implemented,implemented,,,,,,,compact-table-+-strings,keep,,phase-4B-metadata-users-snapshots
 /provisioning/users/new,EAUserCreate,,Access,Add user,contextual,implemented,,,,,,,,contextualise,,
 /provisioning/users/:userId,UserDetail,,,,,implemented,,,,,,,,needs-review,,
 /provisioning/users/:userId/dhis2-mapping,UserDhis2Mapping,,,,,implemented,,,,,,,,needs-review,,
@@ -10,7 +10,7 @@ route,component,group_id,group_label,nav_label,nav_status,kind,redirect_to,role,
 /dhis2/organisation-unit,CapOrgUnitBinding,,DHIS2,Organisation unit,implemented,implemented,,,,,,,,keep,,
 /dhis2/program-rules,CapProgramRules,,,,,implemented,,,,,,,,needs-review,,
 /dhis2/compat,CompatMatrix,,DHIS2,Compatibility check,implemented,implemented,,,,,,,rewritten-strings,keep,,phase-4B-first-pass
-/dhis2/metadata,Metadata,,DHIS2,Metadata catalogue,implemented,implemented,,,,,,,,keep,,
+/dhis2/metadata,Metadata,,DHIS2,Metadata catalogue,implemented,implemented,,,,,,,compact-table-+-strings,keep,,phase-4B-metadata-users-snapshots
 /dhis2/metadata/:resource/:id,MetadataDetail,,,,,implemented,,,,,,,,needs-review,,
 /dhis2/metadata-drift,DriftInspector,,DHIS2,Metadata changes,contextual,implemented,,,,,,,rewritten-strings,contextualise,,phase-4B-sync-dhis2-audit
 /dhis2/metadata-sync,CapMetadataSync,,DHIS2,Metadata sync,contextual,implemented,,,,,,,,contextualise,,
@@ -37,7 +37,7 @@ route,component,group_id,group_label,nav_label,nav_status,kind,redirect_to,role,
 /workflows/peers,WorkflowPeers,,Workflows,Peers,contextual,implemented,,,,,,,,contextualise,,
 /workflows/import-inbox,WorkflowImportInbox,,Workflows,Import inbox,contextual,implemented,,,,,,,,contextualise,,
 /workflows/runs/:runId/validation,RunValidation,,,,,implemented,,,,,,,,needs-review,,
-/metadata/snapshots,SnapshotList,,DHIS2,Snapshots,implemented,implemented,,,,,,,,keep,,
+/metadata/snapshots,SnapshotList,,DHIS2,Snapshots,implemented,implemented,,,,,,,compact-table-+-strings,keep,,phase-4B-metadata-users-snapshots
 /metadata/snapshots/:a/diff/:b,SnapshotDiff,,,,,implemented,,,,,,,,needs-review,,
 /workflows/:id/advanced,WorkflowDesignerRoute,,,,,implemented,,,,,,,,needs-review,,
 /workflows/:id,WorkflowForm,,,,,implemented,,,,,,,,needs-review,,
