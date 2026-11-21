@@ -10,6 +10,9 @@ import { useOrgUnit } from './OrgUnitContext';
 import { UserMenu } from './UserMenu';
 import { UiIcon, type UiIconId } from './UiIcon';
 import * as edgeApi from '../api/edgeApi';
+import {
+  RuntimeStatusProvider, useRuntimeStatus,
+} from './RuntimeStatusProvider';
 
 /** UX-C — second non-color cue for the runtime-mode indicator. One
  *  icon per mode keeps the sidebar footer accessible without relying
@@ -23,48 +26,10 @@ function iconForMode(mode: string): UiIconId {
   return 'cog';
 }
 
-/**
- * DER Runtime indicator — polled from `/edge-api/v1/system/health` and
- * `/edge-api/v1/compat`. Replaces the hard-coded "DER server · online"
- * footer per §6.3 of the UI Visibility 10/10 standard.
- */
-type RuntimeMode = 'operational' | 'degraded' | 'offline-first' | 'recovering' | 'starting' | 'unknown';
-
-function useRuntimeMode(): { mode: RuntimeMode; label: string; sub: string; detail: string } {
-  const [h, setH] = useState<edgeApi.HealthResponse | null>(null);
-  const [p, setP] = useState<edgeApi.PingSnapshot | null>(null);
-  const [probing, setProbing] = useState(true);
-  useEffect(() => {
-    let cancel = false;
-    async function tick(): Promise<void> {
-      try {
-        const [hr, pr] = await Promise.allSettled([edgeApi.health(), edgeApi.dhis2Ping()]);
-        if (!cancel) {
-          if (hr.status === 'fulfilled') setH(hr.value);
-          if (pr.status === 'fulfilled') setP(pr.value);
-          setProbing(false);
-        }
-      } catch { if (!cancel) setProbing(false); }
-    }
-    tick().catch(() => undefined);
-    const id = window.setInterval(() => { tick().catch(() => undefined); }, 15_000);
-    return () => { cancel = true; window.clearInterval(id); };
-  }, []);
-  if (!h) return { mode: 'unknown', label: 'DER Runtime · Checking', sub: '', detail: 'Checking status…' };
-  const derUp = h.status === 'UP' || h.status === 'ready';
-  const starting = h.status === 'starter-ready' || h.status === 'starting';
-  // Ping is authoritative — it does a live GET against central with a short
-  // timeout and caches server-side for 10 s. If the probe hasn't landed yet
-  // (first 15 s after mount) we show "Checking" rather than guess.
-  const centralReachable = p?.reachable === true;
-  const centralUnreachable = p != null && p.reachable === false;
-  if (!derUp && !starting) return { mode: 'degraded', label: 'DER Runtime · Degraded', sub: h.status ?? 'unavailable', detail: 'DER runtime is not operational.' };
-  if (starting) return { mode: 'starting', label: 'DER Runtime · Starting', sub: '', detail: 'DER is initialising.' };
-  if (centralReachable) return { mode: 'operational', label: 'DER Connected', sub: 'Central reachable', detail: 'DER is connected to Central DHIS2. Local operations are available and eligible changes are being synchronised.' };
-  if (centralUnreachable) return { mode: 'offline-first', label: 'DER Offline-First', sub: 'Central unavailable', detail: p?.message ?? 'Central DHIS2 is unavailable. DER remains operational on the local network. Locally accepted changes are being stored safely and queued for synchronisation.' };
-  if (probing) return { mode: 'unknown', label: 'DER Runtime · Checking', sub: '', detail: 'Checking central reachability…' };
-  return { mode: 'operational', label: 'DER Connected', sub: '', detail: 'DER is operational.' };
-}
+/* Runtime-mode indicator — the actual polling + derivation live in
+ * `./RuntimeStatusProvider.tsx` so sidebar footer + top-bar pill share
+ * one poll loop. The two consumers below now both read from that
+ * single cache instead of mounting independent 15-second timers. */
 
 /**
  * DER admin shell per
@@ -91,7 +56,7 @@ export interface AdminShellProps {
 }
 
 function RuntimeFooter(): JSX.Element {
-  const r = useRuntimeMode();
+  const r = useRuntimeStatus();
   return (
     <Link to="/sync" className="ea-sidebar-footer ea-sidebar-footer-link"
           title={r.detail} data-test="runtime-footer">
@@ -218,7 +183,7 @@ function AttentionCentre(): JSX.Element {
 
 /** Topbar operating-mode pill (§6.2 mandatory global operating-state control). */
 function TopbarOperatingMode(): JSX.Element {
-  const r = useRuntimeMode();
+  const r = useRuntimeStatus();
   return (
     <Link to="/sync" className={'ea-topbar-mode ea-topbar-mode--' + r.mode}
           title={r.detail} data-test="topbar-mode">
@@ -274,6 +239,7 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
     (mobileOpen ? ' ea-shell--mobile-open' : '');
 
   return (
+    <RuntimeStatusProvider enabled={authed && !onSignIn}>
     <div className={shellCls}>
       {/* §8 a11y — skip link lands keyboard users on main content */}
       <a href="#ea-main" className="ea-skip-link">Skip to main content</a>
@@ -373,5 +339,6 @@ export function AdminShell({ children }: AdminShellProps): JSX.Element {
       </main>
       {!onSignIn && <OnboardingTour />}
     </div>
+    </RuntimeStatusProvider>
   );
 }

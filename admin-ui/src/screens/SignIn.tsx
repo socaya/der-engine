@@ -10,12 +10,18 @@ const DEFAULT_SUB = 'DHIS2 Edge Runtime — administration console.';
 const DEFAULT_SUBMIT = 'Sign in';
 
 /**
- * @dhis2/ui-styled sign-in. Renders at `/sign-in` when RequireAuth
- * sends an unauthenticated user there. Navigates back to the
- * originating route on success (location.state.from.pathname).
+ * DER admin sign-in screen.
  *
- * Design language mirrors DHIS2 2.44 Core apps so operators moving
- * between DHIS2 Capture/Maintenance and DER admin feel at home.
+ * Renders at `/sign-in` whenever RequireAuth redirects an
+ * unauthenticated user there. After a successful sign-in, navigates
+ * back to the originally requested route (location.state.from.pathname).
+ *
+ * Layout is a single card centred on the canvas: brand lockup →
+ * title + subtitle → optional edge-down banner → username → password
+ * (with reveal) → submit. The dev-only credentials autofill lives
+ * below the form, visually subordinate to the primary task, and is
+ * still gated by `EmptyBlock` so it looks like informational copy
+ * rather than a prompt.
  */
 export function SignIn(): JSX.Element {
   const navigate = useNavigate();
@@ -26,6 +32,7 @@ export function SignIn(): JSX.Element {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [revealPassword, setRevealPassword] = useState(false);
 
   const title = settings.appTitle?.trim() ? settings.appTitle : DEFAULT_TITLE;
   const sub = settings.appIntro?.trim() ? settings.appIntro : DEFAULT_SUB;
@@ -60,7 +67,7 @@ export function SignIn(): JSX.Element {
       if (err instanceof EdgeApiError) {
         if (err.code === 'EDGE_UNREACHABLE') {
           setError(
-            'Edge server is unreachable. Check that der-server is running on port 8085.',
+            'DER server is unreachable. Check that der-server is running on port 8085.',
           );
         } else if (err.code === 'INVALID_CREDENTIALS') {
           setError('Invalid username or password.');
@@ -82,32 +89,116 @@ export function SignIn(): JSX.Element {
       <div className="ea-sign-in-card">
         <div className="ea-sign-in-pad">
           <div className="ea-sign-in-brand" aria-hidden="true">
-            <img className="ea-sign-in-logo-img"
-                 src="/brand/der-icon-navy.svg"
-                 alt="DER"
-                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+            <img
+              className="ea-sign-in-logo-img"
+              src="/brand/der-icon-navy.svg"
+              alt="DER"
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            />
+          </div>
+          <div className="ea-sign-in-wordmark" aria-hidden="true">
+            DHIS2&nbsp;Edge&nbsp;Runtime
           </div>
           <h1 className="ea-sign-in-title" data-test="sign-in-title">{title}</h1>
           <p className="ea-sign-in-sub" data-test="sign-in-sub">{sub}</p>
 
           {state.status === 'EDGE_DOWN' && (
-            <div data-test="sign-in-edge-down">
-              <ErrorBlock title="Edge unreachable" testId="sign-in-edge-down-inner">
+            <div data-test="sign-in-edge-down" className="ea-sign-in-banner">
+              <ErrorBlock title="DER server unreachable" testId="sign-in-edge-down-inner">
                 The DER server is currently unreachable. Start it with{' '}
                 <code>java -jar der-server-*.jar</code> and refresh.
               </ErrorBlock>
             </div>
           )}
           {error && (
-            <div data-test="sign-in-error">
+            <div data-test="sign-in-error" className="ea-sign-in-banner">
               <ErrorBlock title="Sign-in failed" testId="sign-in-error-inner">
                 {error}
               </ErrorBlock>
             </div>
           )}
 
+          <form onSubmit={onSubmit} data-test="sign-in-form" className="ea-sign-in-form">
+            <div data-test="sign-in-username-field" className="ea-field">
+              <label className="ea-field-label" htmlFor="sign-in-username">
+                Username <span className="ea-field-required" aria-hidden="true">*</span>
+              </label>
+              <input
+                id="sign-in-username"
+                className="ea-input"
+                name="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                placeholder="der-admin"
+                autoFocus
+                required
+              />
+            </div>
+            <div className="ea-sign-in-spacer" />
+            <div data-test="sign-in-password-field" className="ea-field">
+              <label className="ea-field-label" htmlFor="sign-in-password">
+                Password <span className="ea-field-required" aria-hidden="true">*</span>
+              </label>
+              <div className="ea-sign-in-pw-wrap">
+                <input
+                  id="sign-in-password"
+                  className="ea-input ea-sign-in-pw-input"
+                  name="password"
+                  type={revealPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  className="ea-sign-in-pw-toggle"
+                  onClick={() => setRevealPassword((v) => !v)}
+                  aria-pressed={revealPassword}
+                  aria-label={revealPassword ? 'Hide password' : 'Show password'}
+                  title={revealPassword ? 'Hide password' : 'Show password'}
+                  tabIndex={0}
+                >
+                  {revealPassword ? (
+                    // eye-slash — hide
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                      <path d="M3 3l18 18" />
+                      <path d="M10.7 6.2A10.6 10.6 0 0112 6c5 0 9 4 10 6-0.5 1-1.6 2.6-3.3 4" />
+                      <path d="M6.3 7.6C3.5 9.4 2 11.4 2 12c1 2 5 6 10 6 1.7 0 3.3-.5 4.6-1.2" />
+                      <path d="M10 10a3 3 0 004 4" />
+                    </svg>
+                  ) : (
+                    // eye — show
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                      <path d="M2 12c1-2 5-6 10-6s9 4 10 6c-1 2-5 6-10 6s-9-4-10-6z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+            <div className="ea-sign-in-spacer" />
+            <div data-test="sign-in-submit">
+              <button
+                type="submit"
+                className="ea-btn ea-btn--primary ea-sign-in-submit-btn"
+                disabled={submitting || !username || !password}
+                data-test="sign-in-submit-btn"
+              >
+                {submitting && <span className="ea-btn-spinner" aria-hidden="true" />}
+                <span>{submitting ? 'Signing in…' : submitLabel}</span>
+              </button>
+            </div>
+          </form>
+
           <div className="ea-sign-in-dev-hint" data-test="sign-in-dev-hint">
-            <EmptyBlock title="Test credentials (dev build only)" testId="sign-in-dev-hint-inner">
+            <EmptyBlock
+              title="Development build — test credentials"
+              testId="sign-in-dev-hint-inner"
+            >
               <div className="ea-sign-in-dev-hint-row">
                 <span>Username</span>
                 <code>der-admin</code>
@@ -132,51 +223,7 @@ export function SignIn(): JSX.Element {
               </p>
             </EmptyBlock>
           </div>
-          <form onSubmit={onSubmit} data-test="sign-in-form">
-            <div data-test="sign-in-username-field" className="ea-field">
-              <label className="ea-field-label" htmlFor="sign-in-username">
-                Username <span className="ea-field-required" aria-hidden="true">*</span>
-              </label>
-              <input
-                id="sign-in-username"
-                className="ea-input"
-                name="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
-                placeholder="der-admin"
-                required
-              />
-            </div>
-            <div className="ea-sign-in-spacer" />
-            <div data-test="sign-in-password-field" className="ea-field">
-              <label className="ea-field-label" htmlFor="sign-in-password">
-                Password <span className="ea-field-required" aria-hidden="true">*</span>
-              </label>
-              <input
-                id="sign-in-password"
-                className="ea-input"
-                name="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </div>
-            <div className="ea-sign-in-spacer" />
-            <div data-test="sign-in-submit">
-              <button
-                type="submit"
-                className="ea-btn ea-btn--primary"
-                disabled={submitting || !username || !password}
-                data-test="sign-in-submit-btn"
-              >
-                {submitting && <span className="ea-btn-spinner" aria-hidden="true" />}
-                <span>{submitting ? 'Signing in…' : submitLabel}</span>
-              </button>
-            </div>
-          </form>
+
           {footer ? (
             <div
               className="ea-sign-in-footnote"
