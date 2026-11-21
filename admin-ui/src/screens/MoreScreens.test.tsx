@@ -537,10 +537,14 @@ describe('MoreScreens — surface mount test', () => {
     await waitFor(() =>
       expect(screen.getByTestId('drift-hub')).toBeInTheDocument());
     expect(document.body.textContent ?? '').toMatch(/dataElements|organisationUnits/);
-    expect(document.body.textContent ?? '').toMatch(/drift detected/i);
+    /* Phase-4B: "Drift detected" status label renamed to
+     * "Changes detected" per the terminology glossary. */
+    expect(document.body.textContent ?? '').toMatch(/changes detected/i);
   });
 
-  it('DriftInspector in-sync branch renders the success tone + \'In sync\' label', async () => {
+  it('DriftInspector in-sync branch renders the success tone + \'Local matches Central\' label', async () => {
+    /* Phase-4B: "In sync" label renamed to "Local matches Central"
+     * per the terminology glossary. */
     vi.spyOn(edgeApi, 'drift').mockResolvedValue({
       status: 'OK',
       fingerprintFrom: 'same', fingerprintTo: 'same',  /* equal */
@@ -551,7 +555,7 @@ describe('MoreScreens — surface mount test', () => {
     renderWithProviders(<DriftInspector />, { authApi });
     await waitFor(() =>
       expect(screen.getByTestId('drift-hub')).toBeInTheDocument());
-    expect(document.body.textContent ?? '').toMatch(/in sync/i);
+    expect(document.body.textContent ?? '').toMatch(/local matches central/i);
   });
 
   it('DriftInspector — clicking an entity row expands the drill-down panel with the IDs', async () => {
@@ -875,9 +879,11 @@ describe('MoreScreens — surface mount test', () => {
       'duplicate of op-earlier');
     expect((screen.getByTestId('conflict-submit') as HTMLButtonElement).disabled)
       .toBe(false);
-    /* Preview panel appears + reflects chosen strategy. */
+    /* Preview panel appears + reflects chosen strategy.
+     * Phase-4B: "applied without pushing" → "applied without
+     * sending it again" per glossary. */
     expect(screen.getByTestId('conflict-preview'))
-      .toHaveTextContent(/applied without pushing/i);
+      .toHaveTextContent(/applied without sending it again/i);
     await userEvent.click(screen.getByTestId('conflict-submit'));
     await waitFor(() => expect(resolveSpy).toHaveBeenCalledWith(
       'op-strat-1', 'ACCEPTED', 'duplicate of op-earlier'));

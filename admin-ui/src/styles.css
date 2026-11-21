@@ -1752,6 +1752,35 @@ kbd{
 }
 .ea-sync-path-link:hover{text-decoration:underline}
 .ea-sync-path-link:focus-visible{outline:2px solid var(--der-primary);outline-offset:2px}
+
+/* ============================================================
+   Info strip — single-line status + action row, used above the
+   Devices filter + anywhere a Panel would be too heavy for a
+   one-line policy / status + toggle button.
+   ============================================================ */
+.ea-info-strip{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;
+  padding:8px 10px;margin:0 0 10px;
+  background:var(--der-surface-hover, #f8fafc);
+  border:1px solid var(--der-border-subtle, #e5e7eb);
+  border-left:3px solid var(--der-primary, #1d4ed8);
+  font-size:12px;
+  color:var(--der-ink-700, #334155);
+}
+.ea-info-strip-label{
+  font-size:11px;text-transform:uppercase;letter-spacing:0.06em;
+  color:var(--der-ink-400, #64748b);font-weight:600;
+}
+.ea-info-strip-value{
+  color:var(--der-ink-900, #0f172a);font-weight:600;
+}
+.ea-info-strip-value--muted{color:var(--der-ink-500, #475569)}
+.ea-info-strip-desc{
+  color:var(--der-ink-500, #475569);flex:1 1 auto;
+}
+.ea-info-strip-err{
+  color:var(--der-danger-ink, #991b1b);font-weight:500;
+}
 /* Panels take their own vertical rhythm from PanelHead + table margins;
  * trailing <p> inside a panel body would otherwise double-margin. */
 .ea-panel-body > p{margin:0}

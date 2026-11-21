@@ -70,32 +70,32 @@ export function SyncHistory(): JSX.Element {
 
       <Panel title={`All runs · ${filtered.length}`}
              action={
-               <>
-                 <input className="ea-input" style={{ maxWidth: 180 }} type="search"
+               <div className="ea-data-filterbar" role="group" aria-label="Filters">
+                 <input className="ea-input ea-input--compact" type="search"
                         placeholder="Search" value={query}
                         onChange={(e) => setQuery(e.target.value)} />
-                 <select className="ea-input" style={{ maxWidth: 160 }} value={filterType}
+                 <select className="ea-input ea-input--compact" value={filterType}
                          onChange={(e) => setFilterType(e.target.value)}>
                    <option value="ALL">All types</option>
                    {types.map((t) => <option key={t} value={t}>{humaniseJob(t)}</option>)}
                  </select>
-                 <select className="ea-input" style={{ maxWidth: 140 }} value={filterStatus}
+                 <select className="ea-input ea-input--compact" value={filterStatus}
                          onChange={(e) => setFilterStatus(e.target.value)}>
-                   <option value="ALL">All statuses</option>
+                   <option value="ALL">All outcomes</option>
                    <option value="SUCCEEDED">Succeeded</option>
                    <option value="SUCCESS">Succeeded</option>
                    <option value="FAILED">Failed</option>
                  </select>
-                 <input className="ea-input" style={{ maxWidth: 140 }} type="date"
+                 <input className="ea-input ea-input--compact" type="date"
                         value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                 <input className="ea-input" style={{ maxWidth: 140 }} type="date"
+                 <input className="ea-input ea-input--compact" type="date"
                         value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
                  <button type="button" className="ea-btn ea-btn--ghost ea-btn--sm"
                          onClick={() => { reload().catch(() => undefined); }}>
                    <UiIcon icon="refresh" size={14} />
                    <span>Refresh</span>
                  </button>
-               </>
+               </div>
              }>
         <div className="ea-table-wrap">
           <table className="ea-table ea-table--dense ea-table--selectable" style={{ width: '100%' }}>

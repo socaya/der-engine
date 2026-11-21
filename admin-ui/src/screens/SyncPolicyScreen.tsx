@@ -138,8 +138,8 @@ export function SyncPolicyScreen(
 
   return (
     <div data-test="sync-policy-screen">
-      <PageHeader title="Sync policy"
-        subtitle="Decide how DER ships data to — and pulls from — DHIS2 central. Applies to every sync object: outbound writes and scheduled background jobs." />
+      <PageHeader title="Synchronisation policy"
+        subtitle="Decide how DER sends data to — and pulls data from — Central DHIS2. Applies to outbound writes and to scheduled background jobs." />
 
       {global && (
         <Panel title="Global default">
@@ -155,7 +155,7 @@ export function SyncPolicyScreen(
       )}
 
       <Panel title="Outbound writes"
-             subtitle="Entity types that DER pushes to DHIS2 central. Each row inherits Global unless overridden.">
+             subtitle="Record types DER sends to Central DHIS2. Each row inherits the Global default unless overridden.">
         <div style={{ display: 'grid', gap: 6 }}>
           {byKind.WRITE.map((r) => (
             <PolicyRow key={r.scope}
@@ -172,7 +172,7 @@ export function SyncPolicyScreen(
       </Panel>
 
       <Panel title="Scheduled jobs"
-             subtitle="Background pulls + maintenance tasks. INSTANT doesn't apply — these are cron-only.">
+             subtitle="Background pulls and maintenance tasks. Instant does not apply — these run on a schedule only.">
         <div style={{ display: 'grid', gap: 6 }}>
           {byKind.SCHEDULED.map((r) => (
             <PolicyRow key={r.scope}
@@ -385,7 +385,7 @@ function PolicyAuditPanel(
 ): JSX.Element {
   return (
     <Panel title="Recent changes"
-           subtitle="Every save and reset is appended to the security audit log. Newest first.">
+           subtitle="Every save and reset is appended to the Audit log. Newest first.">
       {entries.length === 0 ? (
         <p style={{ margin: 0, fontSize: 13,
                      color: 'var(--der-text-muted, #6b7280)' }}>

@@ -33,7 +33,7 @@ export function DriftInspector(): JSX.Element {
     ? d?.perEntity?.[expandedEntity] ?? null
     : null;
 
-  if (err) return <ErrorBlock title="Drift probe failed" testId="err-drift">{err}</ErrorBlock>;
+  if (err) return <ErrorBlock title="Metadata check failed" testId="err-drift">{err}</ErrorBlock>;
   if (!d) return <LoadingBlock testId="loading" />;
 
   const equal = d.fingerprintFrom === d.fingerprintTo;
@@ -48,18 +48,19 @@ export function DriftInspector(): JSX.Element {
       <SyncStatusBar
         tone={equal ? 'success' : 'warning'}
         title="Metadata changes"
-        statusLabel={equal ? 'In sync' : 'Drift detected'}
+        statusLabel={equal ? 'Local matches Central' : 'Changes detected'}
         subtitle={
           <>
             <span>Central → DER (one-way)</span>
-            <InfoPopover label="About metadata drift">
+            <InfoPopover label="About metadata changes">
               <p>
-                DHIS2 is the source of truth. This probe hashes DER&apos;s
-                mirrored resources against Central&apos;s.
+                DHIS2 is the source of truth. DER compares its local
+                copy of each metadata resource against Central&apos;s.
               </p>
               <p>
-                A mismatch simply means the next metadata-sync pull will
-                update DER. Nothing is ever written back to Central.
+                When something differs, the next metadata sync pulls
+                the update into DER. Nothing is ever written back
+                to Central.
               </p>
             </InfoPopover>
             <span>·</span>
@@ -80,16 +81,16 @@ export function DriftInspector(): JSX.Element {
                   onClick={() => { reload(true).catch(() => undefined); }}
                   data-test="drift-refresh">
             <UiIcon icon="refresh" size={14} />
-            <span>{refreshing ? 'Refreshing…' : 'Recompute drift'}</span>
+            <span>{refreshing ? 'Checking…' : 'Check again'}</span>
           </button>
         }
       />
 
-      <Panel title="Fingerprints"
+      <Panel title="Integrity check"
              action={<Status tone={equal ? 'success' : 'warning'}>{equal ? 'Identical' : 'Different'}</Status>}>
         <div className="ea-drift">
           <div className="ea-drift-side">
-            <div className="ea-text-muted" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Mirror</div>
+            <div className="ea-text-muted" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Local copy</div>
             <div className="ea-mono" style={{ wordBreak: 'break-all' }}>{d.fingerprintFrom ?? '—'}</div>
           </div>
           <div className="ea-drift-sep" style={{ color: equal ? 'var(--der-success-ink)' : 'var(--der-warning-ink)',
@@ -97,7 +98,7 @@ export function DriftInspector(): JSX.Element {
             {equal ? '=' : '≠'}
           </div>
           <div className="ea-drift-side">
-            <div className="ea-text-muted" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Central</div>
+            <div className="ea-text-muted" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Central DHIS2</div>
             <div className="ea-mono" style={{ wordBreak: 'break-all' }}>{d.fingerprintTo ?? '—'}</div>
           </div>
         </div>
@@ -105,10 +106,10 @@ export function DriftInspector(): JSX.Element {
 
       <Panel title="Per-entity breakdown"
              action={<span className="ea-text-muted ea-text-xs">
-               {totalChanged.toLocaleString()} delta{totalChanged === 1 ? '' : 's'}
+               {totalChanged.toLocaleString()} change{totalChanged === 1 ? '' : 's'}
              </span>}>
         {rowSummaries.length === 0 ? (
-          <p className="ea-text-muted">No per-entity drift recorded.</p>
+          <p className="ea-text-muted">No per-entity changes recorded.</p>
         ) : (
           <div className="ea-table-wrap">
             <table className="ea-table ea-table--dense ea-table--selectable"
@@ -141,7 +142,7 @@ export function DriftInspector(): JSX.Element {
       </Panel>
 
       {expandedEntity && expanded && (
-        <Panel title={`Drift detail — ${expandedEntity}`}
+        <Panel title={`Changes — ${expandedEntity}`}
                action={
                  <div style={{ display: 'flex', gap: 8 }}>
                    <Link to={`/dhis2/metadata?resource=${encodeURIComponent(expandedEntity)}`}

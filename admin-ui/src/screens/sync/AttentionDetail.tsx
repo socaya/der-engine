@@ -12,16 +12,16 @@ type ConflictStrategy = 'ACCEPT' | 'REJECT' | 'REJOURNAL';
 const STRATEGY_LABELS: Record<ConflictStrategy,
     { title: string; summary: string }> = {
   ACCEPT: {
-    title: 'Accept local',
-    summary: 'Mark the local version as applied without pushing it again. Central keeps whatever it currently has.',
+    title: 'Accept local version',
+    summary: 'Mark the local version as applied without sending it again. Central DHIS2 keeps whatever it currently holds.',
   },
   REJECT: {
-    title: 'Reject local',
+    title: 'Reject local version',
     summary: 'Discard the local version. The record is marked as rejected and will not be retried.',
   },
   REJOURNAL: {
-    title: 'Retry (re-journal)',
-    summary: 'Clone this operation as a fresh PENDING entry so the sync worker tries again on the next drain tick.',
+    title: 'Retry synchronisation',
+    summary: 'Queue this record again so the sync service attempts it on the next pass.',
   },
 };
 
@@ -39,7 +39,7 @@ export function AttentionDetailScreen(): JSX.Element {
       try {
         const all = await edgeApi.listConflicts(500);
         const match = all.find((r) => r.operationId === operationId);
-        if (!match) { setErr('Attention item not found.'); return; }
+        if (!match) { setErr('Review item not found.'); return; }
         setRow(match);
       } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     })();

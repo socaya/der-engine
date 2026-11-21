@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../api/edgeApi';
 import { ErrorBlock, LoadingBlock } from '../components/ScreenStates';
 import { PageHeader } from '../components/PageHeader';
-import { Panel } from './shared';
+import { Panel, usePaged, TablePager } from './shared';
 
 /** UI-1 — unified devices view.
  *
@@ -107,6 +107,11 @@ export function DevicesScreen(
     }
   }
 
+  /* Paginated client-side slice — 25 rows per page by default.
+   * Must be declared BEFORE the error / loading early-returns so
+   * React sees the same hook call order on every render. */
+  const paged = usePaged(filtered, 25);
+
   if (err && !rows) {
     return (
       <ErrorBlock title="Could not load devices" testId="devices-error">
@@ -119,55 +124,39 @@ export function DevicesScreen(
   return (
     <div className="ea-screen" data-test="devices-screen">
       <PageHeader title="Devices"
-        subtitle={`${counts.total} total · ${counts.pending} awaiting approval · ${counts.fleet} in DHIS2 fleet · ${counts.lan} on local network`} />
+        subtitle={`${counts.total} total · ${counts.pending} awaiting approval`} />
 
       <ApprovalPolicyPanel api={api} />
 
-      <Panel title="Filter">
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8,
-                       alignItems: 'center' }}>
-          {([
-            { k: 'PENDING',   label: `Needs approval (${counts.pending})` },
-            { k: 'APPROVED',  label: `Approved (${counts.approved})` },
-            { k: 'REVOKED',   label: `Revoked / suspended (${counts.revoked})` },
-            { k: 'ALL',       label: `All (${counts.total})` },
-          ] as const).map((o) => (
-            <button key={o.k} type="button"
-                    data-test={`devices-filter-${o.k}`}
-                    onClick={() => setFilter(o.k)}
-                    className={'ea-btn ea-btn--sm'
-                      + (filter === o.k ? ' ea-btn--primary' : ' ea-btn--ghost')}>
-              {o.label}
-            </button>
-          ))}
-          <span style={{ width: 1, height: 20,
-                          background: 'var(--der-border-soft, #e2e6ef)',
-                          margin: '0 4px' }} />
-          {([
-            { k: 'ALL',          label: 'All sources' },
-            { k: 'DHIS2_FLEET',  label: `DHIS2 fleet (${counts.fleet})` },
-            { k: 'LAN_CLIENT',   label: `LAN client (${counts.lan})` },
-          ] as const).map((o) => (
-            <button key={o.k} type="button"
-                    data-test={`devices-source-${o.k}`}
-                    onClick={() => setSourceFilter(o.k)}
-                    className={'ea-btn ea-btn--sm'
-                      + (sourceFilter === o.k
-                        ? ' ea-btn--primary' : ' ea-btn--ghost')}>
-              {o.label}
-            </button>
-          ))}
-          <span style={{ flex: 1 }} />
-          <input value={search}
-                 onChange={(e) => setSearch(e.target.value)}
-                 placeholder="Search name, ID, IP, MAC…"
-                 data-test="devices-search"
-                 className="ea-input"
-                 style={{ minWidth: 220, maxWidth: 320 }} />
-        </div>
-      </Panel>
-
-      <Panel title={`Devices (${filtered.length})`}>
+      <Panel title={`Devices (${filtered.length})`}
+             action={
+               <div className="ea-data-filterbar" role="group" aria-label="Filters">
+                 <select className="ea-input ea-input--compact"
+                         value={filter}
+                         onChange={(e) => setFilter(e.target.value as FilterKey)}
+                         data-test="devices-filter"
+                         title="Filter devices by approval status">
+                   <option value="PENDING">Needs approval ({counts.pending})</option>
+                   <option value="APPROVED">Approved ({counts.approved})</option>
+                   <option value="REVOKED">Revoked or suspended ({counts.revoked})</option>
+                   <option value="ALL">All statuses ({counts.total})</option>
+                 </select>
+                 <select className="ea-input ea-input--compact"
+                         value={sourceFilter}
+                         onChange={(e) => setSourceFilter(e.target.value as SourceFilter)}
+                         data-test="devices-source"
+                         title="Filter devices by registry source">
+                   <option value="ALL">All sources</option>
+                   <option value="DHIS2_FLEET">DHIS2 fleet ({counts.fleet})</option>
+                   <option value="LAN_CLIENT">Local network ({counts.lan})</option>
+                 </select>
+                 <input className="ea-input ea-input--compact" type="search"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search name, ID, IP, MAC…"
+                        data-test="devices-search" />
+               </div>
+             }>
         {filtered.length === 0 ? (
           <p className="ea-text-muted"
              data-test="devices-empty"
@@ -176,74 +165,50 @@ export function DevicesScreen(
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense"
+            <table className="ea-table ea-table--dense ea-table--nowrap"
                    data-test="devices-table">
               <thead>
                 <tr>
                   <th>Device</th>
-                  <th>Status</th>
-                  <th>Seen in</th>
-                  <th>Last seen</th>
-                  <th>Network</th>
-                  <th style={{ width: 260 }}>Actions</th>
+                  <th className="ea-col-w-110">Status</th>
+                  <th className="ea-col-w-90">Source</th>
+                  <th className="ea-col-w-140">Network</th>
+                  <th className="ea-col-w-110 ea-text-right">Last seen</th>
+                  <th className="ea-col-w-110 ea-text-right"
+                      aria-label="Actions"></th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((d) => (
+                {paged.rows.map((d) => (
                   <tr key={d.id}
                       data-test={`devices-row-${d.id}`}
                       data-status={d.status}>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{d.displayName}</div>
-                      <div className="ea-mono ea-text-muted"
-                           style={{ fontSize: 10 }}>
-                        {d.id}
-                      </div>
-                      {d.userAgent && (
-                        <div className="ea-text-muted"
-                             style={{ fontSize: 11,
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      maxWidth: 320,
-                                      whiteSpace: 'nowrap' }}
-                             title={d.userAgent}>
-                          {d.userAgent}
-                        </div>
-                      )}
+                    <td title={d.id}>
+                      <span className="ea-fw-medium">{d.displayName}</span>{' '}
+                      <span className="ea-mono ea-text-muted ea-text-2xs">
+                        {d.id.slice(0, 8)}
+                      </span>
                     </td>
                     <td>
                       <StatusChip status={d.status} />
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: 4,
-                                     flexWrap: 'wrap' }}>
-                        {d.sources.map((s) => (
-                          <span key={s}
-                                data-test={`devices-source-chip-${s}`}
-                                className="ea-chip ea-chip--info"
-                                title={sourceLabel(s)}>
-                            {sourceShort(s)}
-                          </span>
-                        ))}
-                      </div>
+                      {d.sources.map((s) => (
+                        <span key={s}
+                              data-test={`devices-source-chip-${s}`}
+                              className="ea-chip ea-chip--info"
+                              title={sourceLabel(s)}
+                              style={{ marginRight: 4 }}>
+                          {sourceShort(s)}
+                        </span>
+                      ))}
                     </td>
-                    <td className="ea-mono ea-text-2xs">
+                    <td className="ea-mono ea-text-2xs"
+                        title={d.mac ?? ''}>
+                      {d.ip ?? '—'}
+                    </td>
+                    <td className="ea-mono ea-text-2xs ea-text-right">
                       {d.lastSeenAt ? fmtRel(d.lastSeenAt) : '—'}
-                    </td>
-                    <td className="ea-text-xs">
-                      {d.ip ? (
-                        <>
-                          <code>{d.ip}</code>
-                          {d.mac && (
-                            <div className="ea-text-muted"
-                                 style={{ fontSize: 10 }}>
-                              {d.mac}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <span className="ea-text-muted">—</span>
-                      )}
                     </td>
                     <td className="ea-text-right">
                       <RowActions
@@ -255,6 +220,7 @@ export function DevicesScreen(
                 ))}
               </tbody>
             </table>
+            <TablePager {...paged.pagerProps} />
           </div>
         )}
       </Panel>
@@ -435,27 +401,30 @@ function ApprovalPolicyPanel({ api }: {
     }
   }, [api, required]);
   if (required === null && !err) return null;
+  /* Phase-4B: compacted from a Panel + its heading into a single
+   * subtle info-strip above the filter row, so the Devices landing
+   * uses two visual lines above the table instead of five. */
   return (
-    <Panel title="Approval policy">
-      <div className="ea-policy-strip">
-        <div data-test="approval-policy-state">
-          <strong>{required ? 'Strict' : 'Permissive'}</strong>
-          {' · '}
-          <span className="ea-policy-strip-desc">
-            {required
-              ? 'Only approved devices can run client apps or submit data.'
-              : 'Any enrolled device can run client apps; approval is advisory only.'}
-          </span>
-        </div>
-        <button type="button"
-                className="ea-btn ea-btn--sm ea-btn--ghost"
-                onClick={toggle}
-                disabled={busy || required === null}
-                data-test="approval-policy-toggle">
-          {busy ? 'Saving…' : required ? 'Switch to permissive' : 'Switch to strict'}
-        </button>
-      </div>
-      {err && <p className="ea-policy-strip-err">{err}</p>}
-    </Panel>
+    <div className="ea-info-strip" data-test="approval-policy-strip">
+      <span className="ea-info-strip-label">Approval policy</span>
+      <strong data-test="approval-policy-state"
+              className={'ea-info-strip-value'
+                + (required ? '' : ' ea-info-strip-value--muted')}>
+        {required ? 'Strict' : 'Permissive'}
+      </strong>
+      <span className="ea-info-strip-desc">
+        {required
+          ? 'Only approved devices can submit data.'
+          : 'Any enrolled device can submit data — approval is advisory only.'}
+      </span>
+      <button type="button"
+              className="ea-btn ea-btn--sm ea-btn--ghost"
+              onClick={toggle}
+              disabled={busy || required === null}
+              data-test="approval-policy-toggle">
+        {busy ? 'Saving…' : required ? 'Switch to permissive' : 'Switch to strict'}
+      </button>
+      {err && <span className="ea-info-strip-err">{err}</span>}
+    </div>
   );
 }

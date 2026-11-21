@@ -59,7 +59,7 @@ export function ConflictList(): JSX.Element {
 
   const paged = usePaged(rows ?? [], 50);
 
-  if (err) return <ErrorBlock title="Attention list failed" testId="err-conflicts">{err}</ErrorBlock>;
+  if (err) return <ErrorBlock title="Review list failed" testId="err-conflicts">{err}</ErrorBlock>;
   if (!rows) return <LoadingBlock testId="loading" />;
 
   return (
@@ -80,11 +80,11 @@ export function ConflictList(): JSX.Element {
       )}
       <SyncStatusBar
         tone={rows.length === 0 ? 'success' : 'warning'}
-        title="Needs your attention"
-        statusLabel={rows.length === 0 ? 'All clear' : `${rows.length} item${rows.length === 1 ? '' : 's'}`}
+        title="Needs review"
+        statusLabel={rows.length === 0 ? 'All clear' : `${rows.length} item${rows.length === 1 ? '' : 's'} to review`}
       />
 
-      <Panel title={rows.length === 0 ? 'All clear' : `${rows.length} attention item${rows.length === 1 ? '' : 's'}`}>
+      <Panel title={rows.length === 0 ? 'All clear' : `${rows.length} item${rows.length === 1 ? '' : 's'} to review`}>
         {rows.length === 0 ? (
           <p className="ea-text-muted">
             Every captured record either reached Central DHIS2 or is still safely queued.

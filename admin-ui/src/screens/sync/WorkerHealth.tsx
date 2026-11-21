@@ -37,8 +37,8 @@ export function WorkerHealthScreen(): JSX.Element {
       <PolicyPausedBanner />
       <SyncStatusBar
         tone={w.enabled ? 'success' : 'warning'}
-        title="Worker"
-        statusLabel={w.enabled ? 'Running' : 'Paused'}
+        title="Sync service"
+        statusLabel={w.enabled ? 'Running' : 'Sync service paused'}
         subtitle={
           <>
             <span data-test="ea14-enabled" style={{ display: 'none' }}>
@@ -46,11 +46,11 @@ export function WorkerHealthScreen(): JSX.Element {
             </span>
             <span>
               {total === 0
-                ? 'Nothing in the queue — the worker is idle.'
+                ? 'No items in the sync queue — the service is idle.'
                 : `${total.toLocaleString()} item${total === 1 ? '' : 's'} in queue · last activity ${fmtAgo(w.lastTick)}`}
             </span>
             <span>·</span>
-            <span>Waiting <strong>{waiting.toLocaleString()}</strong></span>
+            <span>Waiting to synchronise <strong>{waiting.toLocaleString()}</strong></span>
             <span>·</span>
             <span>Retrying <strong>{retrying.toLocaleString()}</strong></span>
             {attention > 0 && (
@@ -66,9 +66,9 @@ export function WorkerHealthScreen(): JSX.Element {
                   </strong>
                   {' '}·{' '}
                   <Link to="/sync/attention" className="ea-link-btn ea-text-2xs"
-                        title="Open attention queue in Sync module"
+                        title="Open the review queue in Sync"
                         data-cross-module="Sync">
-                    Sync › Open attention →
+                    Open review queue →
                   </Link>
                 </span>
               </>
@@ -83,8 +83,8 @@ export function WorkerHealthScreen(): JSX.Element {
                   onClick={() => {
                     confirmThenRun(
                       w.enabled
-                        ? 'Pause the sync worker? Captured records will keep queueing locally but nothing will be sent until it resumes.'
-                        : 'Resume the sync worker? It will start draining the local queue to Central DHIS2.',
+                        ? 'Pause the sync service? Captured records will continue to queue locally, but nothing will be sent to Central DHIS2 until the service resumes.'
+                        : 'Resume the sync service? It will start sending queued records to Central DHIS2.',
                       () => { toggle().catch(() => undefined); });
                   }}
                   data-test="ea14-toggle">
@@ -103,9 +103,9 @@ export function WorkerHealthScreen(): JSX.Element {
       </div>
 
       {showBreakdown && (
-        <Panel title="Queue breakdown">
+        <Panel title="Sync queue breakdown">
           {Object.keys(w.backlog).length === 0 ? (
-            <p className="ea-text-muted">Nothing pending.</p>
+            <p className="ea-text-muted">No items pending.</p>
           ) : (
             <div className="ea-table-wrap">
               <table className="ea-table ea-table--dense">
@@ -178,7 +178,7 @@ function WorkerTunePanel(
       if (base !== current.backoffBaseSeconds) body.backoffBaseSeconds = base;
       if (cap !== current.backoffCapSeconds) body.backoffCapSeconds = cap;
       await edgeApi.tuneWorker(body);
-      setOk('Applied — next drain tick uses these values.');
+      setOk('Applied — the next sync pass will use these values.');
       onApplied();
     } catch (e) {
       setErr((e as Error).message);
@@ -188,10 +188,11 @@ function WorkerTunePanel(
   }
 
   return (
-    <Panel title="Worker tune">
+    <Panel title="Sync service tuning">
       <p className="ea-text-muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
-        Live knobs for the drain loop. Changes apply to the next tick.
-        Reset to the env-var baselines happens on server restart.
+        Live adjustments to the synchronisation loop. Changes take
+        effect on the next pass; the server reverts to the
+        configured defaults on restart.
       </p>
       <div style={{ display: 'grid',
                      gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
@@ -248,7 +249,7 @@ function WorkerTunePanel(
                 data-test="worker-tune-save"
                 disabled={!dirty || saving}
                 onClick={() => { void save(); }}>
-          {saving ? 'Saving…' : 'Apply tune'}
+          {saving ? 'Saving…' : 'Apply changes'}
         </button>
       </div>
     </Panel>
