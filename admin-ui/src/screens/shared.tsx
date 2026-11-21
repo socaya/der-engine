@@ -1400,16 +1400,50 @@ export function RowMenu({ items, label = 'Actions' }: {
   const summaryRef = useRef<HTMLElement | null>(null);
   const itemRefs = useRef<Array<HTMLElement | null>>([]);
   const [open, setOpen] = useState(false);
+  /* Panel uses `position: fixed` with coordinates computed from the
+   * kebab's bounding rect. `fixed` escapes `overflow:hidden` on any
+   * ancestor (including the `.ea-table--nowrap td { overflow:hidden }`
+   * that was clipping the old `position:absolute` panel). Rendering
+   * the panel inline (not a portal) keeps `within(cell).findByRole`
+   * test queries working unchanged. */
+  const [panelXY, setPanelXY] = useState<{ top: number; left: number } | null>(null);
+  function computePanelXY(): void {
+    const sum = summaryRef.current;
+    if (!sum) { setPanelXY(null); return; }
+    const r = sum.getBoundingClientRect();
+    const PANEL_MIN_W = 200;
+    setPanelXY({
+      /* right-align the panel to the kebab's right edge,
+       * then drop below with 4 px breathing room. */
+      top:  r.bottom + 4,          /* fixed → viewport coords */
+      left: r.right  - PANEL_MIN_W,
+    });
+  }
 
   // Keep local open state in sync with the native <details> element so
   // aria-expanded + outside-click handlers see fresh state.
   useEffect(() => {
     const el = detailsRef.current;
     if (!el) return;
-    const sync = (): void => setOpen(el.open);
+    const sync = (): void => {
+      setOpen(el.open);
+      if (el.open) computePanelXY();
+    };
     el.addEventListener('toggle', sync);
     return () => el.removeEventListener('toggle', sync);
   }, []);
+  /* Re-measure on resize / scroll while open so the portal panel
+   * tracks the kebab if the layout shifts. */
+  useEffect(() => {
+    if (!open) return;
+    const onReflow = (): void => computePanelXY();
+    window.addEventListener('scroll', onReflow, true);
+    window.addEventListener('resize', onReflow);
+    return () => {
+      window.removeEventListener('scroll', onReflow, true);
+      window.removeEventListener('resize', onReflow);
+    };
+  }, [open]);
 
   const close = useCallback((returnFocus: boolean): void => {
     const el = detailsRef.current;
@@ -1519,12 +1553,16 @@ export function RowMenu({ items, label = 'Actions' }: {
       </summary>
       <div role="menu"
            id={menuId.current}
+           onClick={stop}
+           hidden={!open}
            style={{
-             position: 'absolute', right: 0, top: 'calc(100% + 4px)',
-             zIndex: 50, minWidth: 200,
+             position: 'fixed',
+             top:  panelXY?.top  ?? 0,
+             left: panelXY?.left ?? 0,
+             zIndex: 2000, minWidth: 200,
              background: 'white',
-             border: '1px solid var(--der-border)',
-             boxShadow: '0 4px 12px rgba(15, 28, 46, 0.08)',
+             border: '1px solid var(--der-border, #d4dae2)',
+             boxShadow: '0 4px 14px rgba(15, 28, 46, 0.14)',
              padding: 4,
            }}>
         {items.map((it, i) => {

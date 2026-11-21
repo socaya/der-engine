@@ -1698,12 +1698,11 @@ kbd{
 .ea-table--nowrap td .ea-chip,
 .ea-table--nowrap td button,
 .ea-table--nowrap td a{white-space:nowrap}
-/* RowMenu panel (details > div[role=menu]) is position:absolute and
- * pops OUT of its td. The `overflow:hidden` above would clip it
- * unless we opt the menu's parent cell + the trigger details back
- * into visible overflow. */
-.ea-table--nowrap td:has(.ea-row-menu),
-.ea-table--nowrap td .ea-row-menu{overflow:visible}
+/* RowMenu now portals its panel to document.body (see shared.tsx —
+ * RowMenu computes the kebab's bounding rect and renders the panel
+ * via React createPortal). No ancestor's `overflow:hidden` can clip
+ * it, so we no longer need the `:has()` opt-out that previously
+ * attempted to lift overflow on Actions cells. */
 
 /* Collapsible "Advanced filters" disclosure, used on /audit/trail +
  * anywhere else a secondary filter form shouldn't eat vertical
