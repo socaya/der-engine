@@ -56,26 +56,29 @@ export interface NavGroup {
 
 export const NAV_GROUPS: readonly NavGroup[] = [
   /* ──────────────────────────────────────────────────────────────── */
-  /* 1. Home — landing page + admin tasks + system-level info.       */
-  /* Replaces the old "Overview / Workspace" top-level.              */
+  /* 1. Overview — landing page + admin tasks + system-level info.   */
+  /* (Phase-4B: group label "Home" → "Overview" per the plan.)       */
+  /* Group IDs stay stable so every existing nav-{id} test / route   */
+  /* / legacy bookmark keeps resolving.                              */
   /* ──────────────────────────────────────────────────────────────── */
   {
     id: 'home',
-    label: 'Home',
+    label: 'Overview',
     primaryId: 'home',
     icon: 'grid',
     items: [
-      { id: 'home', label: 'Home', to: '/', status: 'implemented' },
+      { id: 'home', label: 'Overview', to: '/', status: 'implemented' },
       { id: 'admin-tasks', label: 'Admin tasks', to: '/admin-tasks', status: 'contextual' },
       { id: 'system-info', label: 'System info', to: '/system/information', status: 'contextual' },
     ],
   },
   /* ──────────────────────────────────────────────────────────────── */
-  /* 2. Data — everything the capture apps wrote.                     */
+  /* 2. Local Data — everything the capture apps wrote.              */
+  /* (Phase-4B: group label "Data" → "Local Data".)                  */
   /* ──────────────────────────────────────────────────────────────── */
   {
     id: 'data',
-    label: 'Data',
+    label: 'Local Data',
     primaryId: 'data-overview',
     icon: 'database',
     items: [
@@ -91,13 +94,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     ],
   },
   /* ──────────────────────────────────────────────────────────────── */
-  /* 3. Sync — the sync engine surface.                               */
-  /*   "Attention" renamed to "Needs review" (plain language).        */
-  /*   "Sync Worker" → "Worker".                                      */
+  /* 3. Synchronisation — the sync engine surface.                   */
+  /* (Phase-4B: group label "Sync" → "Synchronisation".)             */
   /* ──────────────────────────────────────────────────────────────── */
   {
     id: 'sync',
-    label: 'Sync',
+    label: 'Synchronisation',
     primaryId: 'sync-overview',
     icon: 'sync',
     items: [
@@ -116,14 +118,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     ],
   },
   /* ──────────────────────────────────────────────────────────────── */
-  /* 4. DHIS2 — integration + metadata concerns.                      */
-  /*   "Compat" → "Compatibility check" (no abbrev).                  */
-  /*   "Metadata drift" → "Metadata changes".                         */
-  /*   "Metadata sync" stays (verb+noun is clear here).               */
+  /* 4. DHIS2 Connection — integration + metadata concerns.          */
+  /* (Phase-4B: group label "DHIS2" → "DHIS2 Connection".)           */
   /* ──────────────────────────────────────────────────────────────── */
   {
     id: 'dhis2',
-    label: 'DHIS2',
+    label: 'DHIS2 Connection',
     primaryId: 'dhis2-overview',
     icon: 'plug',
     items: [
@@ -140,14 +140,12 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     ],
   },
   /* ──────────────────────────────────────────────────────────────── */
-  /* 5. Devices — unified fleet + LAN mesh + network ops.             */
-  /*   UI-1 landed /devices as the single-truth device view;         */
-  /*   remaining Network items live here so "all the hardware"       */
-  /*   is one module.                                                 */
+  /* 5. Devices & Network — unified fleet + LAN mesh + network ops. */
+  /* (Phase-4B: group label "Devices" → "Devices & Network".)        */
   /* ──────────────────────────────────────────────────────────────── */
   {
     id: 'devices',
-    label: 'Devices',
+    label: 'Devices & Network',
     primaryId: 'devices',
     icon: 'device',
     items: [
@@ -169,28 +167,33 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     ],
   },
   /* ──────────────────────────────────────────────────────────────── */
-  /* 6. Access — users, roles, authorities, security audit.           */
-  /*   Pulled the audit trail into Access so "who did what" lives     */
-  /*   one click from "who are our users".                            */
-  /*   "Hash chain" renamed to "Audit integrity".                     */
+  /* 6. Users & Access — users + roles + authorities + sessions.    */
+  /* (Phase-4B: group label "Access" → "Users & Access". Audit log, */
+  /* Audit integrity and Security events moved out to Administration */
+  /* so the secondary tab bar has 3 primary items + contextual drills, */
+  /* and the audit tooling lives next to Backup / Diagnostics where   */
+  /* operators actually reach for it.)                                */
   /* ──────────────────────────────────────────────────────────────── */
   {
     id: 'access',
-    label: 'Access',
+    label: 'Users & Access',
     primaryId: 'users',
     icon: 'users',
     items: [
       { id: 'users',       label: 'Users', to: '/provisioning/users', status: 'implemented', tabIcon: 'laptop' },
       { id: 'roles',       label: 'Roles', to: '/access/roles', status: 'implemented', tabIcon: 'worker' },
       { id: 'authorities', label: 'Authorities', to: '/access/authorities', status: 'implemented', tabIcon: 'audit' },
-      { id: 'audit-trail', label: 'Audit log', to: '/audit/trail', status: 'implemented', tabIcon: 'audit' },
-      { id: 'audit-verify', label: 'Audit integrity', to: '/audit/verify', status: 'implemented', tabIcon: 'diagnostics' },
-      { id: 'security-events', label: 'Security events', to: '/audit/events', status: 'implemented', tabIcon: 'attention' },
       /* Contextual drills — direct-URL + detail-screen nav only. */
       { id: 'users-new',   label: 'Add user', to: '/provisioning/users/new', status: 'contextual' },
       { id: 'mappings',    label: 'DHIS2 mappings', to: '/access/mappings', status: 'contextual' },
       { id: 'sessions',    label: 'Sessions', to: '/access/sessions', status: 'contextual' },
       { id: 'credentials', label: 'Credentials', to: '/access/credentials', status: 'contextual' },
+      /* Audit routes kept contextual on `access` so legacy bookmarks
+       * / cross-module links from Users still resolve to the Audit
+       * log page (the primary nav for audit lives on Administration). */
+      { id: 'audit-trail-ctx', label: 'Audit log', to: '/audit/trail', status: 'contextual' },
+      { id: 'audit-verify-ctx', label: 'Audit verification', to: '/audit/verify', status: 'contextual' },
+      { id: 'security-events-ctx', label: 'Security events', to: '/audit/events', status: 'contextual' },
     ],
   },
   /* ──────────────────────────────────────────────────────────────── */
@@ -219,15 +222,17 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     ],
   },
   /* ──────────────────────────────────────────────────────────────── */
-  /* 8. System — infra ops: health, settings, backup, diagnostics.    */
-  /*   "Metrics" → "System metrics" to disambig from Access operators.*/
-  /*   "Hardware" → "Host hardware" to disambig from Devices.         */
-  /*   "Analytics" removed from sidebar (contextual) — the analytics  */
-  /*   screen was duplicating what Data/Overview already shows.       */
+  /* 8. Administration — infra ops: health, settings, backup,       */
+  /* diagnostics, audit tooling, compliance, apps.                   */
+  /* (Phase-4B: group label "System" → "Administration". Audit log,  */
+  /* Audit verification and Security events promoted here from       */
+  /* Users & Access — audit tooling belongs next to Backup +         */
+  /* Diagnostics operationally. The first six items stay in the      */
+  /* SectionTabs strip; the rest remain contextual.)                 */
   /* ──────────────────────────────────────────────────────────────── */
   {
     id: 'system',
-    label: 'System',
+    label: 'Administration',
     primaryId: 'health',
     icon: 'chart',
     items: [
@@ -239,6 +244,9 @@ export const NAV_GROUPS: readonly NavGroup[] = [
        * point. */
       { id: 'health',         label: 'Health', to: '/monitoring/health', status: 'implemented', tabIcon: 'health' },
       { id: 'backup',         label: 'Backup', to: '/backup', status: 'implemented', tabIcon: 'backup' },
+      { id: 'audit-trail', label: 'Audit log', to: '/audit/trail', status: 'implemented', tabIcon: 'audit' },
+      { id: 'audit-verify', label: 'Audit verification', to: '/audit/verify', status: 'implemented', tabIcon: 'diagnostics' },
+      { id: 'security-events', label: 'Security events', to: '/audit/events', status: 'implemented', tabIcon: 'attention' },
       { id: 'settings',       label: 'Settings', to: '/settings', status: 'implemented', tabIcon: 'settings' },
       { id: 'apps',           label: 'Apps', to: '/apps', status: 'implemented', crumb: 'Apps' },
       { id: 'diagnostics',    label: 'Diagnostics', to: '/diagnostics', status: 'implemented', tabIcon: 'diagnostics' },

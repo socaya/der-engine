@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import * as edgeApi from '../../api/edgeApi';
-import { Panel, fmtAgo, SyncStatusBar, confirmThenRun } from '../shared';
+import { Panel, fmtAgo, SyncStatusBar, confirmThenRun, RowMenu, type RowMenuItem } from '../shared';
 import { UiIcon } from '../../components/UiIcon';
 import { ErrorBlock, LoadingBlock } from '../../components/ScreenStates';
 
@@ -139,31 +139,53 @@ export function Dhis2Mappings(): JSX.Element {
           </p>
         ) : (
           <div className="ea-table-wrap">
-            <table className="ea-table ea-table--dense">
+            <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Edge user</th>
-                <th>DHIS2 UID</th>
-                <th>DHIS2 username</th>
-                <th>Mapped</th>
-                <th style={{ width: 170 }}>
-                  <span className="ea-visually-hidden">Actions</span>
-                </th>
+                <th className="ea-col-w-140">Username</th>
+                <th className="ea-col-w-140">DHIS2 UID</th>
+                <th className="ea-col-w-140">DHIS2 username</th>
+                <th className="ea-col-w-110 ea-text-right">Mapped</th>
+                <th className="ea-col-w-48 ea-text-right"
+                    aria-label="Actions"></th>
               </tr></thead>
               <tbody>
                 {filtered.map((u) => {
                   const m = mappings[u.userId];
                   const saving = savingFor === u.userId;
+                  const items: RowMenuItem[] = [{
+                    label: m ? 'Edit mapping' : 'Map user',
+                    disabled: saving,
+                    dataTest: `dhis2-mappings-edit-${u.username}`,
+                    onSelect: () => setEditDraft({
+                      edgeUserId: u.userId,
+                      uid: m?.dhis2UserUid ?? '',
+                      username: m?.dhis2Username ?? u.username,
+                      displayName: m?.dhis2DisplayName
+                                     ?? u.displayName ?? '',
+                    }),
+                  }];
+                  if (m) {
+                    items.push({
+                      label: 'Clear mapping',
+                      danger: true,
+                      disabled: saving,
+                      dataTest: `dhis2-mappings-clear-${u.username}`,
+                      onSelect: () => {
+                        confirmThenRun(
+                          `Clear the DHIS2 mapping for @${u.username}? Future captured records will carry no central attribution until a new mapping is set.`,
+                          () => { clearFor(u.userId, u.username).catch(() => undefined); });
+                      },
+                    });
+                  }
                   return (
                     <tr key={u.userId}
                         data-test={`dhis2-mappings-row-${u.username}`}>
-                      <td>
-                        <div className="ea-fw-medium">
-                          {u.displayName || u.username}
-                        </div>
-                        <div className="ea-text-muted ea-mono ea-text-2xs"
-                             >
-                          @{u.username}
-                        </div>
+                      <td className="ea-fw-medium">
+                        {u.displayName || u.username}
+                      </td>
+                      <td className="ea-mono ea-text-2xs ea-text-muted">
+                        @{u.username}
                       </td>
                       <td className="ea-mono ea-text-xs">
                         {m
@@ -176,39 +198,12 @@ export function Dhis2Mappings(): JSX.Element {
                       <td className="ea-mono ea-text-xs">
                         {m ? m.dhis2Username : '—'}
                       </td>
-                      <td className="ea-text-muted ea-text-xs"
+                      <td className="ea-text-muted ea-text-xs ea-text-right"
                           title={m?.mappedAt}>
                         {m ? fmtAgo(m.mappedAt) : '—'}
                       </td>
                       <td className="ea-text-right">
-                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                          <button type="button"
-                                  className="ea-btn ea-btn--ghost ea-btn--sm"
-                                  disabled={saving}
-                                  data-test={`dhis2-mappings-edit-${u.username}`}
-                                  onClick={() => setEditDraft({
-                                    edgeUserId: u.userId,
-                                    uid: m?.dhis2UserUid ?? '',
-                                    username: m?.dhis2Username ?? u.username,
-                                    displayName: m?.dhis2DisplayName
-                                                   ?? u.displayName ?? '',
-                                  })}>
-                            {m ? 'Edit' : 'Map'}
-                          </button>
-                          {m && (
-                            <button type="button"
-                                    className="ea-btn ea-btn--ghost ea-btn--sm ea-btn--danger"
-                                    disabled={saving}
-                                    data-test={`dhis2-mappings-clear-${u.username}`}
-                                    onClick={() => {
-                                      confirmThenRun(
-                                        `Clear the DHIS2 mapping for @${u.username}? Future captured records will carry no central attribution until a new mapping is set.`,
-                                        () => { clearFor(u.userId, u.username).catch(() => undefined); });
-                                    }}>
-                              Clear
-                            </button>
-                          )}
-                        </div>
+                        <RowMenu items={items} />
                       </td>
                     </tr>
                   );
