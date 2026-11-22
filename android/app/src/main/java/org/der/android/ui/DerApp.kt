@@ -11,12 +11,15 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import org.der.android.feature.approvals.ApprovalsScreen
 import org.der.android.feature.capture.CaptureScreen
 import org.der.android.feature.dashboard.DashboardScreen
+import org.der.android.feature.dataentry.AggregateFormScreen
 import org.der.android.feature.dataentry.DataEntryScreen
 import org.der.android.feature.devices.DevicesScreen
 import org.der.android.feature.devices.EnrolmentScreen
@@ -58,7 +61,17 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
                         onSignedOut = { nav.replaceWith(DerRoute.SignIn) },
                     )
                 }
-                composable(DerRoute.DataEntry.path) { DataEntryScreen() }
+                composable(DerRoute.DataEntry.path) {
+                    DataEntryScreen(
+                        onOpen = { id -> nav.navigate(DerRoute.DataEntryForm.pathFor(id)) },
+                    )
+                }
+                composable(
+                    route = DerRoute.DataEntryForm.pattern,
+                    arguments = listOf(navArgument("id") { type = NavType.StringType }),
+                ) {
+                    AggregateFormScreen(onSaved = { nav.popBackStack() })
+                }
                 composable(DerRoute.Capture.path) { CaptureScreen() }
                 composable(DerRoute.Workflow.path) { WorkflowScreen() }
                 composable(DerRoute.Dashboard.path) { DashboardScreen() }
@@ -96,6 +109,10 @@ sealed class DerRoute(val path: String) {
 
     // Launcher tile destinations — paths match [LauncherTile.route].
     data object DataEntry : DerRoute("data-entry")
+    data object DataEntryForm : DerRoute("data-entry/{id}") {
+        const val pattern = "data-entry/{id}"
+        fun pathFor(id: String) = "data-entry/$id"
+    }
     data object Capture : DerRoute("capture")
     data object Workflow : DerRoute("workflow")
     data object Dashboard : DerRoute("dashboard")

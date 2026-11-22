@@ -63,6 +63,28 @@ interface DerApi {
         @Query("deviceId") deviceId: String,
         @Query("since") since: Long = 0L,
     ): Response<WebRtcIceListDto>
+
+    // ── DHIS2-shaped aggregate (Data Entry) ────────────────────────────
+
+    @GET("api/dataSets")
+    suspend fun listDataSets(
+        @Query("fields") fields: String = "id,displayName,name,periodType,formType",
+        @Query("paging") paging: String = "false",
+        @Query("orgUnit") orgUnit: String? = null,
+    ): Response<DataSetListDto>
+
+    @GET("api/dataSets/{id}")
+    suspend fun getDataSet(
+        @Path("id") id: String,
+        @Query("fields") fields: String =
+            "id,name,displayName,periodType,formType," +
+                "dataSetElements[dataElement[id,name,formName,valueType]]",
+    ): Response<DataSetDto>
+
+    @POST("api/dataValueSets")
+    suspend fun submitDataValueSet(
+        @Body body: DataValueSetDto,
+    ): Response<ImportSummaryDto>
 }
 
 @Serializable
@@ -161,3 +183,63 @@ data class WebRtcIceCandidateDto(
 
 @Serializable
 data class WebRtcIceListDto(val candidates: List<WebRtcIceCandidateDto> = emptyList())
+
+// DHIS2-shaped aggregate DTOs — DER Data Entry.
+
+@Serializable
+data class DataSetListDto(val dataSets: List<DataSetSummaryDto> = emptyList())
+
+@Serializable
+data class DataSetSummaryDto(
+    val id: String,
+    val name: String? = null,
+    val displayName: String? = null,
+    val periodType: String? = null,
+    val formType: String? = null,
+)
+
+@Serializable
+data class DataSetDto(
+    val id: String,
+    val name: String? = null,
+    val displayName: String? = null,
+    val periodType: String? = null,
+    val formType: String? = null,
+    val dataSetElements: List<DataSetElementDto> = emptyList(),
+)
+
+@Serializable
+data class DataSetElementDto(
+    val dataElement: DataElementDto,
+)
+
+@Serializable
+data class DataElementDto(
+    val id: String,
+    val name: String? = null,
+    val formName: String? = null,
+    val valueType: String? = null,
+)
+
+@Serializable
+data class DataValueSetDto(
+    val dataSet: String,
+    val orgUnit: String,
+    val period: String,
+    val completeDate: String? = null,
+    val dataValues: List<DataValueDto>,
+)
+
+@Serializable
+data class DataValueDto(
+    val dataElement: String,
+    val value: String,
+    val categoryOptionCombo: String? = null,
+    val comment: String? = null,
+)
+
+@Serializable
+data class ImportSummaryDto(
+    val status: String? = null,
+    val description: String? = null,
+)
