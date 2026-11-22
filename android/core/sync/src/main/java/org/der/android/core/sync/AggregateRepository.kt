@@ -137,6 +137,20 @@ class AggregateRepository @Inject constructor(
 
     fun observePendingCount(): Flow<Int> = dao.observeCountByStatus()
 
+    /** Re-queue a FAILED or SENT row so the next drain will send it
+     *  again. Resets lastError + sentAt so the Drafts screen shows
+     *  a clean row. */
+    suspend fun retry(id: Long) {
+        dao.markPendingAgain(id)
+        drain.scheduleDrain()
+    }
+
+    /** Operator decision to drop a row entirely — journal entry is
+     *  removed and will not be retried. */
+    suspend fun discard(id: Long) {
+        dao.delete(id)
+    }
+
     private fun DataSetDto.toDomain(): DataSet {
         val defaultCocs = categoryCombo?.categoryOptionCombos.orEmpty().map {
             CategoryOptionCombo(it.id, it.displayName ?: it.name ?: it.id)

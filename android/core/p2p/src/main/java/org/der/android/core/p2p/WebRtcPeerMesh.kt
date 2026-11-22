@@ -226,7 +226,7 @@ class WebRtcPeerMesh @Inject constructor(
             session.frames.collect { raw ->
                 runCatching {
                     val frame = json.decodeFromString(DppFrame.serializer(), String(raw))
-                    _incoming.emit(frame)
+                    onFrameReceived(frame)
                 }.onFailure { Timber.w(it, "dropping malformed DPP frame from %s", peerDeviceId) }
             }
         }
@@ -239,6 +239,50 @@ class WebRtcPeerMesh @Inject constructor(
             )
         }
         return entry
+    }
+
+    /**
+     * Receive side:
+     *   1. drop duplicates (same frame.id seen recently),
+     *   2. emit for local consumption,
+     *   3. if the frame isn't for this device AND still has TTL,
+     *      forward a decremented copy to all other peers.
+     *
+     * DPP/1's TTL is a small integer (default 3) that bounds the
+     * blast radius — the mesh never hairpins because we always
+     * dedupe by frame id before forwarding.
+     */
+    private suspend fun onFrameReceived(frame: DppFrame) {
+        if (!markSeen(frame.id)) return
+        _incoming.emit(frame)
+        val selfId = identity.deviceId().toString()
+        val targeted = frame.to
+        if (targeted != null && targeted != selfId && frame.ttl > 0) {
+            val forwarded = frame.copy(ttl = frame.ttl - 1)
+            runCatching { send(forwarded) }
+                .onFailure { Timber.w(it, "TTL relay forward failed for %s", frame.id) }
+        }
+    }
+
+    /**
+     * Bounded, thread-safe dedupe set. Returns `true` when the id is
+     * newly seen (first time through). Caller treats a return of
+     * `false` as "already observed — drop".
+     */
+    private val seenFrameIds = linkedSetOf<String>()
+    private val seenLock = Any()
+    private fun markSeen(id: String): Boolean = synchronized(seenLock) {
+        if (id in seenFrameIds) return@synchronized false
+        seenFrameIds.add(id)
+        if (seenFrameIds.size > MAX_SEEN_FRAMES) {
+            val oldest = seenFrameIds.iterator().next()
+            seenFrameIds.remove(oldest)
+        }
+        true
+    }
+
+    companion object {
+        private const val MAX_SEEN_FRAMES = 512
     }
 
     @Suppress("unused")

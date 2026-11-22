@@ -30,4 +30,17 @@ interface CaptureJournalDao {
 
     @Query("SELECT COUNT(*) FROM capture_journal WHERE status = :status")
     fun observeCountByStatus(status: String = CaptureJournalEntity.STATUS_PENDING): Flow<Int>
+
+    @Query("""
+        UPDATE capture_journal
+           SET status = :pending, lastError = NULL, sentAt = NULL
+         WHERE id = :id
+    """)
+    suspend fun markPendingAgain(
+        id: Long,
+        pending: String = CaptureJournalEntity.STATUS_PENDING,
+    )
+
+    @Query("DELETE FROM capture_journal WHERE id = :id")
+    suspend fun delete(id: Long)
 }
