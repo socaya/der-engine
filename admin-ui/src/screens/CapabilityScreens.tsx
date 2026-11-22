@@ -1324,7 +1324,7 @@ export function CapMetadataSync(): JSX.Element {
   const tone = !last ? 'muted' : lastOk ? 'success' : 'danger';
   const busy = pull.state === 'triggering' || pull.state === 'running';
 
-  const statusLabel = !last ? 'Never pulled'
+  const statusLabel = !last ? 'Never run'
     : lastOk ? 'Up to date' : 'Last pull failed';
 
   return (
@@ -1399,9 +1399,10 @@ export function CapMetadataSync(): JSX.Element {
       )}
 
 
-      <Panel title="Recent pulls">
+      <Panel title={history && history.length > 0
+        ? `Recent pulls (${history.length})` : 'Recent pulls'}>
         {!history || history.length === 0 ? (
-          <p className="ea-text-muted">Never run on this edge.</p>
+          <p className="ea-text-muted">No metadata pulls recorded yet.</p>
         ) : (
           <RecentPullsTable history={history} navigate={navigate} />
         )}
@@ -1420,10 +1421,10 @@ function RecentPullsTable(
     <div className="ea-table-wrap">
       <table className="ea-table ea-table--dense ea-table--selectable ea-table--nowrap">
         <thead><tr>
-          <th>When</th>
-          <th>Result</th>
-          <th>Duration</th>
-          <th>Triggered by</th>
+          <th className="ea-col-w-140">Started</th>
+          <th className="ea-col-w-110">Outcome</th>
+          <th className="ea-col-w-110">Duration</th>
+          <th>Trigger</th>
           <th className="ea-col-w-48" aria-label="Actions"></th>
         </tr></thead>
         <tbody>
@@ -1763,8 +1764,8 @@ export function CapSyncSchedule(): JSX.Element {
 
       {cron.length === 0 ? (
         <EmptyBlock title="No scheduled flows" testId="empty-schedule">
-          This build has no cron entries configured. Add them under
-          Settings or recompile with <code>der.*.cron</code> defaults.
+          This DER build has no schedules configured. Add one from
+          Administration → Settings → Schedule overrides.
         </EmptyBlock>
       ) : (
         <Panel title="Scheduled flows">
@@ -4099,45 +4100,45 @@ export function CapCredentials(): JSX.Element {
         <dl className="ea-def-list">
           <div className="ea-def-row"><dt>Minimum length</dt>
             <dd data-test="cap-creds-min-length">
-              12 characters (mixed upper + lower + digits)
+              12 characters, with upper, lower and digits
             </dd></div>
-          <div className="ea-def-row"><dt>Hashing</dt>
-            <dd className="ea-mono">Argon2id (<code>m=65536, t=3, p=1</code>)</dd></div>
+          <div className="ea-def-row"><dt>Storage</dt>
+            <dd>Passwords are hashed with a modern memory-hard algorithm — the plaintext is never stored.</dd></div>
           <div className="ea-def-row"><dt>Rotation</dt>
-            <dd>Admin-driven via <Link to="/provisioning/users"
-                                           data-cross-module="Access">Users dashboard</Link> — self-service reset is not available in this build.</dd></div>
+            <dd>An admin resets passwords via <Link to="/provisioning/users"
+                                           data-cross-module="Access">Users</Link>. Self-service reset is not available in this build.</dd></div>
           <div className="ea-def-row"><dt>Lockout</dt>
-            <dd>5 consecutive failures → 15-minute lockout per account</dd></div>
+            <dd>5 failed sign-ins lock the account for 15 minutes.</dd></div>
         </dl>
       </Panel>
 
       <Panel title="Session binding">
         <dl className="ea-def-list">
-          <div className="ea-def-row"><dt>Cookie</dt>
-            <dd className="ea-mono">DER_SESSION · HttpOnly · SameSite=Strict · Secure (over TLS)</dd></div>
-          <div className="ea-def-row"><dt>Idle TTL</dt>
-            <dd>60 minutes (configurable via <code>der.session.ttl-minutes</code>)</dd></div>
-          <div className="ea-def-row"><dt>Revocation</dt>
+          <div className="ea-def-row"><dt>Session cookie</dt>
+            <dd>Marked secure and strict — only sent back to this edge over TLS.</dd></div>
+          <div className="ea-def-row"><dt>Idle timeout</dt>
+            <dd>60 minutes (admins can override under Administration → Settings).</dd></div>
+          <div className="ea-def-row"><dt>Revoke</dt>
             <dd>Admin → <Link to="/admin-tasks"
                                  data-cross-module="Lifecycle"
                                  data-test="cap-creds-clear-sessions">Admin tasks → Clear sessions</Link></dd></div>
         </dl>
       </Panel>
 
-      <Panel title="Second factors + federation">
+      <Panel title="Second factors and federation">
         <dl className="ea-def-list">
-          <div className="ea-def-row"><dt>TOTP (RFC-6238)</dt>
+          <div className="ea-def-row"><dt>Authenticator app (TOTP)</dt>
             <dd data-test="cap-creds-totp">
-              <span className="ea-chip ea-chip--info">Implemented</span>
+              <span className="ea-chip ea-chip--info">Available</span>
               <span className="ea-text-muted" style={{ marginLeft: 8, fontSize: 12 }}>
-                Backing <code>TotpService</code> ships; enrolment UI slated for FR-16-04.
+                Backend ready; enrolment screen rolls out in a later release.
               </span>
             </dd></div>
-          <div className="ea-def-row"><dt>External SSO (OIDC)</dt>
+          <div className="ea-def-row"><dt>Single sign-on (SSO)</dt>
             <dd>
-              <span className="ea-chip ea-chip--muted">Roadmap</span>
+              <span className="ea-chip ea-chip--muted">Planned</span>
               <span className="ea-text-muted" style={{ marginLeft: 8, fontSize: 12 }}>
-                DHIS2 IdP federation is on the post-1.0 roadmap (ADR-TBD).
+                DHIS2-provider federation is scheduled for a post-1.0 release.
               </span>
             </dd></div>
         </dl>
@@ -4145,9 +4146,8 @@ export function CapCredentials(): JSX.Element {
 
       <Panel title="Audit">
         <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
-          Credential events (<code>SIGN_IN</code>, <code>SIGN_IN_FAILED</code>,
-          <code>PASSWORD_CHANGED</code>) are written to the security audit
-          log. <Link to="/audit/events?eventType=PASSWORD_CHANGED"
+          Sign-ins, failed sign-ins and password changes are written to the audit log.{' '}
+          <Link to="/audit/events?eventType=PASSWORD_CHANGED"
                        data-cross-module="Security"
                        data-test="cap-creds-open-audit">
             View password-change events →

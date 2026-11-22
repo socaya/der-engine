@@ -379,12 +379,12 @@ describe('CapMetadataSync (loaded)', () => {
     expect(screen.getByTestId('trigger-run')).toBeInTheDocument();
   });
 
-  it('empty history surfaces \'Never run on this edge\'', async () => {
+  it('empty history surfaces no-pulls-yet copy', async () => {
     vi.spyOn(edgeApi, 'listJobs').mockResolvedValue([] as edgeApi.JobRun[]);
     vi.spyOn(edgeApi, 'systemInfo').mockResolvedValue(sysInfoOK);
     renderWithProviders(<CapMetadataSync />, { authApi });
     await waitFor(() =>
-      expect(document.body.textContent ?? '').toMatch(/Never run on this edge/));
+      expect(document.body.textContent ?? '').toMatch(/No metadata pulls recorded yet/));
   });
 
   it('central unreachable renders the offline-first hint', async () => {
@@ -1075,7 +1075,7 @@ describe('CapCredentials (enhanced)', () => {
   it('renders every policy panel with its cross-links', () => {
     renderWithProviders(<CapCredentials />, { authApi });
     expect(screen.getByTestId('cap-creds')).toBeInTheDocument();
-    expect(screen.getByTestId('cap-creds-totp')).toHaveTextContent('Implemented');
+    expect(screen.getByTestId('cap-creds-totp')).toHaveTextContent('Available');
     expect(screen.getByTestId('cap-creds-open-sessions'))
       .toHaveAttribute('href', '/access/sessions');
     expect(screen.getByTestId('cap-creds-open-users'))

@@ -44,9 +44,8 @@ function runAction(prompt: string, fn: () => Promise<unknown>, after?: () => voi
 
 const UNAVAILABLE_HINT = (
   <p className="ea-text-muted" style={{ margin: 0, fontSize: 13 }}>
-    This signal comes from the DER Network Agent, which lands in the
-    Phase N1 build. Once the service is enabled the page populates with
-    live data from <code>/edge-api/v1/network/*</code>.
+    The DER Network service isn't running on this edge yet. Once it's
+    enabled this page will show live network signals.
   </p>
 );
 
@@ -186,7 +185,7 @@ export function NetworkOverview(): JSX.Element {
           icon="peer" tone={peerCount && peerCount > 0 ? 'info' : 'muted'}
           label="Peer links"
           value={peerCount != null ? String(peerCount) : '—'}
-          sub={peerCount != null && peerCount > 0 ? `${peerCount} configured` : 'Optional secure peers (Phase N5)'}
+          sub={peerCount != null && peerCount > 0 ? `${peerCount} configured` : 'No secure peers configured'}
           to="/network/peers"
         />
       </section>
@@ -1302,9 +1301,9 @@ export function NetworkPeers(): JSX.Element {
       />
       {missing || (peers?.length ?? 0) === 0 ? (
         <EmptyBlock title="No peers configured" testId="empty-net-peers">
-          Peer links are an optional resilience mechanism that lands in
-          <strong> Phase N5</strong>. Workflows continue to route through
-          DER even when peers are enabled.
+          Peer links are an optional back-up path between edges. Capture
+          and sync continue through the main server even when peers are
+          enabled.
         </EmptyBlock>
       ) : (
         <Panel title="Peer links">
