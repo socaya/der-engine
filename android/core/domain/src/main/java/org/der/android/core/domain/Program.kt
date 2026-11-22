@@ -49,3 +49,26 @@ data class TrackedEntity(
     val label: String
         get() = attributes.values.firstOrNull { it.isNotBlank() } ?: id
 }
+
+data class EventRow(
+    val event: String,
+    val program: String?,
+    val programStage: String?,
+    val orgUnit: String?,
+    val occurredAt: String?,
+    val status: String?,
+    val enrollment: String?,
+)
+
+/** Outcome of a tracker-enrol round-trip (TEI upsert + enrolment). */
+sealed interface EnrolResult {
+    data class Success(val teiUid: String, val enrollmentUid: String) : EnrolResult
+    data class AttributeCollision(
+        val attributeUid: String,
+        val value: String,
+        val existingTeiUid: String,
+    ) : EnrolResult
+    data class ActiveClash(val conflictingEnrollmentUid: String) : EnrolResult
+    data class ServerError(val code: String?, val message: String?) : EnrolResult
+    data class NetworkError(val message: String?) : EnrolResult
+}

@@ -19,7 +19,9 @@ import androidx.navigation.navArgument
 import org.der.android.core.domain.ProgramType
 import org.der.android.feature.approvals.ApprovalsScreen
 import org.der.android.feature.capture.CaptureScreen
+import org.der.android.feature.capture.EventListScreen
 import org.der.android.feature.capture.EventNewScreen
+import org.der.android.feature.capture.TrackerEnrolScreen
 import org.der.android.feature.capture.TrackerSearchScreen
 import org.der.android.feature.dashboard.DashboardScreen
 import org.der.android.feature.dataentry.AggregateFormScreen
@@ -96,7 +98,7 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
                                 ProgramType.WITH_REGISTRATION ->
                                     DerRoute.TrackerSearch.pathFor(programId)
                                 ProgramType.WITHOUT_REGISTRATION ->
-                                    DerRoute.EventNew.pathFor(programId)
+                                    DerRoute.EventList.pathFor(programId)
                             }
                             nav.navigate(route)
                         },
@@ -105,7 +107,29 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
                 composable(
                     route = DerRoute.TrackerSearch.pattern,
                     arguments = listOf(navArgument("programId") { type = NavType.StringType }),
-                ) { TrackerSearchScreen() }
+                ) { backStackEntry ->
+                    val programId = backStackEntry.arguments?.getString("programId").orEmpty()
+                    TrackerSearchScreen(
+                        onEnrolNewPatient = {
+                            nav.navigate(DerRoute.TrackerEnrol.pathFor(programId))
+                        },
+                    )
+                }
+                composable(
+                    route = DerRoute.TrackerEnrol.pattern,
+                    arguments = listOf(navArgument("programId") { type = NavType.StringType }),
+                ) {
+                    TrackerEnrolScreen(onEnrolled = { nav.popBackStack() })
+                }
+                composable(
+                    route = DerRoute.EventList.pattern,
+                    arguments = listOf(navArgument("programId") { type = NavType.StringType }),
+                ) { backStackEntry ->
+                    val programId = backStackEntry.arguments?.getString("programId").orEmpty()
+                    EventListScreen(
+                        onNewEvent = { nav.navigate(DerRoute.EventNew.pathFor(programId)) },
+                    )
+                }
                 composable(
                     route = DerRoute.EventNew.pattern,
                     arguments = listOf(navArgument("programId") { type = NavType.StringType }),
@@ -185,9 +209,17 @@ sealed class DerRoute(val path: String) {
         const val pattern = "capture/tracker/{programId}"
         fun pathFor(programId: String) = "capture/tracker/$programId"
     }
-    data object EventNew : DerRoute("capture/event/{programId}") {
+    data object TrackerEnrol : DerRoute("capture/tracker/{programId}/enrol") {
+        const val pattern = "capture/tracker/{programId}/enrol"
+        fun pathFor(programId: String) = "capture/tracker/$programId/enrol"
+    }
+    data object EventList : DerRoute("capture/event/{programId}") {
         const val pattern = "capture/event/{programId}"
         fun pathFor(programId: String) = "capture/event/$programId"
+    }
+    data object EventNew : DerRoute("capture/event/{programId}/new") {
+        const val pattern = "capture/event/{programId}/new"
+        fun pathFor(programId: String) = "capture/event/$programId/new"
     }
     data object Workflow : DerRoute("workflow")
     data object WorkflowRun : DerRoute("workflow/{runId}/{stepId}") {

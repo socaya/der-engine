@@ -127,6 +127,23 @@ interface DerApi {
         @Body body: TrackerEventDto,
     ): Response<ImportSummaryDto>
 
+    @POST("edge-api/v1/tracked-entities")
+    suspend fun upsertTrackedEntity(
+        @Body body: TrackedEntityUpsertDto,
+    ): Response<TrackedEntityUpsertResponseDto>
+
+    @POST("edge-api/v1/tracker/enrollments")
+    suspend fun upsertEnrollment(
+        @Body body: EnrollmentUpsertDto,
+    ): Response<EnrollmentUpsertResponseDto>
+
+    @GET("api/events")
+    suspend fun listEvents(
+        @Query("program") program: String,
+        @Query("orgUnit") orgUnit: String,
+        @Query("pageSize") pageSize: Int = 100,
+    ): Response<EventListDto>
+
     // ── Program rules + validation (rule engine) ───────────────────────
 
     @GET("api/programRules")
@@ -693,5 +710,70 @@ data class ValidationSideDto(
     val expression: String? = null,
     val description: String? = null,
     val missingValueStrategy: String? = null,
+)
+
+// Tracker enrolment DTOs.
+
+@Serializable
+data class TrackedEntityUpsertDto(
+    val teiUid: String? = null,
+    val trackedEntityType: String,
+    val orgUnit: String,
+    val attributes: Map<String, String> = emptyMap(),
+)
+
+@Serializable
+data class TrackedEntityUpsertResponseDto(
+    val teiUid: String? = null,
+    val trackedEntityType: String? = null,
+    val orgUnit: String? = null,
+    val code: String? = null,
+    val message: String? = null,
+    val attributeUid: String? = null,
+    val value: String? = null,
+    val existingTeiUid: String? = null,
+)
+
+@Serializable
+data class EnrollmentUpsertDto(
+    val enrollmentUid: String,
+    val teiUid: String,
+    val programUid: String,
+    val orgUnitUid: String,
+    val status: String = "ACTIVE",
+    /** ISO date YYYY-MM-DD. */
+    val enrollmentDate: String,
+    val incidentDate: String? = null,
+)
+
+@Serializable
+data class EnrollmentUpsertResponseDto(
+    val enrollmentUid: String? = null,
+    val teiUid: String? = null,
+    val programUid: String? = null,
+    val status: String? = null,
+    val code: String? = null,
+    val message: String? = null,
+    val conflictingEnrollmentUid: String? = null,
+)
+
+@Serializable
+data class EventListDto(
+    val events: List<EventRowDto> = emptyList(),
+    val instances: List<EventRowDto> = emptyList(),
+    val total: Int = 0,
+) {
+    val rows: List<EventRowDto> get() = events.ifEmpty { instances }
+}
+
+@Serializable
+data class EventRowDto(
+    val event: String? = null,
+    val program: String? = null,
+    val programStage: String? = null,
+    val orgUnit: String? = null,
+    val occurredAt: String? = null,
+    val status: String? = null,
+    val enrollment: String? = null,
 )
 

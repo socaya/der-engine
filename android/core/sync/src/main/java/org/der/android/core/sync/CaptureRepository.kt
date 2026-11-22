@@ -4,16 +4,21 @@ import kotlinx.serialization.json.Json
 import org.der.android.core.data.journal.CaptureJournalDao
 import org.der.android.core.data.journal.CaptureJournalEntity
 import org.der.android.core.data.network.DerApi
+import org.der.android.core.data.network.EnrollmentUpsertDto
 import org.der.android.core.data.network.ProgramDto
 import org.der.android.core.data.network.TrackedEntityDto
+import org.der.android.core.data.network.TrackedEntityUpsertDto
 import org.der.android.core.data.network.TrackerEventDto
 import org.der.android.core.domain.DataElement
+import org.der.android.core.domain.EnrolResult
 import org.der.android.core.domain.Program
 import org.der.android.core.domain.ProgramStage
 import org.der.android.core.domain.ProgramSummary
 import org.der.android.core.domain.ProgramType
 import org.der.android.core.domain.TrackedEntity
 import org.der.android.core.domain.TrackedEntityAttribute
+import java.io.IOException
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -53,6 +58,77 @@ class CaptureRepository @Inject constructor(
         return body.toDomain()
     }
 
+    /**
+     * Enrol a brand-new TEI into a tracker program. Two sequential
+     * writes: first the tracked-entity row (attributes), then the
+     * enrolment row (TEI × program × OU × date). We POST both
+     * directly rather than queueing because the server returns
+     * attribute-collision 409s that are more useful inline than on a
+     * background drain.
+     */
+    suspend fun enrolTrackedEntity(
+        program: Program,
+        orgUnit: String,
+        attributes: Map<String, String>,
+        enrollmentDate: LocalDate = LocalDate.now(),
+    ): EnrolResult {
+        val trackedEntityType = program.trackedEntityTypeId
+            ?: return EnrolResult.ServerError(
+                code = "TRACKER_PROGRAM_MISSING_TET",
+                message = "This program has no trackedEntityType configured.",
+            )
+        val teiUid = generateDhis2Uid()
+        return try {
+            val teiResp = api.upsertTrackedEntity(
+                TrackedEntityUpsertDto(
+                    teiUid = teiUid,
+                    trackedEntityType = trackedEntityType,
+                    orgUnit = orgUnit,
+                    attributes = attributes.filterValues { it.isNotBlank() },
+                ),
+            )
+            val teiBody = teiResp.body()
+            if (!teiResp.isSuccessful) {
+                return when (teiResp.code()) {
+                    409 -> EnrolResult.AttributeCollision(
+                        attributeUid = teiBody?.attributeUid.orEmpty(),
+                        value = teiBody?.value.orEmpty(),
+                        existingTeiUid = teiBody?.existingTeiUid.orEmpty(),
+                    )
+                    else -> EnrolResult.ServerError(teiBody?.code, teiBody?.message)
+                }
+            }
+
+            val enrollmentUid = generateDhis2Uid()
+            val enrolResp = api.upsertEnrollment(
+                EnrollmentUpsertDto(
+                    enrollmentUid = enrollmentUid,
+                    teiUid = teiBody?.teiUid ?: teiUid,
+                    programUid = program.id,
+                    orgUnitUid = orgUnit,
+                    enrollmentDate = enrollmentDate.toString(),
+                ),
+            )
+            val enrolBody = enrolResp.body()
+            if (!enrolResp.isSuccessful) {
+                return when (enrolResp.code()) {
+                    409 -> EnrolResult.ActiveClash(
+                        conflictingEnrollmentUid = enrolBody?.conflictingEnrollmentUid.orEmpty(),
+                    )
+                    else -> EnrolResult.ServerError(enrolBody?.code, enrolBody?.message)
+                }
+            }
+            EnrolResult.Success(
+                teiUid = teiBody?.teiUid ?: teiUid,
+                enrollmentUid = enrolBody?.enrollmentUid ?: enrollmentUid,
+            )
+        } catch (io: IOException) {
+            EnrolResult.NetworkError(io.message)
+        } catch (t: Throwable) {
+            EnrolResult.ServerError(code = null, message = t.message)
+        }
+    }
+
     suspend fun searchTrackedEntities(
         program: String,
         orgUnit: String,
@@ -61,6 +137,26 @@ class CaptureRepository @Inject constructor(
         val response = api.searchTrackedEntities(program, orgUnit, pageSize)
         val body = response.body() ?: return emptyList()
         return body.trackedEntities.map { it.toDomain() }
+    }
+
+    suspend fun listEvents(
+        program: String,
+        orgUnit: String,
+        pageSize: Int = 100,
+    ): List<org.der.android.core.domain.EventRow> {
+        val response = api.listEvents(program, orgUnit, pageSize)
+        val body = response.body() ?: return emptyList()
+        return body.rows.mapNotNull { dto ->
+            org.der.android.core.domain.EventRow(
+                event = dto.event ?: return@mapNotNull null,
+                program = dto.program,
+                programStage = dto.programStage,
+                orgUnit = dto.orgUnit,
+                occurredAt = dto.occurredAt,
+                status = dto.status,
+                enrollment = dto.enrollment,
+            )
+        }
     }
 
     /**

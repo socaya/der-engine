@@ -24,6 +24,7 @@ import org.der.android.core.domain.TrackedEntity
 
 @Composable
 fun TrackerSearchScreen(
+    onEnrolNewPatient: () -> Unit,
     viewModel: TrackerSearchViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -55,6 +56,10 @@ fun TrackerSearchScreen(
             ) {
                 Text(if (state.loading) "Searching…" else "Search")
             }
+            androidx.compose.material3.OutlinedButton(
+                onClick = onEnrolNewPatient,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Enrol a new patient") }
             state.error?.let {
                 Text(
                     text = it,
