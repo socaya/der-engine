@@ -75,6 +75,21 @@ class WorkflowRepository @Inject constructor(
         )
     }
 
+    suspend fun contributions(runId: String): List<org.der.android.core.domain.Contribution> {
+        val response = api.listContributions(runId)
+        val body = response.body() ?: return emptyList()
+        return body.contributions.map {
+            org.der.android.core.domain.Contribution(
+                contributionId = it.contributionId,
+                runId = it.runId,
+                stepId = it.stepId,
+                submittedBy = it.submittedBy,
+                submittedDeviceId = it.submittedDeviceId,
+                submittedAt = it.submittedAt,
+            )
+        }
+    }
+
     suspend fun catalogue(): List<org.der.android.core.domain.WorkflowSummary> {
         val response = api.listWorkflows()
         val body = response.body() ?: return emptyList()

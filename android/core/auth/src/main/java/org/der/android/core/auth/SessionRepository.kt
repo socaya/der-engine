@@ -77,6 +77,29 @@ class SessionRepository @Inject constructor(
         context.dataStore.edit { it.clear() }
     }
 
+    /**
+     * Re-fetches `/auth/session` and re-persists the server's view of
+     * the session (notably a bumped `expiresAt`). Called on app
+     * resume and when the user taps "Keep me signed in" on the
+     * expiry banner. No-op when the device is offline or unauthed.
+     *
+     * Returns the fresh [Session] on success, or `null` if the
+     * server refused (e.g. 401) — the caller can use this to prompt
+     * re-authentication.
+     */
+    suspend fun refresh(): Session? = try {
+        val response = api.session()
+        if (response.isSuccessful && response.body() != null) {
+            val session = response.body()!!.toDomain()
+            persist(session)
+            session
+        } else null
+    } catch (_: IOException) {
+        null
+    } catch (_: Throwable) {
+        null
+    }
+
     private val rolesSerializer = ListSerializer(String.serializer())
 
     private suspend fun persist(session: Session) {

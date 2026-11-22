@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -38,9 +39,26 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val session by viewModel.session.collectAsStateWithLifecycle()
+    val expiry by viewModel.expiry.collectAsStateWithLifecycle()
+    val renewing by viewModel.renewing.collectAsStateWithLifecycle()
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                viewModel.onResume()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
     HomeContent(
         session = session,
         tiles = LauncherTiles.forSession(session),
+        expiry = expiry,
+        renewing = renewing,
+        onKeepSignedIn = viewModel::keepSignedIn,
         onTile = onNavigate,
         onSignOut = { viewModel.signOut(onSignedOut) },
     )
@@ -51,6 +69,9 @@ fun HomeScreen(
 private fun HomeContent(
     session: Session?,
     tiles: List<LauncherTile>,
+    expiry: HomeViewModel.ExpiryState = HomeViewModel.ExpiryState.None,
+    renewing: Boolean = false,
+    onKeepSignedIn: () -> Unit = {},
     onTile: (String) -> Unit,
     onSignOut: () -> Unit,
 ) {
@@ -64,13 +85,18 @@ private fun HomeContent(
                 .padding(padding)
                 .padding(horizontal = 16.dp),
         ) {
+            SessionExpiryBanner(
+                state = expiry,
+                renewing = renewing,
+                onKeepSignedIn = onKeepSignedIn,
+            )
             Text(
                 text = "Welcome${session?.displayName?.let { ", $it" } ?: session?.username?.let { ", $it" } ?: ""}",
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
             )
             Text(
-                text = "Pick a workspace to start.",
+                text = stringResource(org.der.android.design.R.string.home_pick_workspace),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 16.dp),
@@ -82,6 +108,64 @@ private fun HomeContent(
             ) {
                 items(items = tiles, key = { it.id }) { tile ->
                     TileCard(tile = tile, onClick = { onTile(tile.route) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SessionExpiryBanner(
+    state: HomeViewModel.ExpiryState,
+    renewing: Boolean,
+    onKeepSignedIn: () -> Unit,
+) {
+    if (state !is HomeViewModel.ExpiryState.ExpiringSoon &&
+        state !is HomeViewModel.ExpiryState.Expired) return
+
+    val expired = state is HomeViewModel.ExpiryState.Expired
+    val minsLeft = (state as? HomeViewModel.ExpiryState.ExpiringSoon)?.minutesLeft ?: 0
+
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = if (expired) MaterialTheme.colorScheme.errorContainer
+        else MaterialTheme.colorScheme.tertiaryContainer,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp),
+    ) {
+        androidx.compose.foundation.layout.Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = when {
+                    expired -> stringResource(org.der.android.design.R.string.session_expired)
+                    minsLeft == 1 -> stringResource(
+                        org.der.android.design.R.string.session_expiring_soon_one,
+                    )
+                    else -> stringResource(
+                        org.der.android.design.R.string.session_expiring_soon,
+                        minsLeft,
+                    )
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+                color = if (expired) MaterialTheme.colorScheme.onErrorContainer
+                else MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            if (!expired) {
+                androidx.compose.material3.TextButton(
+                    enabled = !renewing,
+                    onClick = onKeepSignedIn,
+                ) {
+                    Text(
+                        if (renewing) stringResource(org.der.android.design.R.string.session_renewing)
+                        else stringResource(org.der.android.design.R.string.session_keep_signed_in),
+                    )
                 }
             }
         }
@@ -135,7 +219,12 @@ private fun HomeChwPreview() {
             roles = listOf("ROLE_CHW"),
             expiresAt = "2026-11-23T00:00:00Z",
         )
-        HomeContent(session, LauncherTiles.forSession(session), {}, {})
+        HomeContent(
+            session = session,
+            tiles = LauncherTiles.forSession(session),
+            onTile = {},
+            onSignOut = {},
+        )
     }
 }
 
@@ -149,6 +238,11 @@ private fun HomeAdminPreview() {
             roles = listOf("ROLE_ADMIN"),
             expiresAt = "2026-11-23T00:00:00Z",
         )
-        HomeContent(session, LauncherTiles.forSession(session), {}, {})
+        HomeContent(
+            session = session,
+            tiles = LauncherTiles.forSession(session),
+            onTile = {},
+            onSignOut = {},
+        )
     }
 }

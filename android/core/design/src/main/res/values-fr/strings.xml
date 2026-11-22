@@ -13,4 +13,30 @@
     <string name="shell_sign_out">Déconnexion</string>
     <string name="shell_online">En ligne</string>
     <string name="shell_offline">Hors ligne</string>
+
+    <string name="home_pick_workspace">Choisissez un espace de travail.</string>
+    <string name="session_expired">Votre session a expiré. Reconnectez-vous pour continuer.</string>
+    <string name="session_expiring_soon">Session encore valide environ %1$d minutes.</string>
+    <string name="session_expiring_soon_one">Session encore valide environ 1 minute.</string>
+    <string name="session_keep_signed_in">Me maintenir connecté</string>
+    <string name="session_renewing">Renouvellement…</string>
+
+    <string name="workflow_title">Flux de travail</string>
+    <string name="workflow_subtitle">File d\'attente du point de service. Chaque ligne est une étape d\'un cas.</string>
+    <string name="workflow_tab_this_device">Cet appareil</string>
+    <string name="workflow_tab_all_devices">Tous les appareils</string>
+    <string name="workflow_queue_clear">File d\'attente vide.</string>
+    <string name="workflow_start_run">Démarrer un cas</string>
+    <string name="workflow_retry">Réessayer</string>
+    <string name="workflow_view_history">Historique</string>
+    <string name="workflow_dismiss">Fermer</string>
+
+    <string name="workflow_contributions_subtitle">Historique des contributions — toutes les étapes de ce cas.</string>
+    <string name="workflow_contributions_empty">Aucune contribution enregistrée pour ce cas.</string>
+
+    <string name="readiness_ready">Prêt</string>
+    <string name="readiness_blocked">Bloqué</string>
+    <string name="readiness_pending">En attente</string>
+    <string name="readiness_done">Terminé</string>
+    <string name="readiness_unknown">Inconnu</string>
 </resources>

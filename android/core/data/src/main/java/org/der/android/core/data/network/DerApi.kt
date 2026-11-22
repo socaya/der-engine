@@ -244,6 +244,11 @@ interface DerApi {
         @Body body: OpenRunRequestDto,
     ): Response<WorkflowRunDto>
 
+    @GET("edge-api/v1/workflows/runs/{runId}/contributions")
+    suspend fun listContributions(
+        @Path("runId") runId: String,
+    ): Response<ContributionListDto>
+
     // ── Approvals + referral inbox (supervisor surface) ────────────────
 
     @GET("edge-api/v1/approvals/pending")
@@ -652,6 +657,19 @@ data class WorkflowSummaryDto(
 
 @Serializable
 data class OpenRunRequestDto(val businessKey: String)
+
+@Serializable
+data class ContributionListDto(val contributions: List<ContributionDto> = emptyList())
+
+@Serializable
+data class ContributionDto(
+    val contributionId: String,
+    val runId: String,
+    val stepId: String,
+    val submittedBy: String? = null,
+    val submittedDeviceId: String? = null,
+    val submittedAt: String? = null,
+)
 
 // Approvals + referral inbox DTOs.
 

@@ -13,4 +13,30 @@
     <string name="shell_sign_out">Terminar sessão</string>
     <string name="shell_online">Em linha</string>
     <string name="shell_offline">Desligado</string>
+
+    <string name="home_pick_workspace">Escolha um espaço de trabalho para começar.</string>
+    <string name="session_expired">A sessão expirou. Inicie sessão novamente para continuar.</string>
+    <string name="session_expiring_soon">Sessão ativa por mais cerca de %1$d minutos.</string>
+    <string name="session_expiring_soon_one">Sessão ativa por mais cerca de 1 minuto.</string>
+    <string name="session_keep_signed_in">Manter sessão iniciada</string>
+    <string name="session_renewing">A renovar…</string>
+
+    <string name="workflow_title">Fluxo de trabalho</string>
+    <string name="workflow_subtitle">Fila do ponto de serviço. Cada linha é um passo de um caso.</string>
+    <string name="workflow_tab_this_device">Este dispositivo</string>
+    <string name="workflow_tab_all_devices">Todos os dispositivos</string>
+    <string name="workflow_queue_clear">A fila está vazia.</string>
+    <string name="workflow_start_run">Iniciar caso</string>
+    <string name="workflow_retry">Tentar novamente</string>
+    <string name="workflow_view_history">Ver histórico</string>
+    <string name="workflow_dismiss">Fechar</string>
+
+    <string name="workflow_contributions_subtitle">Histórico de contribuições — cada passo deste caso.</string>
+    <string name="workflow_contributions_empty">Nenhuma contribuição registada neste caso.</string>
+
+    <string name="readiness_ready">Pronto</string>
+    <string name="readiness_blocked">Bloqueado</string>
+    <string name="readiness_pending">Pendente</string>
+    <string name="readiness_done">Concluído</string>
+    <string name="readiness_unknown">Desconhecido</string>
 </resources>

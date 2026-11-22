@@ -13,4 +13,30 @@
     <string name="shell_sign_out">Toka</string>
     <string name="shell_online">Mtandaoni</string>
     <string name="shell_offline">Nje ya mtandao</string>
+
+    <string name="home_pick_workspace">Chagua eneo la kazi uanze.</string>
+    <string name="session_expired">Kipindi chako kimeisha. Ingia tena ili kuendelea.</string>
+    <string name="session_expiring_soon">Umeingia kwa dakika %1$d zaidi.</string>
+    <string name="session_expiring_soon_one">Umeingia kwa dakika 1 zaidi.</string>
+    <string name="session_keep_signed_in">Niendelee kuwa nimeingia</string>
+    <string name="session_renewing">Inarefusha…</string>
+
+    <string name="workflow_title">Mtiririko wa kazi</string>
+    <string name="workflow_subtitle">Foleni ya kituo. Kila safu ni hatua moja ya kesi moja.</string>
+    <string name="workflow_tab_this_device">Kifaa hiki</string>
+    <string name="workflow_tab_all_devices">Vifaa vyote</string>
+    <string name="workflow_queue_clear">Foleni ni tupu.</string>
+    <string name="workflow_start_run">Anza kesi</string>
+    <string name="workflow_retry">Jaribu tena</string>
+    <string name="workflow_view_history">Historia</string>
+    <string name="workflow_dismiss">Funga</string>
+
+    <string name="workflow_contributions_subtitle">Historia ya michango — kila hatua katika kesi hii.</string>
+    <string name="workflow_contributions_empty">Hakuna michango iliyorekodiwa bado.</string>
+
+    <string name="readiness_ready">Tayari</string>
+    <string name="readiness_blocked">Imezuiwa</string>
+    <string name="readiness_pending">Inasubiri</string>
+    <string name="readiness_done">Imekamilika</string>
+    <string name="readiness_unknown">Haijulikani</string>
 </resources>

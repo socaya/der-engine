@@ -201,6 +201,9 @@ fun DerApp(
                         onOpenStep = { runId, stepId ->
                             nav.navigate(DerRoute.WorkflowRun.pathFor(runId, stepId))
                         },
+                        onOpenHistory = { runId ->
+                            nav.navigate(DerRoute.WorkflowContributions.pathFor(runId))
+                        },
                     )
                 }
                 composable(
@@ -210,6 +213,12 @@ fun DerApp(
                         navArgument("stepId") { type = NavType.StringType },
                     ),
                 ) { WorkflowRunScreen(onDone = { nav.popBackStack() }) }
+                composable(
+                    route = DerRoute.WorkflowContributions.pattern,
+                    arguments = listOf(
+                        navArgument("runId") { type = NavType.StringType },
+                    ),
+                ) { org.der.android.feature.workflow.WorkflowContributionsScreen() }
                 composable(DerRoute.Dashboard.path) { DashboardScreen() }
                 composable(DerRoute.Approvals.path) { ApprovalsScreen() }
                 composable(DerRoute.Peers.path) { PeersScreen() }
@@ -318,6 +327,10 @@ sealed class DerRoute(val path: String) {
     data object WorkflowRun : DerRoute("workflow/{runId}/{stepId}") {
         const val pattern = "workflow/{runId}/{stepId}"
         fun pathFor(runId: String, stepId: String) = "workflow/$runId/$stepId"
+    }
+    data object WorkflowContributions : DerRoute("workflow/{runId}/history") {
+        const val pattern = "workflow/{runId}/history"
+        fun pathFor(runId: String) = "workflow/$runId/history"
     }
     data object Dashboard : DerRoute("dashboard")
     data object Approvals : DerRoute("approvals")

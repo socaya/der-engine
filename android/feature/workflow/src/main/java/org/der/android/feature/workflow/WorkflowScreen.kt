@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -28,6 +29,7 @@ import org.der.android.core.domain.WorkflowQueueRow
 import org.der.android.design.DerSegmentedControl
 import org.der.android.design.DerStatus
 import org.der.android.design.DerStatusTone
+import org.der.android.design.R as DesignR
 
 /**
  * DER Workflow landing — the operator's queue of in-flight runs at
@@ -38,6 +40,7 @@ import org.der.android.design.DerStatusTone
 @Composable
 fun WorkflowScreen(
     onOpenStep: (runId: String, stepId: String) -> Unit,
+    onOpenHistory: (runId: String) -> Unit,
     viewModel: WorkflowQueueViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -47,14 +50,20 @@ fun WorkflowScreen(
             modifier = Modifier.fillMaxSize().padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Workflow", style = MaterialTheme.typography.headlineSmall)
             Text(
-                text = "Service-point queue. Each row is one step on one run of a capture workflow.",
+                text = stringResource(DesignR.string.workflow_title),
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Text(
+                text = stringResource(DesignR.string.workflow_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             DerSegmentedControl(
-                options = listOf(false to "This device", true to "All devices"),
+                options = listOf(
+                    false to stringResource(DesignR.string.workflow_tab_this_device),
+                    true to stringResource(DesignR.string.workflow_tab_all_devices),
+                ),
                 selected = state.allDevices,
                 onSelect = { v -> if (v != state.allDevices) viewModel.toggleAllDevices() },
             )
@@ -66,7 +75,7 @@ fun WorkflowScreen(
                 ) {
                     DerStatus(text = msg, tone = DerStatusTone.Info)
                     androidx.compose.material3.TextButton(onClick = viewModel::clearPeerHandoff) {
-                        Text("Dismiss")
+                        Text(stringResource(DesignR.string.workflow_dismiss))
                     }
                 }
             }
@@ -78,18 +87,24 @@ fun WorkflowScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
-                    Button(onClick = viewModel::refresh) { Text("Retry") }
+                    Button(onClick = viewModel::refresh) {
+                        Text(stringResource(DesignR.string.workflow_retry))
+                    }
                 }
                 state.rows.isEmpty() -> Text(
-                    text = "Queue is clear.",
+                    text = stringResource(DesignR.string.workflow_queue_clear),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(items = state.rows, key = { "${it.runId}:${it.stepId}" }) { row ->
-                        QueueRowCard(row, onClick = {
-                            if (row.isActionable) onOpenStep(row.runId, row.stepId)
-                        })
+                        QueueRowCard(
+                            row = row,
+                            onClick = {
+                                if (row.isActionable) onOpenStep(row.runId, row.stepId)
+                            },
+                            onOpenHistory = { onOpenHistory(row.runId) },
+                        )
                     }
                 }
             }
@@ -100,7 +115,7 @@ fun WorkflowScreen(
             modifier = Modifier
                 .align(androidx.compose.ui.Alignment.BottomEnd)
                 .padding(24.dp),
-        ) { Text("Start run") }
+        ) { Text(stringResource(DesignR.string.workflow_start_run)) }
         } // end Box
 
         if (state.createDialogOpen) {
@@ -196,7 +211,11 @@ private fun OpenRunDialog(
 }
 
 @Composable
-private fun QueueRowCard(row: WorkflowQueueRow, onClick: () -> Unit) {
+private fun QueueRowCard(
+    row: WorkflowQueueRow,
+    onClick: () -> Unit,
+    onOpenHistory: () -> Unit,
+) {
     Surface(
         onClick = onClick,
         enabled = row.isActionable,
@@ -237,18 +256,21 @@ private fun QueueRowCard(row: WorkflowQueueRow, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.error,
                 )
             }
+            androidx.compose.material3.TextButton(onClick = onOpenHistory) {
+                Text(stringResource(DesignR.string.workflow_view_history))
+            }
         }
     }
 }
 
 @Composable
 private fun ReadinessChip(readiness: Readiness) {
-    val (label, tone) = when (readiness) {
-        Readiness.READY -> "Ready" to DerStatusTone.Success
-        Readiness.BLOCKED -> "Blocked" to DerStatusTone.Danger
-        Readiness.PENDING -> "Pending" to DerStatusTone.Warning
-        Readiness.DONE -> "Done" to DerStatusTone.Info
-        Readiness.UNKNOWN -> "Unknown" to DerStatusTone.Muted
+    val (labelId, tone) = when (readiness) {
+        Readiness.READY -> DesignR.string.readiness_ready to DerStatusTone.Success
+        Readiness.BLOCKED -> DesignR.string.readiness_blocked to DerStatusTone.Danger
+        Readiness.PENDING -> DesignR.string.readiness_pending to DerStatusTone.Warning
+        Readiness.DONE -> DesignR.string.readiness_done to DerStatusTone.Info
+        Readiness.UNKNOWN -> DesignR.string.readiness_unknown to DerStatusTone.Muted
     }
-    DerStatus(text = label, tone = tone)
+    DerStatus(text = stringResource(labelId), tone = tone)
 }

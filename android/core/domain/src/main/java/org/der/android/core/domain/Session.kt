@@ -26,4 +26,16 @@ data class Session(
      */
     val isSupervisor: Boolean
         get() = roles.any { it == "ROLE_SUPERVISOR" }
+
+    /**
+     * Minutes until the server-reported `expiresAt` elapses, computed
+     * against the supplied clock. Returns `Long.MAX_VALUE` if the
+     * stamp is unparseable (unknown horizon → never prompt).
+     */
+    fun minutesUntilExpiry(nowEpochMs: Long = System.currentTimeMillis()): Long = try {
+        val expiry = java.time.Instant.parse(expiresAt).toEpochMilli()
+        (expiry - nowEpochMs) / 60_000L
+    } catch (_: Throwable) {
+        Long.MAX_VALUE
+    }
 }

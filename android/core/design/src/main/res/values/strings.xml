@@ -15,4 +15,34 @@
     <string name="shell_sign_out">Sign out</string>
     <string name="shell_online">Online</string>
     <string name="shell_offline">Offline</string>
+
+    <!-- Home / session banner -->
+    <string name="home_pick_workspace">Pick a workspace to start.</string>
+    <string name="session_expired">Your session has expired. Sign in again to keep working.</string>
+    <string name="session_expiring_soon">Signed in for about %1$d more minutes.</string>
+    <string name="session_expiring_soon_one">Signed in for about 1 more minute.</string>
+    <string name="session_keep_signed_in">Keep me signed in</string>
+    <string name="session_renewing">Renewing…</string>
+
+    <!-- Workflow queue -->
+    <string name="workflow_title">Workflow</string>
+    <string name="workflow_subtitle">Service-point queue. Each row is one step on one run of a capture workflow.</string>
+    <string name="workflow_tab_this_device">This device</string>
+    <string name="workflow_tab_all_devices">All devices</string>
+    <string name="workflow_queue_clear">Queue is clear.</string>
+    <string name="workflow_start_run">Start run</string>
+    <string name="workflow_retry">Retry</string>
+    <string name="workflow_view_history">View history</string>
+    <string name="workflow_dismiss">Dismiss</string>
+
+    <!-- Workflow — contributions -->
+    <string name="workflow_contributions_subtitle">Workflow contribution history — every step this run went through.</string>
+    <string name="workflow_contributions_empty">No contributions recorded on this run yet.</string>
+
+    <!-- Readiness labels -->
+    <string name="readiness_ready">Ready</string>
+    <string name="readiness_blocked">Blocked</string>
+    <string name="readiness_pending">Pending</string>
+    <string name="readiness_done">Done</string>
+    <string name="readiness_unknown">Unknown</string>
 </resources>
