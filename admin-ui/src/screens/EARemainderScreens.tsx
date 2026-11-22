@@ -385,6 +385,21 @@ export function EAAppsList({ api = edgeApi }: {
 
 
 // EA-35 Diagnostics -------------------------------------------------
+/** Humanise an uptime value in seconds into Xd Yh Zm form so operators
+ *  don't have to divide by 86 400 in their head. */
+function formatUptime(seconds: number | null | undefined): string {
+  if (seconds == null || seconds < 0) return '—';
+  if (seconds < 60) return `${seconds}s`;
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (mins > 0 || parts.length === 0) parts.push(`${mins}m`);
+  return parts.join(' ');
+}
+
 export function EADiagnostics({ api = edgeApi }: {
   api?: Pick<typeof edgeApi, 'diagnostics'>;
 } = {}): JSX.Element {
@@ -399,7 +414,7 @@ export function EADiagnostics({ api = edgeApi }: {
       });
     return () => { cancelled = true; };
   }, [api]);
-  if (error) return <ErrorBlock title="Diagnostics failed" testId="ea35-error">{error}</ErrorBlock>;
+  if (error) return <ErrorBlock title="Diagnostics check failed" testId="ea35-error">{error}</ErrorBlock>;
   if (!d) return <LoadingBlock testId="ea35-loading" />;
 
   const journalEntries = Object.entries(d.journalBacklog ?? {});
@@ -413,10 +428,10 @@ export function EADiagnostics({ api = edgeApi }: {
         ? 'info'
         : 'success';
   const statusLabel = failedBacklog > 0
-    ? `${failedBacklog} failed op${failedBacklog === 1 ? '' : 's'}`
+    ? `${failedBacklog} failed operation${failedBacklog === 1 ? '' : 's'}`
     : journalTotal === 0 && (d.schedulerBacklog ?? 0) === 0
       ? 'Idle'
-      : `${journalTotal} journal · ${d.schedulerBacklog ?? 0} scheduler`;
+      : `${journalTotal} in sync queue · ${d.schedulerBacklog ?? 0} scheduled`;
 
   return (
     <div className="ea-screen" data-test="ea35">
@@ -433,23 +448,20 @@ export function EADiagnostics({ api = edgeApi }: {
           </Link>
         }
       />
-      <Panel title="Runtime"
-             action={
-               <span className="ea-text-muted ea-text-xs">
-                 Live from /edge-api/v1/system/diagnostics
-               </span>
-             }>
+      <Panel title="Runtime">
         <dl className="ea-def-list" data-test="ea35-runtime">
           <div className="ea-def-row">
-            <dt>Memory (MiB)</dt>
-            <dd data-test="ea35-mem" className="ea-mono">{d.memoryMb}</dd>
+            <dt>Memory in use</dt>
+            <dd data-test="ea35-mem" className="ea-mono">{d.memoryMb} MiB</dd>
           </div>
           <div className="ea-def-row">
-            <dt>Uptime (s)</dt>
-            <dd data-test="ea35-uptime" className="ea-mono">{d.uptimeSeconds}</dd>
+            <dt>Uptime</dt>
+            <dd data-test="ea35-uptime" className="ea-mono">
+              {formatUptime(d.uptimeSeconds)}
+            </dd>
           </div>
           <div className="ea-def-row">
-            <dt>Quartz backlog</dt>
+            <dt>Scheduled jobs pending</dt>
             <dd data-test="ea35-scheduler">
               {(d.schedulerBacklog ?? 0) === 0
                 ? <Status tone="success">0 pending</Status>
@@ -460,15 +472,10 @@ export function EADiagnostics({ api = edgeApi }: {
           </div>
         </dl>
       </Panel>
-      <Panel title="Journal backlog"
-             action={
-               <span className="ea-text-muted ea-text-xs">
-                 Total: <strong>{journalTotal}</strong>
-               </span>
-             }>
+      <Panel title={`Sync queue — ${journalTotal} item${journalTotal === 1 ? '' : 's'}`}>
         {journalEntries.length === 0 ? (
-          <EmptyBlock title="Journal empty" testId="ea35-journal-empty">
-            No pending operations in any journal state.
+          <EmptyBlock title="Sync queue empty" testId="ea35-journal-empty">
+            No pending operations in any state.
           </EmptyBlock>
         ) : (
           <div className="ea-table-wrap">
@@ -523,7 +530,7 @@ export function EASettings({ api = edgeApi }: {
       setError(err instanceof Error ? err.message : String(err));
     }
   }
-  if (error && !s) return <ErrorBlock title="Settings failed" testId="ea36-error">{error}</ErrorBlock>;
+  if (error && !s) return <ErrorBlock title="Settings load failed" testId="ea36-error">{error}</ErrorBlock>;
   if (!s) return <LoadingBlock testId="ea36-loading" />;
   const cronEntries = Object.entries(s.cron ?? {});
   const flagEntries = Object.entries(s.featureFlags ?? {});
@@ -541,7 +548,7 @@ export function EASettings({ api = edgeApi }: {
       ? 'Saving…'
       : status === 'saved'
         ? 'Saved'
-        : `${cronEntries.length} cron · ${enabledFlags} / ${flagEntries.length} flags on`;
+        : `${cronEntries.length} schedule${cronEntries.length === 1 ? '' : 's'} · ${enabledFlags} of ${flagEntries.length} feature${flagEntries.length === 1 ? '' : 's'} on`;
 
   return (
     <div className="ea-screen" data-test="ea36">
@@ -553,14 +560,14 @@ export function EASettings({ api = edgeApi }: {
           <>
             <Link to="/configuration"
                   className="ea-btn ea-btn--ghost ea-btn--sm"
-                  data-cross-module="System"
+                  data-cross-module="Administration"
                   data-test="ea36-config-editor-link">
               <UiIcon icon="cog" size={14} />
               <span>Operational config</span>
             </Link>
             <Link to="/site/config"
                   className="ea-btn ea-btn--ghost ea-btn--sm"
-                  data-cross-module="System"
+                  data-cross-module="Administration"
                   data-test="ea36-site-config-link">
               <UiIcon icon="settings" size={14} />
               <span>Site config</span>
@@ -588,15 +595,15 @@ export function EASettings({ api = edgeApi }: {
         <ErrorBlock title="Save failed" testId="ea36-save-error">{error}</ErrorBlock>
       )}
 
-      <Panel title="Cron overrides"
+      <Panel title="Schedule overrides"
              action={
                <span className="ea-text-muted ea-text-xs">
-                 Quartz syntax · blank = compiled default
+                 Cron expression · blank = compiled default
                </span>
              }>
         <div className="ea-form-grid">
           {cronEntries.length === 0 && (
-            <div className="ea-field-hint">No cron overrides defined.</div>
+            <div className="ea-field-hint">No schedule overrides defined.</div>
           )}
           {cronEntries.map(([k, v]) => (
             <label key={k} className="ea-field">
