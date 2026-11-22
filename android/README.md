@@ -43,6 +43,34 @@ cd android
 The first build downloads the Gradle wrapper + the Android Gradle
 Plugin; expect a few minutes. Subsequent builds are incremental.
 
+### Release build + Play Internal upload
+
+The release build is minified + resource-shrunk by R8. Release
+signing uses a keystore configured via Gradle properties — never
+checked in.
+
+In `~/.gradle/gradle.properties` (or `android/local.properties` for
+a single-machine setup):
+
+```properties
+der.release.keystore=/absolute/path/to/der-android.jks
+der.release.keystorePassword=...
+der.release.keyAlias=der-android
+der.release.keyPassword=...
+```
+
+Then produce an Android App Bundle for Play:
+
+```sh
+./gradlew :app:bundleRelease
+# → app/build/outputs/bundle/release/app-release.aab
+```
+
+Upload the `.aab` to the Play Console's **Internal testing** track.
+If any release keystore property is missing, the release build falls
+back to **debug signing** so CI stays green on machines without the
+production key.
+
 ## DER concepts (non-negotiable)
 
 Per ADR-0041 the Android client **must** strictly implement DER

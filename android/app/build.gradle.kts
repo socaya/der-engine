@@ -25,6 +25,35 @@ android {
         buildConfigField("String", "DER_SERVER_URL", "\"$derServerUrl\"")
     }
 
+    // Release keystore config read from gradle properties so the key
+    // material never lands in git. Operators set these in
+    // ~/.gradle/gradle.properties or local.properties:
+    //   der.release.keystore=path/to/keystore.jks
+    //   der.release.keystorePassword=...
+    //   der.release.keyAlias=...
+    //   der.release.keyPassword=...
+    // When unset, release builds fall back to debug signing so a CI
+    // laptop that doesn't hold the release key still produces a
+    // working APK/AAB.
+    val releaseKeystore = providers.gradleProperty("der.release.keystore").orNull
+    val releaseKeystorePassword =
+        providers.gradleProperty("der.release.keystorePassword").orNull
+    val releaseKeyAlias = providers.gradleProperty("der.release.keyAlias").orNull
+    val releaseKeyPassword = providers.gradleProperty("der.release.keyPassword").orNull
+    val hasReleaseKey = releaseKeystore != null && releaseKeystorePassword != null
+        && releaseKeyAlias != null && releaseKeyPassword != null
+
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                storeFile = file(releaseKeystore!!)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -38,7 +67,18 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            signingConfig = if (hasReleaseKey) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
+    }
+
+    bundle {
+        language { enableSplit = true }
+        density { enableSplit = true }
+        abi { enableSplit = true }
     }
 
     compileOptions {
@@ -98,6 +138,7 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.biometric)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.kotlinx.coroutines.android)
 

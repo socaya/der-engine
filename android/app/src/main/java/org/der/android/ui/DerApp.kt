@@ -45,12 +45,25 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
         SessionGateViewModel.State.Loading -> SplashBox()
         is SessionGateViewModel.State.Ready -> {
             val nav = rememberNavController()
-            val start = if (s.authenticated) DerRoute.Home.path else DerRoute.SignIn.path
+            val start = when (s.start) {
+                SessionGateViewModel.Start.SIGN_IN -> DerRoute.SignIn.path
+                SessionGateViewModel.Start.UNLOCK -> DerRoute.Unlock.path
+                SessionGateViewModel.Start.HOME -> DerRoute.Home.path
+            }
             NavHost(navController = nav, startDestination = start) {
                 composable(DerRoute.SignIn.path) {
                     SignInScreen(
                         onSignedIn = { nav.replaceWith(DerRoute.Home) },
                         onDeviceNotApproved = { nav.replaceWith(DerRoute.Enrolment) },
+                    )
+                }
+                composable(DerRoute.Unlock.path) {
+                    org.der.android.ui.unlock.UnlockScreen(
+                        onUnlocked = {
+                            viewModel.markUnlocked()
+                            nav.replaceWith(DerRoute.Home)
+                        },
+                        onSignOut = { nav.replaceWith(DerRoute.SignIn) },
                     )
                 }
                 composable(DerRoute.Enrolment.path) {
@@ -143,6 +156,7 @@ private fun SplashBox() {
 
 sealed class DerRoute(val path: String) {
     data object SignIn : DerRoute("sign-in")
+    data object Unlock : DerRoute("unlock")
     data object Enrolment : DerRoute("enrolment")
     data object Home : DerRoute("home")
 

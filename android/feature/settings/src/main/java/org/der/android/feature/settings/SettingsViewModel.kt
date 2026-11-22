@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.der.android.core.auth.BiometricPreference
 import org.der.android.core.auth.SessionRepository
 import org.der.android.core.data.device.DeviceIdentity
 import org.der.android.core.data.network.ServerUrlRepository
@@ -27,6 +28,7 @@ class SettingsViewModel @Inject constructor(
     private val identity: DeviceIdentity,
     private val session: SessionRepository,
     private val wiper: LocalDataWiper,
+    private val biometric: BiometricPreference,
 ) : ViewModel() {
 
     data class UiState(
@@ -39,6 +41,7 @@ class SettingsViewModel @Inject constructor(
         val appVersion: String = "",
         val username: String? = null,
         val pendingCaptures: Int = 0,
+        val biometricRequired: Boolean = false,
         val wiping: Boolean = false,
         val wiped: Boolean = false,
     )
@@ -61,9 +64,15 @@ class SettingsViewModel @Inject constructor(
                     appVersion = version,
                     username = user?.username,
                     pendingCaptures = wiper.pendingCapturesCount(),
+                    biometricRequired = biometric.current(),
                 )
             }
         }
+    }
+
+    fun setBiometricRequired(enabled: Boolean) {
+        _state.update { it.copy(biometricRequired = enabled) }
+        viewModelScope.launch { biometric.set(enabled) }
     }
 
     fun onDraftUrl(v: String) = _state.update { it.copy(draftUrl = v, saveError = null) }

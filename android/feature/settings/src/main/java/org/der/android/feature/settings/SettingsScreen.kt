@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -74,6 +75,27 @@ fun SettingsScreen(
                     OutlinedButton(onClick = viewModel::resetUrl, enabled = !state.saving) {
                         Text("Reset to default")
                     }
+                }
+            }
+
+            SectionCard(title = "Security") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Require biometric unlock", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            text = "Prompt for fingerprint or device PIN each time the app opens with a cached session.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = state.biometricRequired,
+                        onCheckedChange = viewModel::setBiometricRequired,
+                    )
                 }
             }
 

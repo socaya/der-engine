@@ -180,7 +180,7 @@ the next starts; no half-finished scaffolding on main.
 | 7 | Dashboard + sync read views | SyncStatus, NetworkStatus, Dhis2Status, RecentWork at web parity |
 | 8 | Approvals + referral inbox | Supervisor can approve/reject; referral accept at next service point; audit events |
 | 9 | Device admin + settings | Server URL, logs, diagnostics, clear local data |
-| 10 | Hardening + release | Biometric unlock, signed release, Play Internal track |
+| 10 | Hardening + release ✅ | Biometric unlock preference + prompt, release signing config, AAB target for Play |
 | 11 | Beta with real devices | 5+ devices in pilot site; crash-free session rate ≥ 99% |
 
 ### Non-goals (for this ADR)
