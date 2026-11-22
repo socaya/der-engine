@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DER</string>
+
+    <string name="settings_appearance">Mwonekano</string>
+    <string name="settings_theme">Mandhari</string>
+    <string name="settings_theme_system">Mfumo</string>
+    <string name="settings_theme_light">Nuru</string>
+    <string name="settings_theme_dark">Giza</string>
+    <string name="settings_language">Lugha</string>
+    <string name="settings_language_system">Mfumo</string>
+
+    <string name="shell_sign_out">Toka</string>
+    <string name="shell_online">Mtandaoni</string>
+    <string name="shell_offline">Nje ya mtandao</string>
+</resources>

@@ -146,11 +146,21 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
                     val programId = backStackEntry.arguments?.getString("programId").orEmpty()
                     EventListScreen(
                         onNewEvent = { nav.navigate(DerRoute.EventNew.pathFor(programId)) },
+                        onOpenEvent = { eventUid ->
+                            nav.navigate(DerRoute.EventEdit.pathFor(programId, eventUid))
+                        },
                     )
                 }
                 composable(
                     route = DerRoute.EventNew.pattern,
                     arguments = listOf(navArgument("programId") { type = NavType.StringType }),
+                ) { EventNewScreen(onSaved = { nav.popBackStack() }) }
+                composable(
+                    route = DerRoute.EventEdit.pattern,
+                    arguments = listOf(
+                        navArgument("programId") { type = NavType.StringType },
+                        navArgument("eventUid") { type = NavType.StringType },
+                    ),
                 ) { EventNewScreen(onSaved = { nav.popBackStack() }) }
                 composable(DerRoute.Workflow.path) {
                     WorkflowScreen(
@@ -186,6 +196,17 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
                                 serverUrl = payload.serverUrl,
                             )
                         },
+                        onScanQr = { nav.navigate(DerRoute.QrScan.path) },
+                    )
+                }
+                composable(DerRoute.QrScan.path) {
+                    val vm: org.der.android.ui.qr.QrScanViewModel = hiltViewModel()
+                    org.der.android.ui.qr.QrScanScreen(
+                        onDecoded = { payload ->
+                            vm.apply(payload)
+                            nav.popBackStack()
+                        },
+                        onCancel = { nav.popBackStack() },
                     )
                 }
             }
@@ -244,6 +265,11 @@ sealed class DerRoute(val path: String) {
         const val pattern = "capture/event/{programId}/new"
         fun pathFor(programId: String) = "capture/event/$programId/new"
     }
+    data object EventEdit : DerRoute("capture/event/{programId}/edit/{eventUid}") {
+        const val pattern = "capture/event/{programId}/edit/{eventUid}"
+        fun pathFor(programId: String, eventUid: String) =
+            "capture/event/$programId/edit/$eventUid"
+    }
     data object Workflow : DerRoute("workflow")
     data object WorkflowRun : DerRoute("workflow/{runId}/{stepId}") {
         const val pattern = "workflow/{runId}/{stepId}"
@@ -255,4 +281,5 @@ sealed class DerRoute(val path: String) {
     data object Sync : DerRoute("sync")
     data object Devices : DerRoute("devices")
     data object Settings : DerRoute("settings")
+    data object QrScan : DerRoute("settings/qr-scan")
 }

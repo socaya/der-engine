@@ -127,6 +127,11 @@ interface DerApi {
         @Body body: TrackerEventDto,
     ): Response<ImportSummaryDto>
 
+    @GET("edge-api/v1/tracker/events/{uid}")
+    suspend fun getTrackerEvent(
+        @Path("uid") uid: String,
+    ): Response<TrackerEventDetailDto>
+
     @POST("edge-api/v1/tracked-entities")
     suspend fun upsertTrackedEntity(
         @Body body: TrackedEntityUpsertDto,
@@ -791,5 +796,17 @@ data class EventRowDto(
     val occurredAt: String? = null,
     val status: String? = null,
     val enrollment: String? = null,
+)
+
+@Serializable
+data class TrackerEventDetailDto(
+    val eventUid: String,
+    val enrollmentUid: String? = null,
+    val programUid: String? = null,
+    val programStageUid: String? = null,
+    val orgUnitUid: String? = null,
+    val status: String? = null,
+    val occurredDate: String? = null,
+    val dataValues: Map<String, String> = emptyMap(),
 )
 

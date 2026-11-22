@@ -66,6 +66,11 @@ androidx-hilt-compiler = { group = "androidx.hilt", name = "hilt-compiler", vers
 
 mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcode" }
 androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version = "1.7.0" }
+androidx-camera-core = { group = "androidx.camera", name = "camera-core", version = "1.4.0" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version = "1.4.0" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version = "1.4.0" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version = "1.4.0" }
 
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 

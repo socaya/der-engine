@@ -29,13 +29,28 @@ class EventListViewModel @Inject constructor(
     val programId: String =
         checkNotNull(savedState.get<String>(KEY_PROGRAM_ID)) { "programId arg missing" }
 
+    enum class StatusFilter { ALL, ACTIVE, SCHEDULE, COMPLETED }
+
     data class UiState(
         val loading: Boolean = true,
         val program: Program? = null,
         val orgUnit: String = "",
         val events: List<EventRow> = emptyList(),
+        val filter: StatusFilter = StatusFilter.ALL,
+        val completing: String? = null,
         val error: String? = null,
-    )
+    ) {
+        val visibleEvents: List<EventRow>
+            get() = when (filter) {
+                StatusFilter.ALL -> events
+                StatusFilter.ACTIVE ->
+                    events.filter { (it.status ?: "").equals("ACTIVE", true) }
+                StatusFilter.SCHEDULE ->
+                    events.filter { (it.status ?: "").equals("SCHEDULE", true) }
+                StatusFilter.COMPLETED ->
+                    events.filter { (it.status ?: "").equals("COMPLETED", true) }
+            }
+    }
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -48,6 +63,39 @@ class EventListViewModel @Inject constructor(
     }
 
     fun onOrgUnit(v: String) = _state.update { it.copy(orgUnit = v) }
+    fun onFilter(f: StatusFilter) = _state.update { it.copy(filter = f) }
+
+    /**
+     * Complete a scheduled event in one tap. Re-POSTs the event
+     * with `status = COMPLETED` to the same tracker endpoint;
+     * fallback is that WorkManager retries like any other capture.
+     */
+    fun complete(ev: EventRow) {
+        if (_state.value.completing != null) return
+        _state.update { it.copy(completing = ev.event) }
+        viewModelScope.launch {
+            val full = runCatching { repository.getEvent(ev.event) }.getOrNull()
+            if (full == null) {
+                _state.update { it.copy(completing = null, error = "Can't load event ${ev.event}") }
+                return@launch
+            }
+            runCatching {
+                repository.enqueueEventUpdate(
+                    eventUid = full.eventUid,
+                    programUid = full.programUid ?: programId,
+                    programStageUid = full.programStageUid.orEmpty(),
+                    orgUnitUid = full.orgUnitUid ?: _state.value.orgUnit.trim(),
+                    occurredDate = full.occurredDate
+                        ?: java.time.LocalDate.now().toString(),
+                    status = "COMPLETED",
+                    values = full.dataValues,
+                    enrollmentUid = full.enrollmentUid,
+                )
+            }
+            _state.update { it.copy(completing = null) }
+            refresh()
+        }
+    }
 
     fun refresh() {
         val ou = _state.value.orgUnit.trim()

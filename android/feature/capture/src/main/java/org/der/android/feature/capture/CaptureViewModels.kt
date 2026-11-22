@@ -121,6 +121,14 @@ class EventNewViewModel @Inject constructor(
     private val programId: String =
         checkNotNull(savedState.get<String>(KEY_PROGRAM_ID)) { "programId arg missing" }
 
+    /** Set when the screen was reached in edit mode. The ID in the
+     *  journal entry will be this one so the server upserts in
+     *  place rather than creating a new row. */
+    private val eventUidArg: String? =
+        savedState.get<String?>(KEY_EVENT_UID)?.takeIf { it.isNotBlank() }
+    private var existingEnrollmentUid: String? = null
+    val isEditing: Boolean get() = eventUidArg != null
+
     data class UiState(
         val loading: Boolean = true,
         val program: Program? = null,
@@ -171,11 +179,25 @@ class EventNewViewModel @Inject constructor(
                 }
             val built = runCatching { rulesRepository.programEngine(programId) }.getOrNull()
             engine = built
+
+            // Pre-fill from the existing event when the screen was
+            // opened in edit mode.
+            val existing = eventUidArg?.let {
+                runCatching { repository.getEvent(it) }.getOrNull()
+            }
+            existingEnrollmentUid = existing?.enrollmentUid
+            val initialStageId = existing?.programStageUid
+                ?: program?.stages?.firstOrNull()?.id
+            val initialValues = existing?.dataValues ?: emptyMap()
+
             _state.update {
                 it.copy(
                     loading = false,
                     program = program,
-                    stageId = program?.stages?.firstOrNull()?.id,
+                    stageId = initialStageId,
+                    orgUnit = existing?.orgUnitUid.orEmpty(),
+                    occurredDate = existing?.occurredDate?.take(10).orEmpty(),
+                    values = initialValues,
                 )
             }
             reevaluate()
@@ -214,13 +236,27 @@ class EventNewViewModel @Inject constructor(
         _state.update { it.copy(submitting = true, error = null) }
         viewModelScope.launch {
             runCatching {
-                repository.enqueueEvent(
-                    programUid = program.id,
-                    programStageUid = stage.id,
-                    orgUnitUid = s.orgUnit.trim(),
-                    occurredDate = s.occurredDate.trim(),
-                    values = s.values,
-                )
+                val uid = eventUidArg
+                if (uid != null) {
+                    repository.enqueueEventUpdate(
+                        eventUid = uid,
+                        programUid = program.id,
+                        programStageUid = stage.id,
+                        orgUnitUid = s.orgUnit.trim(),
+                        occurredDate = s.occurredDate.trim(),
+                        status = "ACTIVE",
+                        values = s.values,
+                        enrollmentUid = existingEnrollmentUid,
+                    )
+                } else {
+                    repository.enqueueEvent(
+                        programUid = program.id,
+                        programStageUid = stage.id,
+                        orgUnitUid = s.orgUnit.trim(),
+                        occurredDate = s.occurredDate.trim(),
+                        values = s.values,
+                    )
+                }
             }.onSuccess { id -> _state.update { it.copy(submitting = false, savedId = id) } }
              .onFailure { t ->
                  _state.update { it.copy(submitting = false, error = t.message ?: "Save failed") }
@@ -228,5 +264,8 @@ class EventNewViewModel @Inject constructor(
         }
     }
 
-    companion object { const val KEY_PROGRAM_ID = "programId" }
+    companion object {
+        const val KEY_PROGRAM_ID = "programId"
+        const val KEY_EVENT_UID = "eventUid"
+    }
 }

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DER</string>
+
+    <string name="settings_appearance">Aparência</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_theme_system">Sistema</string>
+    <string name="settings_theme_light">Claro</string>
+    <string name="settings_theme_dark">Escuro</string>
+    <string name="settings_language">Idioma</string>
+    <string name="settings_language_system">Sistema</string>
+
+    <string name="shell_sign_out">Terminar sessão</string>
+    <string name="shell_online">Em linha</string>
+    <string name="shell_offline">Desligado</string>
+</resources>

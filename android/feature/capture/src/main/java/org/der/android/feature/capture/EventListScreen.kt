@@ -39,6 +39,7 @@ import org.der.android.design.DerStatusTone
 @Composable
 fun EventListScreen(
     onNewEvent: () -> Unit,
+    onOpenEvent: (eventUid: String) -> Unit,
     viewModel: EventListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -72,6 +73,17 @@ fun EventListScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(if (state.loading) "Loading…" else "Load events") }
 
+                org.der.android.design.DerSegmentedControl(
+                    options = listOf(
+                        EventListViewModel.StatusFilter.ALL to "All",
+                        EventListViewModel.StatusFilter.ACTIVE to "Active",
+                        EventListViewModel.StatusFilter.SCHEDULE to "Scheduled",
+                        EventListViewModel.StatusFilter.COMPLETED to "Completed",
+                    ),
+                    selected = state.filter,
+                    onSelect = viewModel::onFilter,
+                )
+
                 state.error?.let { err ->
                     Text(
                         text = err,
@@ -82,10 +94,15 @@ fun EventListScreen(
                 if (state.loading && state.events.isEmpty()) {
                     CircularProgressIndicator()
                 }
-                if (state.events.isNotEmpty()) {
+                if (state.visibleEvents.isNotEmpty()) {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(items = state.events, key = { it.event }) { ev ->
-                            EventRowCard(ev)
+                        items(items = state.visibleEvents, key = { it.event }) { ev ->
+                            EventRowCard(
+                                ev = ev,
+                                busyCompleting = state.completing == ev.event,
+                                onClick = { onOpenEvent(ev.event) },
+                                onComplete = { viewModel.complete(ev) },
+                            )
                         }
                     }
                 } else if (!state.loading && state.orgUnit.isNotBlank()) {
@@ -109,8 +126,15 @@ fun EventListScreen(
 }
 
 @Composable
-private fun EventRowCard(ev: EventRow) {
+private fun EventRowCard(
+    ev: EventRow,
+    busyCompleting: Boolean,
+    onClick: () -> Unit,
+    onComplete: () -> Unit,
+) {
+    val isScheduled = (ev.status ?: "").equals("SCHEDULE", true)
     Surface(
+        onClick = onClick,
         shape = RoundedCornerShape(10.dp),
         tonalElevation = 1.dp,
         color = MaterialTheme.colorScheme.surface,
@@ -136,10 +160,20 @@ private fun EventRowCard(ev: EventRow) {
                     tone = when (s.uppercase()) {
                         "ACTIVE" -> DerStatusTone.Info
                         "COMPLETED" -> DerStatusTone.Success
-                        "CANCELLED", "SCHEDULE" -> DerStatusTone.Muted
+                        "CANCELLED" -> DerStatusTone.Muted
+                        "SCHEDULE" -> DerStatusTone.Warning
                         else -> DerStatusTone.Muted
                     },
                 )
+            }
+            if (isScheduled) {
+                androidx.compose.material3.OutlinedButton(
+                    onClick = onComplete,
+                    enabled = !busyCompleting,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (busyCompleting) "Completing…" else "Mark complete")
+                }
             }
         }
     }

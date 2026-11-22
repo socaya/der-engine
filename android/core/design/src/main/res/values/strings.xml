@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DER</string>
+
+    <!-- Settings — Appearance section -->
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">System default</string>
+
+    <!-- Shell -->
+    <string name="shell_sign_out">Sign out</string>
+    <string name="shell_online">Online</string>
+    <string name="shell_offline">Offline</string>
+</resources>

@@ -139,6 +139,73 @@ class CaptureRepository @Inject constructor(
         return body.trackedEntities.map { it.toDomain() }
     }
 
+    data class ExistingEvent(
+        val eventUid: String,
+        val enrollmentUid: String?,
+        val programUid: String?,
+        val programStageUid: String?,
+        val orgUnitUid: String?,
+        val status: String?,
+        val occurredDate: String?,
+        val dataValues: Map<String, String>,
+    )
+
+    suspend fun getEvent(uid: String): ExistingEvent? {
+        val response = api.getTrackerEvent(uid)
+        val body = response.body() ?: return null
+        return ExistingEvent(
+            eventUid = body.eventUid,
+            enrollmentUid = body.enrollmentUid,
+            programUid = body.programUid,
+            programStageUid = body.programStageUid,
+            orgUnitUid = body.orgUnitUid,
+            status = body.status,
+            occurredDate = body.occurredDate,
+            dataValues = body.dataValues,
+        )
+    }
+
+    /**
+     * Update or complete an existing tracker event. Preserves the
+     * event UID so the server treats it as an upsert instead of
+     * creating a new row.
+     */
+    suspend fun enqueueEventUpdate(
+        eventUid: String,
+        programUid: String,
+        programStageUid: String,
+        orgUnitUid: String,
+        occurredDate: String,
+        status: String,
+        values: Map<String, String>,
+        enrollmentUid: String? = null,
+    ): Long {
+        val event = org.der.android.core.data.network.TrackerEventDto(
+            eventUid = eventUid,
+            enrollmentUid = enrollmentUid,
+            programUid = programUid,
+            programStageUid = programStageUid,
+            orgUnitUid = orgUnitUid,
+            occurredDate = occurredDate,
+            status = status,
+            dataValues = values.filterValues { it.isNotBlank() },
+        )
+        val body = json.encodeToString(
+            org.der.android.core.data.network.TrackerEventDto.serializer(), event,
+        )
+        val id = dao.insert(
+            org.der.android.core.data.journal.CaptureJournalEntity(
+                resource = RESOURCE_TRACKER_EVENT,
+                dataSet = programUid,
+                orgUnit = orgUnitUid,
+                period = occurredDate,
+                body = body,
+            ),
+        )
+        drain.scheduleDrain()
+        return id
+    }
+
     suspend fun getTrackedEntity(teiUid: String): TrackedEntity? {
         val response = api.getTrackedEntity(teiUid)
         val body = response.body() ?: return null

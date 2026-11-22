@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.der.android.design.R
 
 data class FeedbackPayload(
     val appVersion: String,
@@ -44,6 +45,7 @@ data class FeedbackPayload(
 fun SettingsScreen(
     onWiped: () -> Unit = {},
     onFeedback: ((FeedbackPayload) -> Unit)? = null,
+    onScanQr: (() -> Unit)? = null,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -86,6 +88,38 @@ fun SettingsScreen(
                         Text("Reset to default")
                     }
                 }
+                onScanQr?.let { scan ->
+                    OutlinedButton(onClick = scan, modifier = Modifier.fillMaxWidth()) {
+                        Text("Scan server QR")
+                    }
+                }
+            }
+
+            SectionCard(title = androidx.compose.ui.res.stringResource(
+                id = R.string.settings_appearance,
+            )) {
+                Text(
+                    text = androidx.compose.ui.res.stringResource(R.string.settings_theme),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                org.der.android.design.DerSegmentedControl(
+                    options = listOf(
+                        "SYSTEM" to androidx.compose.ui.res.stringResource(R.string.settings_theme_system),
+                        "LIGHT" to androidx.compose.ui.res.stringResource(R.string.settings_theme_light),
+                        "DARK" to androidx.compose.ui.res.stringResource(R.string.settings_theme_dark),
+                    ),
+                    selected = state.themeMode,
+                    onSelect = viewModel::setTheme,
+                )
+                Text(
+                    text = androidx.compose.ui.res.stringResource(R.string.settings_language),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                LanguageDropdown(
+                    current = state.localeTag,
+                    onSelect = viewModel::setLocale,
+                )
             }
 
             SectionCard(title = "Security") {
@@ -194,6 +228,50 @@ private fun SectionCard(title: String, content: @Composable () -> Unit) {
                 fontWeight = FontWeight.SemiBold,
             )
             content()
+        }
+    }
+}
+
+@Composable
+private fun LanguageDropdown(
+    current: String,
+    onSelect: (String) -> Unit,
+) {
+    val options = listOf(
+        "" to androidx.compose.ui.res.stringResource(R.string.settings_language_system),
+        "en" to "English",
+        "fr" to "Français",
+        "pt" to "Português",
+        "sw" to "Kiswahili",
+    )
+    val display = options.firstOrNull { it.first == current }?.second ?: current
+    var expanded by remember { mutableStateOf(false) }
+    androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth()) {
+        androidx.compose.material3.OutlinedTextField(
+            value = display,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(androidx.compose.ui.res.stringResource(R.string.settings_language)) },
+            trailingIcon = {
+                androidx.compose.material3.TextButton(onClick = { expanded = !expanded }) {
+                    Text("▾")
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        androidx.compose.material3.DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            options.forEach { (tag, label) ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = {
+                        onSelect(tag)
+                        expanded = false
+                    },
+                )
+            }
         }
     }
 }

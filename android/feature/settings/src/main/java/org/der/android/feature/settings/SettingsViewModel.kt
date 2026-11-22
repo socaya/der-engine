@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.der.android.core.auth.AppearancePreference
 import org.der.android.core.auth.BiometricPreference
 import org.der.android.core.auth.SessionRepository
 import org.der.android.core.data.device.DeviceIdentity
@@ -29,6 +30,7 @@ class SettingsViewModel @Inject constructor(
     private val session: SessionRepository,
     private val wiper: LocalDataWiper,
     private val biometric: BiometricPreference,
+    private val appearance: AppearancePreference,
 ) : ViewModel() {
 
     data class UiState(
@@ -42,6 +44,8 @@ class SettingsViewModel @Inject constructor(
         val username: String? = null,
         val pendingCaptures: Int = 0,
         val biometricRequired: Boolean = false,
+        val themeMode: String = AppearancePreference.THEME_SYSTEM,
+        val localeTag: String = AppearancePreference.LOCALE_SYSTEM,
         val wiping: Boolean = false,
         val wiped: Boolean = false,
     )
@@ -65,6 +69,8 @@ class SettingsViewModel @Inject constructor(
                     username = user?.username,
                     pendingCaptures = wiper.pendingCapturesCount(),
                     biometricRequired = biometric.current(),
+                    themeMode = appearance.currentTheme(),
+                    localeTag = appearance.currentLocale(),
                 )
             }
         }
@@ -73,6 +79,16 @@ class SettingsViewModel @Inject constructor(
     fun setBiometricRequired(enabled: Boolean) {
         _state.update { it.copy(biometricRequired = enabled) }
         viewModelScope.launch { biometric.set(enabled) }
+    }
+
+    fun setTheme(mode: String) {
+        _state.update { it.copy(themeMode = mode) }
+        viewModelScope.launch { appearance.setTheme(mode) }
+    }
+
+    fun setLocale(tag: String) {
+        _state.update { it.copy(localeTag = tag) }
+        viewModelScope.launch { appearance.setLocale(tag) }
     }
 
     fun onDraftUrl(v: String) = _state.update { it.copy(draftUrl = v, saveError = null) }
