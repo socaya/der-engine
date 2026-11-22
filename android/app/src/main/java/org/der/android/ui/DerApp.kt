@@ -21,6 +21,7 @@ import org.der.android.feature.approvals.ApprovalsScreen
 import org.der.android.feature.capture.CaptureScreen
 import org.der.android.feature.capture.EventListScreen
 import org.der.android.feature.capture.EventNewScreen
+import org.der.android.feature.capture.TeiDetailScreen
 import org.der.android.feature.capture.TrackerEnrolScreen
 import org.der.android.feature.capture.TrackerSearchScreen
 import org.der.android.feature.dashboard.DashboardScreen
@@ -113,6 +114,9 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
                         onEnrolNewPatient = {
                             nav.navigate(DerRoute.TrackerEnrol.pathFor(programId))
                         },
+                        onOpenTei = { teiUid ->
+                            nav.navigate(DerRoute.TeiDetail.pathFor(programId, teiUid))
+                        },
                     )
                 }
                 composable(
@@ -120,6 +124,20 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
                     arguments = listOf(navArgument("programId") { type = NavType.StringType }),
                 ) {
                     TrackerEnrolScreen(onEnrolled = { nav.popBackStack() })
+                }
+                composable(
+                    route = DerRoute.TeiDetail.pattern,
+                    arguments = listOf(
+                        navArgument("programId") { type = NavType.StringType },
+                        navArgument("teiUid") { type = NavType.StringType },
+                    ),
+                ) { backStackEntry ->
+                    val programId = backStackEntry.arguments?.getString("programId").orEmpty()
+                    TeiDetailScreen(
+                        onAddStageEvent = {
+                            nav.navigate(DerRoute.EventNew.pathFor(programId))
+                        },
+                    )
                 }
                 composable(
                     route = DerRoute.EventList.pattern,
@@ -212,6 +230,11 @@ sealed class DerRoute(val path: String) {
     data object TrackerEnrol : DerRoute("capture/tracker/{programId}/enrol") {
         const val pattern = "capture/tracker/{programId}/enrol"
         fun pathFor(programId: String) = "capture/tracker/$programId/enrol"
+    }
+    data object TeiDetail : DerRoute("capture/tracker/{programId}/tei/{teiUid}") {
+        const val pattern = "capture/tracker/{programId}/tei/{teiUid}"
+        fun pathFor(programId: String, teiUid: String) =
+            "capture/tracker/$programId/tei/$teiUid"
     }
     data object EventList : DerRoute("capture/event/{programId}") {
         const val pattern = "capture/event/{programId}"

@@ -25,6 +25,7 @@ import org.der.android.core.domain.TrackedEntity
 @Composable
 fun TrackerSearchScreen(
     onEnrolNewPatient: () -> Unit,
+    onOpenTei: (teiUid: String) -> Unit,
     viewModel: TrackerSearchViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -73,7 +74,7 @@ fun TrackerSearchScreen(
             if (state.entities.isNotEmpty()) {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(items = state.entities, key = { it.id }) { tei ->
-                        TrackedEntityRow(tei)
+                        TrackedEntityRow(tei, onClick = { onOpenTei(tei.id) })
                     }
                 }
             }
@@ -82,8 +83,9 @@ fun TrackerSearchScreen(
 }
 
 @Composable
-private fun TrackedEntityRow(tei: TrackedEntity) {
+private fun TrackedEntityRow(tei: TrackedEntity, onClick: () -> Unit) {
     Surface(
+        onClick = onClick,
         shape = RoundedCornerShape(10.dp),
         tonalElevation = 1.dp,
         color = MaterialTheme.colorScheme.surface,

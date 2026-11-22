@@ -132,6 +132,11 @@ interface DerApi {
         @Body body: TrackedEntityUpsertDto,
     ): Response<TrackedEntityUpsertResponseDto>
 
+    @GET("edge-api/v1/tracked-entities/{teiUid}")
+    suspend fun getTrackedEntity(
+        @Path("teiUid") teiUid: String,
+    ): Response<TrackedEntityDetailDto>
+
     @POST("edge-api/v1/tracker/enrollments")
     suspend fun upsertEnrollment(
         @Body body: EnrollmentUpsertDto,
@@ -732,6 +737,17 @@ data class TrackedEntityUpsertResponseDto(
     val attributeUid: String? = null,
     val value: String? = null,
     val existingTeiUid: String? = null,
+)
+
+@Serializable
+data class TrackedEntityDetailDto(
+    val teiUid: String? = null,
+    val trackedEntity: String? = null,
+    val trackedEntityType: String? = null,
+    val orgUnit: String? = null,
+    val attributes: Map<String, String> = emptyMap(),
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
 )
 
 @Serializable

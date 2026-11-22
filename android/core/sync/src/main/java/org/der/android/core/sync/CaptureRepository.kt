@@ -139,6 +139,16 @@ class CaptureRepository @Inject constructor(
         return body.trackedEntities.map { it.toDomain() }
     }
 
+    suspend fun getTrackedEntity(teiUid: String): TrackedEntity? {
+        val response = api.getTrackedEntity(teiUid)
+        val body = response.body() ?: return null
+        return TrackedEntity(
+            id = body.teiUid ?: body.trackedEntity ?: teiUid,
+            orgUnit = body.orgUnit,
+            attributes = body.attributes,
+        )
+    }
+
     suspend fun listEvents(
         program: String,
         orgUnit: String,
