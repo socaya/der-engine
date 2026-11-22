@@ -7,10 +7,14 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.der.android.core.domain.WorkflowQueueRow
 import org.der.android.core.domain.WorkflowRun
+import org.der.android.core.sync.IncomingFrameConsumer
 import org.der.android.core.sync.WorkflowRepository
 import javax.inject.Inject
 
@@ -22,6 +26,7 @@ import javax.inject.Inject
 @HiltViewModel
 class WorkflowQueueViewModel @Inject constructor(
     private val repository: WorkflowRepository,
+    private val frames: IncomingFrameConsumer,
 ) : ViewModel() {
 
     data class UiState(
@@ -29,12 +34,28 @@ class WorkflowQueueViewModel @Inject constructor(
         val rows: List<WorkflowQueueRow> = emptyList(),
         val error: String? = null,
         val allDevices: Boolean = false,
+        val peerHandoff: String? = null,
     )
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
-    init { refresh() }
+    init {
+        refresh()
+        // Mesh nudge → refresh the queue + flash a message so the
+        // operator sees the baton has landed.
+        frames.nudges
+            .filter { it.resource == "workflow" && it.action == "run-advance" }
+            .onEach { n ->
+                _state.update {
+                    it.copy(peerHandoff = "New step arrived from ${n.fromDevice.take(8)}…")
+                }
+                refresh()
+            }
+            .launchIn(viewModelScope)
+    }
+
+    fun clearPeerHandoff() = _state.update { it.copy(peerHandoff = null) }
 
     fun refresh() {
         _state.update { it.copy(loading = true, error = null) }

@@ -56,6 +56,18 @@ fun WorkflowScreen(
                 selected = state.allDevices,
                 onSelect = { v -> if (v != state.allDevices) viewModel.toggleAllDevices() },
             )
+
+            state.peerHandoff?.let { msg ->
+                androidx.compose.foundation.layout.Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    DerStatus(text = msg, tone = DerStatusTone.Info)
+                    androidx.compose.material3.TextButton(onClick = viewModel::clearPeerHandoff) {
+                        Text("Dismiss")
+                    }
+                }
+            }
             when {
                 state.loading -> CircularProgressIndicator()
                 state.error != null -> {

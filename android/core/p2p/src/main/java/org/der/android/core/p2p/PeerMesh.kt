@@ -27,6 +27,10 @@ interface PeerMesh {
     /** Observable snapshot of currently-known peers. */
     val peers: Flow<List<Peer>>
 
+    /** Every DPP/1 frame received from any remote peer. Shared
+     *  across all observers; frames are not replayed. */
+    val incoming: Flow<DppFrame>
+
     /** Start signalling, offer/answer with every peer, maintain
      *  the data-channel pool. Idempotent. */
     suspend fun start()
@@ -47,7 +51,9 @@ interface PeerMesh {
  */
 class NullPeerMesh : PeerMesh {
     private val _peers = MutableStateFlow<List<PeerMesh.Peer>>(emptyList())
+    private val _incoming = kotlinx.coroutines.flow.MutableSharedFlow<DppFrame>()
     override val peers: Flow<List<PeerMesh.Peer>> = _peers.asStateFlow()
+    override val incoming: Flow<DppFrame> = _incoming
     override suspend fun start() { /* no-op until Phase 4 */ }
     override suspend fun stop() { /* no-op until Phase 4 */ }
     override suspend fun send(frame: DppFrame) { /* no-op until Phase 4 */ }

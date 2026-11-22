@@ -54,7 +54,7 @@ class WebRtcPeerMesh @Inject constructor(
 
     private val _incoming = MutableSharedFlow<DppFrame>(replay = 0, extraBufferCapacity = 64)
     /** Frames received from any remote peer. */
-    val incoming: Flow<DppFrame> = _incoming.asSharedFlow()
+    override val incoming: Flow<DppFrame> = _incoming.asSharedFlow()
 
     private data class Entry(
         val sessionId: String,

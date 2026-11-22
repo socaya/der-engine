@@ -78,13 +78,24 @@ interface DerApi {
         @Path("id") id: String,
         @Query("fields") fields: String =
             "id,name,displayName,periodType,formType," +
-                "dataSetElements[dataElement[id,name,formName,valueType]]",
+                "categoryCombo[id,name,categoryOptionCombos[id,name,displayName]]," +
+                "dataSetElements[dataElement[id,name,formName,valueType," +
+                "optionSet[id],categoryCombo[id,name,categoryOptionCombos[id,name,displayName]]]]," +
+                "sections[id,name,displayName,sortOrder," +
+                "dataElements[id],greyedFields[dataElement[id],categoryOptionCombo[id]]]",
     ): Response<DataSetDto>
 
     @POST("api/dataValueSets")
     suspend fun submitDataValueSet(
         @Body body: DataValueSetDto,
     ): Response<ImportSummaryDto>
+
+    @GET("api/optionSets/{id}")
+    suspend fun getOptionSet(
+        @Path("id") id: String,
+        @Query("fields") fields: String =
+            "id,displayName,name,options[id,code,name,displayName,sortOrder]",
+    ): Response<OptionSetDto>
 
     // ── Programs + tracker (DER Capture MVP) ───────────────────────────
 
@@ -321,7 +332,9 @@ data class DataSetDto(
     val displayName: String? = null,
     val periodType: String? = null,
     val formType: String? = null,
+    val categoryCombo: CategoryComboDto? = null,
     val dataSetElements: List<DataSetElementDto> = emptyList(),
+    val sections: List<DataSetSectionDto> = emptyList(),
 )
 
 @Serializable
@@ -335,6 +348,55 @@ data class DataElementDto(
     val name: String? = null,
     val formName: String? = null,
     val valueType: String? = null,
+    val optionSet: ProgramRefDto? = null,
+    val categoryCombo: CategoryComboDto? = null,
+)
+
+@Serializable
+data class CategoryComboDto(
+    val id: String,
+    val name: String? = null,
+    val categoryOptionCombos: List<CategoryOptionComboDto> = emptyList(),
+)
+
+@Serializable
+data class CategoryOptionComboDto(
+    val id: String,
+    val name: String? = null,
+    val displayName: String? = null,
+)
+
+@Serializable
+data class DataSetSectionDto(
+    val id: String,
+    val name: String? = null,
+    val displayName: String? = null,
+    val sortOrder: Int? = null,
+    val dataElements: List<ProgramRefDto> = emptyList(),
+    val greyedFields: List<GreyedFieldDto> = emptyList(),
+)
+
+@Serializable
+data class GreyedFieldDto(
+    val dataElement: ProgramRefDto? = null,
+    val categoryOptionCombo: ProgramRefDto? = null,
+)
+
+@Serializable
+data class OptionSetDto(
+    val id: String,
+    val name: String? = null,
+    val displayName: String? = null,
+    val options: List<OptionDto> = emptyList(),
+)
+
+@Serializable
+data class OptionDto(
+    val id: String? = null,
+    val code: String? = null,
+    val name: String? = null,
+    val displayName: String? = null,
+    val sortOrder: Int? = null,
 )
 
 @Serializable

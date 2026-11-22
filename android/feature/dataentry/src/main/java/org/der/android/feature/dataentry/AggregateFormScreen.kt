@@ -8,8 +8,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -17,19 +23,26 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.der.android.core.domain.CategoryOptionCombo
+import org.der.android.core.domain.DataElement
+import org.der.android.core.domain.DataSet
+import org.der.android.core.domain.OptionSet
 
 /**
- * Simple aggregate-form screen. Phase 4 ships a flat list of
- * dataElements → text inputs — section-form rendering, option sets,
- * greyed fields and validation rules all land in later phases. The
- * submit button enqueues to the local capture journal and triggers
- * the WorkManager drain; the UI confirms with a small success line
- * and routes back on acknowledgement.
+ * Aggregate data-entry form. Renders by DHIS2 section when the
+ * dataset ships `sections`; falls back to a flat list otherwise. Each
+ * data-element cell matches its category-option-combo column —
+ * greyed cells render disabled, option-set-backed fields render as a
+ * dropdown, numeric types bring up the number keyboard.
  */
 @Composable
 fun AggregateFormScreen(
@@ -77,29 +90,34 @@ fun AggregateFormScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            org.der.android.design.DerPeriodPicker(
+                periodType = state.dataSet?.periodType,
                 value = state.period,
-                onValueChange = viewModel::onPeriod,
-                label = { Text("Period (e.g. 202611)") },
-                singleLine = true,
+                onChange = viewModel::onPeriod,
                 modifier = Modifier.fillMaxWidth(),
             )
-            state.dataSet?.dataElements?.forEach { de ->
-                OutlinedTextField(
-                    value = state.values[de.id].orEmpty(),
-                    onValueChange = { v -> viewModel.onValue(de.id, v) },
-                    label = { Text(de.displayName) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = when (de.valueType) {
-                            "NUMBER", "INTEGER", "INTEGER_POSITIVE",
-                            "INTEGER_ZERO_OR_POSITIVE", "PERCENTAGE" -> KeyboardType.Number
-                            else -> KeyboardType.Text
-                        },
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+
+            state.dataSet?.let { ds ->
+                if (ds.sections.isEmpty()) {
+                    FlatSection(
+                        dataSet = ds,
+                        values = state.values,
+                        optionSets = state.optionSets,
+                        onValue = viewModel::onValue,
+                    )
+                } else {
+                    ds.sections.forEach { section ->
+                        SectionBlock(
+                            section = section,
+                            dataSet = ds,
+                            values = state.values,
+                            optionSets = state.optionSets,
+                            onValue = viewModel::onValue,
+                        )
+                    }
+                }
             }
+
             state.highErrors.forEach { v ->
                 Text(
                     text = "Blocking: ${v.message}",
@@ -144,3 +162,153 @@ fun AggregateFormScreen(
         }
     }
 }
+
+@Composable
+private fun SectionBlock(
+    section: org.der.android.core.domain.DataSetSection,
+    dataSet: DataSet,
+    values: Map<String, String>,
+    optionSets: Map<String, OptionSet>,
+    onValue: (String, String) -> Unit,
+) {
+    Text(
+        text = section.displayName,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(top = 4.dp),
+    )
+    val byId = dataSet.dataElements.associateBy { it.id }
+    section.dataElementIds.forEach { deId ->
+        val de = byId[deId] ?: return@forEach
+        DataElementRow(
+            de = de,
+            values = values,
+            optionSet = de.optionSetId?.let { optionSets[it] },
+            isGreyed = { cocId -> org.der.android.core.domain.GreyedCell(deId, cocId) in section.greyed },
+            onValue = onValue,
+        )
+    }
+}
+
+@Composable
+private fun FlatSection(
+    dataSet: DataSet,
+    values: Map<String, String>,
+    optionSets: Map<String, OptionSet>,
+    onValue: (String, String) -> Unit,
+) {
+    dataSet.dataElements.forEach { de ->
+        DataElementRow(
+            de = de,
+            values = values,
+            optionSet = de.optionSetId?.let { optionSets[it] },
+            isGreyed = { false },
+            onValue = onValue,
+        )
+    }
+}
+
+@Composable
+private fun DataElementRow(
+    de: DataElement,
+    values: Map<String, String>,
+    optionSet: OptionSet?,
+    isGreyed: (cocId: String) -> Boolean,
+    onValue: (String, String) -> Unit,
+) {
+    val cocs = de.effectiveCocs
+    val isMultiCell = cocs.size > 1 ||
+        (cocs.size == 1 && !cocs.first().isDefault && cocs.first().id.isNotEmpty())
+
+    Text(
+        text = de.displayName,
+        style = MaterialTheme.typography.labelLarge,
+    )
+    cocs.forEach { coc ->
+        val key = if (isMultiCell && coc.id.isNotEmpty()) "${de.id}|${coc.id}" else de.id
+        val greyed = coc.id.isNotEmpty() && isGreyed(coc.id)
+        DataCell(
+            label = if (isMultiCell) coc.displayName else de.displayName,
+            value = values[key].orEmpty(),
+            optionSet = optionSet,
+            valueType = de.valueType,
+            enabled = !greyed,
+            onChange = { onValue(key, it) },
+        )
+    }
+}
+
+@Composable
+private fun DataCell(
+    label: String,
+    value: String,
+    optionSet: OptionSet?,
+    valueType: String?,
+    enabled: Boolean,
+    onChange: (String) -> Unit,
+) {
+    if (optionSet != null) {
+        OptionSetDropdown(
+            label = label,
+            value = value,
+            options = optionSet.options,
+            enabled = enabled,
+            onSelect = onChange,
+        )
+    } else {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onChange,
+            label = { Text(label) },
+            singleLine = true,
+            enabled = enabled,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = when (valueType) {
+                    "NUMBER", "INTEGER", "INTEGER_POSITIVE",
+                    "INTEGER_ZERO_OR_POSITIVE", "PERCENTAGE" -> KeyboardType.Number
+                    else -> KeyboardType.Text
+                },
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun OptionSetDropdown(
+    label: String,
+    value: String,
+    options: List<org.der.android.core.domain.OptionSetOption>,
+    enabled: Boolean,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val display = options.firstOrNull { it.code == value }?.displayName ?: value
+    androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = display,
+            onValueChange = {},
+            readOnly = true,
+            enabled = enabled,
+            label = { Text(label) },
+            trailingIcon = {
+                IconButton(onClick = { expanded = !expanded }, enabled = enabled) {
+                    Icon(Icons.Outlined.ArrowDropDown, contentDescription = null)
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            options.forEach { opt ->
+                DropdownMenuItem(
+                    text = { Text(opt.displayName) },
+                    onClick = { onSelect(opt.code); expanded = false },
+                )
+            }
+        }
+    }
+}
+

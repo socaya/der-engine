@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.der.android.core.domain.DataSet
+import org.der.android.core.domain.OptionSet
 import org.der.android.core.rules.ValidationEngine
 import org.der.android.core.rules.ValidationResult
 import org.der.android.core.rules.ValidationRule
@@ -42,7 +43,10 @@ class AggregateFormViewModel @Inject constructor(
         val error: String? = null,
         val orgUnit: String = "",
         val period: String = "",
+        /** Keyed either `deId` (single-COC dataset) or `deId|cocId`
+         *  (multi-COC cell). The repository understands both. */
         val values: Map<String, String> = emptyMap(),
+        val optionSets: Map<String, OptionSet> = emptyMap(),
         val submitting: Boolean = false,
         val savedId: Long? = null,
         val validationResults: List<ValidationResult> = emptyList(),
@@ -72,16 +76,20 @@ class AggregateFormViewModel @Inject constructor(
             val ds = runCatching { repository.getDataSet(dataSetId) }.getOrNull()
             validator = runCatching { rulesRepository.validationEngine(dataSetId) }
                 .getOrElse { ValidationEngine(emptyList()) }
-            _state.update { it.copy(loading = false, dataSet = ds) }
+            val sets = ds?.let { repository.loadOptionSetsFor(it) }.orEmpty()
+            _state.update { it.copy(loading = false, dataSet = ds, optionSets = sets) }
         }
     }
 
     fun onOrgUnit(v: String) = _state.update { it.copy(orgUnit = v) }
     fun onPeriod(v: String) = _state.update { it.copy(period = v) }
-    fun onValue(dataElementId: String, v: String) = _state.update {
+
+    /** Key is either the data-element UID, or `deId|cocId` when the
+     *  cell addresses a specific category-option-combo. */
+    fun onValue(key: String, v: String) = _state.update {
         // Any edit clears the stale validation + override state.
         it.copy(
-            values = it.values + (dataElementId to v),
+            values = it.values + (key to v),
             validationResults = emptyList(),
             overrideWarnings = false,
         )
