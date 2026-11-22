@@ -136,6 +136,33 @@ interface DerApi {
         @Path("stepId") stepId: String,
         @Body body: ContributeStepRequestDto,
     ): Response<ContributeStepResponseDto>
+
+    // ── Approvals + referral inbox (supervisor surface) ────────────────
+
+    @GET("edge-api/v1/approvals/pending")
+    suspend fun pendingApprovals(
+        @Query("limit") limit: Int = 100,
+    ): Response<PendingApprovalListDto>
+
+    @POST("edge-api/v1/approvals/{opId}/approve")
+    suspend fun approveOperation(@Path("opId") opId: String): Response<ApprovalOutcomeDto>
+
+    @POST("edge-api/v1/approvals/{opId}/reject")
+    suspend fun rejectOperation(
+        @Path("opId") opId: String,
+        @Body body: RejectApprovalRequestDto,
+    ): Response<ApprovalOutcomeDto>
+
+    @GET("edge-api/v1/referral/inbox")
+    suspend fun referralInbox(
+        @Query("limit") limit: Int = 100,
+    ): Response<ReferralInboxListDto>
+
+    @POST("edge-api/v1/referral/inbox/{inboxId}/accept")
+    suspend fun acceptReferral(@Path("inboxId") inboxId: String): Response<ReferralOutcomeDto>
+
+    @POST("edge-api/v1/referral/inbox/{inboxId}/dismiss")
+    suspend fun dismissReferral(@Path("inboxId") inboxId: String): Response<ReferralOutcomeDto>
 }
 
 @Serializable
@@ -441,4 +468,51 @@ data class ContributeStepResponseDto(
     val run: WorkflowRunDto? = null,
     val completed: Boolean = false,
     val readiness: Map<String, String> = emptyMap(),
+)
+
+// Approvals + referral inbox DTOs.
+
+@Serializable
+data class PendingApprovalListDto(val rows: List<PendingApprovalRowDto> = emptyList())
+
+@Serializable
+data class PendingApprovalRowDto(
+    val operationId: String,
+    val entityType: String? = null,
+    val entityRef: String? = null,
+    val submittedBy: String? = null,
+    val createdAt: String? = null,
+)
+
+@Serializable
+data class RejectApprovalRequestDto(val reason: String)
+
+@Serializable
+data class ApprovalOutcomeDto(
+    val outcome: String? = null,
+    val code: String? = null,
+    val message: String? = null,
+)
+
+@Serializable
+data class ReferralInboxListDto(val entries: List<ReferralInboxEntryDto> = emptyList())
+
+@Serializable
+data class ReferralInboxEntryDto(
+    val inboxId: String,
+    val kind: String? = null,
+    val sourceRef: String? = null,
+    val boundOrgUnit: String? = null,
+    val discoveredAt: String? = null,
+    val status: String? = null,
+    val ingestRunId: String? = null,
+)
+
+@Serializable
+data class ReferralOutcomeDto(
+    val inboxId: String? = null,
+    val status: String? = null,
+    val ingested: Boolean? = null,
+    val code: String? = null,
+    val message: String? = null,
 )
