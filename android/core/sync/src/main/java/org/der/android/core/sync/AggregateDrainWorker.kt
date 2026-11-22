@@ -11,6 +11,7 @@ import org.der.android.core.data.journal.CaptureJournalDao
 import org.der.android.core.data.journal.CaptureJournalEntity
 import org.der.android.core.data.network.DerApi
 import org.der.android.core.data.network.DataValueSetDto
+import org.der.android.core.data.network.TrackerEventDto
 import timber.log.Timber
 
 /**
@@ -39,6 +40,7 @@ class AggregateDrainWorker @AssistedInject constructor(
             runCatching {
                 when (entry.resource) {
                     "api/dataValueSets" -> submitDataValueSet(entry)
+                    "edge-api/v1/tracker/events" -> submitTrackerEvent(entry)
                     else -> {
                         Timber.w("drain: skipping unknown resource %s", entry.resource)
                         dao.markResult(
@@ -66,7 +68,16 @@ class AggregateDrainWorker @AssistedInject constructor(
     private suspend fun submitDataValueSet(entry: CaptureJournalEntity) {
         val payload = json.decodeFromString(DataValueSetDto.serializer(), entry.body)
         val response = api.submitDataValueSet(payload)
-        val ok = response.isSuccessful
+        handle(entry, response.code(), response.isSuccessful)
+    }
+
+    private suspend fun submitTrackerEvent(entry: CaptureJournalEntity) {
+        val payload = json.decodeFromString(TrackerEventDto.serializer(), entry.body)
+        val response = api.submitTrackerEvent(payload)
+        handle(entry, response.code(), response.isSuccessful)
+    }
+
+    private suspend fun handle(entry: CaptureJournalEntity, code: Int, ok: Boolean) {
         if (ok) {
             dao.markResult(
                 id = entry.id,
@@ -74,17 +85,17 @@ class AggregateDrainWorker @AssistedInject constructor(
                 sentAt = System.currentTimeMillis(),
                 error = null,
             )
-        } else if (response.code() in 400..499) {
+        } else if (code in 400..499) {
             // Non-retryable client errors — stop bouncing.
             dao.markResult(
                 id = entry.id,
                 status = CaptureJournalEntity.STATUS_FAILED,
                 sentAt = null,
-                error = "HTTP ${response.code()}",
+                error = "HTTP $code",
             )
         } else {
             // 5xx — let WorkManager retry.
-            throw RuntimeException("HTTP ${response.code()}")
+            throw RuntimeException("HTTP $code")
         }
     }
 }

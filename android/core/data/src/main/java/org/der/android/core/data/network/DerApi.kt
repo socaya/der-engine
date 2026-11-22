@@ -85,6 +85,36 @@ interface DerApi {
     suspend fun submitDataValueSet(
         @Body body: DataValueSetDto,
     ): Response<ImportSummaryDto>
+
+    // ── Programs + tracker (DER Capture MVP) ───────────────────────────
+
+    @GET("api/programs")
+    suspend fun listPrograms(
+        @Query("fields") fields: String =
+            "id,displayName,programType,trackedEntityType[id],organisationUnits[id]",
+        @Query("paging") paging: String = "false",
+    ): Response<ProgramListDto>
+
+    @GET("api/programs/{id}")
+    suspend fun getProgram(
+        @Path("id") id: String,
+        @Query("fields") fields: String =
+            "id,displayName,programType,trackedEntityType[id]," +
+                "programStages[id,displayName,programStageDataElements[dataElement[id,formName,name,valueType]]]," +
+                "programTrackedEntityAttributes[trackedEntityAttribute[id,formName,name,valueType]]",
+    ): Response<ProgramDto>
+
+    @GET("api/tracker/trackedEntities")
+    suspend fun searchTrackedEntities(
+        @Query("program") program: String,
+        @Query("orgUnit") orgUnit: String,
+        @Query("pageSize") pageSize: Int = 50,
+    ): Response<TrackedEntityListDto>
+
+    @POST("edge-api/v1/tracker/events")
+    suspend fun submitTrackerEvent(
+        @Body body: TrackerEventDto,
+    ): Response<ImportSummaryDto>
 }
 
 @Serializable
@@ -242,4 +272,92 @@ data class DataValueDto(
 data class ImportSummaryDto(
     val status: String? = null,
     val description: String? = null,
+)
+
+// Programs + tracker DTOs — DER Capture MVP.
+
+@Serializable
+data class ProgramListDto(val programs: List<ProgramSummaryDto> = emptyList())
+
+@Serializable
+data class ProgramSummaryDto(
+    val id: String,
+    val name: String? = null,
+    val displayName: String? = null,
+    val programType: String? = null,
+    val trackedEntityType: ProgramRefDto? = null,
+    val organisationUnits: List<ProgramRefDto> = emptyList(),
+)
+
+@Serializable
+data class ProgramRefDto(val id: String)
+
+@Serializable
+data class ProgramDto(
+    val id: String,
+    val name: String? = null,
+    val displayName: String? = null,
+    val programType: String? = null,
+    val trackedEntityType: ProgramRefDto? = null,
+    val programStages: List<ProgramStageDto> = emptyList(),
+    val programTrackedEntityAttributes: List<ProgramTeaDto> = emptyList(),
+)
+
+@Serializable
+data class ProgramStageDto(
+    val id: String,
+    val name: String? = null,
+    val displayName: String? = null,
+    val programStageDataElements: List<ProgramStageDataElementDto> = emptyList(),
+)
+
+@Serializable
+data class ProgramStageDataElementDto(val dataElement: DataElementDto)
+
+@Serializable
+data class ProgramTeaDto(val trackedEntityAttribute: TrackedEntityAttributeDto)
+
+@Serializable
+data class TrackedEntityAttributeDto(
+    val id: String,
+    val name: String? = null,
+    val formName: String? = null,
+    val valueType: String? = null,
+)
+
+@Serializable
+data class TrackedEntityListDto(val trackedEntities: List<TrackedEntityDto> = emptyList())
+
+@Serializable
+data class TrackedEntityDto(
+    val trackedEntity: String? = null,
+    val orgUnit: String? = null,
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
+    val attributes: List<TrackedEntityAttributeValueDto> = emptyList(),
+)
+
+@Serializable
+data class TrackedEntityAttributeValueDto(
+    val attribute: String,
+    val value: String? = null,
+    val displayName: String? = null,
+)
+
+/**
+ * Payload for `POST /edge-api/v1/tracker/events` — matches the shape
+ * the server's TrackerEventsController accepts. `dataValues` is a
+ * flat `dataElementUid -> value` map (not the array-of-pairs shape
+ * DHIS2 uses) because that's the DER edge endpoint's wire format.
+ */
+@Serializable
+data class TrackerEventDto(
+    val eventUid: String,
+    val enrollmentUid: String? = null,
+    val programUid: String,
+    val programStageUid: String,
+    val orgUnitUid: String,
+    val status: String = "ACTIVE",
+    val occurredDate: String,
+    val dataValues: Map<String, String> = emptyMap(),
 )

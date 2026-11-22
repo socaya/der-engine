@@ -16,8 +16,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import org.der.android.core.domain.ProgramType
 import org.der.android.feature.approvals.ApprovalsScreen
 import org.der.android.feature.capture.CaptureScreen
+import org.der.android.feature.capture.EventNewScreen
+import org.der.android.feature.capture.TrackerSearchScreen
 import org.der.android.feature.dashboard.DashboardScreen
 import org.der.android.feature.dataentry.AggregateFormScreen
 import org.der.android.feature.dataentry.DataEntryScreen
@@ -72,7 +75,27 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
                 ) {
                     AggregateFormScreen(onSaved = { nav.popBackStack() })
                 }
-                composable(DerRoute.Capture.path) { CaptureScreen() }
+                composable(DerRoute.Capture.path) {
+                    CaptureScreen(
+                        onOpen = { programId, type ->
+                            val route = when (type) {
+                                ProgramType.WITH_REGISTRATION ->
+                                    DerRoute.TrackerSearch.pathFor(programId)
+                                ProgramType.WITHOUT_REGISTRATION ->
+                                    DerRoute.EventNew.pathFor(programId)
+                            }
+                            nav.navigate(route)
+                        },
+                    )
+                }
+                composable(
+                    route = DerRoute.TrackerSearch.pattern,
+                    arguments = listOf(navArgument("programId") { type = NavType.StringType }),
+                ) { TrackerSearchScreen() }
+                composable(
+                    route = DerRoute.EventNew.pattern,
+                    arguments = listOf(navArgument("programId") { type = NavType.StringType }),
+                ) { EventNewScreen(onSaved = { nav.popBackStack() }) }
                 composable(DerRoute.Workflow.path) { WorkflowScreen() }
                 composable(DerRoute.Dashboard.path) { DashboardScreen() }
                 composable(DerRoute.Approvals.path) { ApprovalsScreen() }
@@ -114,6 +137,14 @@ sealed class DerRoute(val path: String) {
         fun pathFor(id: String) = "data-entry/$id"
     }
     data object Capture : DerRoute("capture")
+    data object TrackerSearch : DerRoute("capture/tracker/{programId}") {
+        const val pattern = "capture/tracker/{programId}"
+        fun pathFor(programId: String) = "capture/tracker/$programId"
+    }
+    data object EventNew : DerRoute("capture/event/{programId}") {
+        const val pattern = "capture/event/{programId}"
+        fun pathFor(programId: String) = "capture/event/$programId"
+    }
     data object Workflow : DerRoute("workflow")
     data object Dashboard : DerRoute("dashboard")
     data object Approvals : DerRoute("approvals")
