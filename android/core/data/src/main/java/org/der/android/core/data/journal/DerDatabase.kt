@@ -17,12 +17,18 @@ import javax.inject.Singleton
  * state, DHIS2 metadata mirrors.
  */
 @Database(
-    entities = [CaptureJournalEntity::class],
-    version = 1,
+    entities = [
+        CaptureJournalEntity::class,
+        FormDraftEntity::class,
+        TeiCacheEntity::class,
+    ],
+    version = 3,
     exportSchema = false,
 )
 abstract class DerDatabase : RoomDatabase() {
     abstract fun captureJournalDao(): CaptureJournalDao
+    abstract fun formDraftDao(): FormDraftDao
+    abstract fun teiCacheDao(): TeiCacheDao
 }
 
 @Module
@@ -38,4 +44,10 @@ object DatabaseModule {
     @Provides
     fun provideCaptureJournalDao(db: DerDatabase): CaptureJournalDao =
         db.captureJournalDao()
+
+    @Provides
+    fun provideFormDraftDao(db: DerDatabase): FormDraftDao = db.formDraftDao()
+
+    @Provides
+    fun provideTeiCacheDao(db: DerDatabase): TeiCacheDao = db.teiCacheDao()
 }

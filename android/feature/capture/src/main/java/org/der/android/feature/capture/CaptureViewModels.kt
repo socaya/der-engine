@@ -12,9 +12,14 @@ import kotlinx.coroutines.launch
 import org.der.android.core.domain.Program
 import org.der.android.core.domain.ProgramSummary
 import org.der.android.core.domain.TrackedEntity
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.Json
 import org.der.android.core.rules.RuleEngine
 import org.der.android.core.rules.RuleEvaluation
 import org.der.android.core.sync.CaptureRepository
+import org.der.android.core.sync.FormDraftRepository
 import org.der.android.core.sync.RulesRepository
 import javax.inject.Inject
 
@@ -115,6 +120,7 @@ class TrackerSearchViewModel @Inject constructor(
 class EventNewViewModel @Inject constructor(
     private val repository: CaptureRepository,
     private val rulesRepository: RulesRepository,
+    private val drafts: FormDraftRepository,
     savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -128,6 +134,9 @@ class EventNewViewModel @Inject constructor(
         savedState.get<String?>(KEY_EVENT_UID)?.takeIf { it.isNotBlank() }
     private var existingEnrollmentUid: String? = null
     val isEditing: Boolean get() = eventUidArg != null
+
+    private val draftKey: String = "event:$programId:${eventUidArg ?: "new"}"
+    private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
 
     data class UiState(
         val loading: Boolean = true,
@@ -181,7 +190,9 @@ class EventNewViewModel @Inject constructor(
             engine = built
 
             // Pre-fill from the existing event when the screen was
-            // opened in edit mode.
+            // opened in edit mode. If there's a local draft keyed
+            // to this form we let it win over the server-side
+            // values (the operator has newer in-progress work).
             val existing = eventUidArg?.let {
                 runCatching { repository.getEvent(it) }.getOrNull()
             }
@@ -190,29 +201,43 @@ class EventNewViewModel @Inject constructor(
                 ?: program?.stages?.firstOrNull()?.id
             val initialValues = existing?.dataValues ?: emptyMap()
 
+            val draft = runCatching { drafts.load(draftKey) }.getOrNull()?.let { body ->
+                runCatching { json.decodeFromString(DraftSnapshot.serializer(), body) }
+                    .getOrNull()
+            }
+
             _state.update {
                 it.copy(
                     loading = false,
                     program = program,
-                    stageId = initialStageId,
-                    orgUnit = existing?.orgUnitUid.orEmpty(),
-                    occurredDate = existing?.occurredDate?.take(10).orEmpty(),
-                    values = initialValues,
+                    stageId = draft?.stageId ?: initialStageId,
+                    orgUnit = draft?.orgUnit ?: existing?.orgUnitUid.orEmpty(),
+                    occurredDate = draft?.occurredDate
+                        ?: existing?.occurredDate?.take(10).orEmpty(),
+                    values = draft?.values ?: initialValues,
                 )
             }
             reevaluate()
         }
     }
 
-    fun onOrgUnit(v: String) = _state.update { it.copy(orgUnit = v) }
-    fun onOccurredDate(v: String) = _state.update { it.copy(occurredDate = v) }
+    fun onOrgUnit(v: String) {
+        _state.update { it.copy(orgUnit = v) }
+        persistDraft()
+    }
+    fun onOccurredDate(v: String) {
+        _state.update { it.copy(occurredDate = v) }
+        persistDraft()
+    }
     fun onStage(id: String) {
         _state.update { it.copy(stageId = id) }
         reevaluate()
+        persistDraft()
     }
     fun onValue(dataElement: String, v: String) {
         _state.update { it.copy(values = it.values + (dataElement to v)) }
         reevaluate()
+        persistDraft()
     }
 
     private fun reevaluate() {
@@ -226,6 +251,20 @@ class EventNewViewModel @Inject constructor(
             .mapValues { it.value.orEmpty() }
         val newValues = if (assigned.isEmpty()) values else values + assigned
         _state.update { it.copy(values = newValues, evaluation = evaluation) }
+    }
+
+    private fun persistDraft() {
+        val s = _state.value
+        if (s.program == null) return
+        viewModelScope.launch {
+            val snapshot = DraftSnapshot(
+                stageId = s.stageId,
+                orgUnit = s.orgUnit,
+                occurredDate = s.occurredDate,
+                values = s.values,
+            )
+            drafts.save(draftKey, json.encodeToString(DraftSnapshot.serializer(), snapshot))
+        }
     }
 
     fun submit() {
@@ -257,7 +296,10 @@ class EventNewViewModel @Inject constructor(
                         values = s.values,
                     )
                 }
-            }.onSuccess { id -> _state.update { it.copy(submitting = false, savedId = id) } }
+            }.onSuccess { id ->
+                runCatching { drafts.clear(draftKey) }
+                _state.update { it.copy(submitting = false, savedId = id) }
+            }
              .onFailure { t ->
                  _state.update { it.copy(submitting = false, error = t.message ?: "Save failed") }
              }
@@ -269,3 +311,11 @@ class EventNewViewModel @Inject constructor(
         const val KEY_EVENT_UID = "eventUid"
     }
 }
+
+@Serializable
+private data class DraftSnapshot(
+    val stageId: String? = null,
+    val orgUnit: String = "",
+    val occurredDate: String = "",
+    val values: Map<String, String> = emptyMap(),
+)

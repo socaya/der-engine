@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.der.android.core.domain.WorkflowQueueRow
 import org.der.android.core.domain.WorkflowRun
+import org.der.android.core.domain.WorkflowSummary
 import org.der.android.core.sync.IncomingFrameConsumer
 import org.der.android.core.sync.WorkflowRepository
 import javax.inject.Inject
@@ -35,6 +36,10 @@ class WorkflowQueueViewModel @Inject constructor(
         val error: String? = null,
         val allDevices: Boolean = false,
         val peerHandoff: String? = null,
+        val catalogue: List<WorkflowSummary> = emptyList(),
+        val createDialogOpen: Boolean = false,
+        val creating: Boolean = false,
+        val createError: String? = null,
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -56,6 +61,41 @@ class WorkflowQueueViewModel @Inject constructor(
     }
 
     fun clearPeerHandoff() = _state.update { it.copy(peerHandoff = null) }
+
+    fun openCreateDialog() {
+        _state.update { it.copy(createDialogOpen = true, createError = null) }
+        if (_state.value.catalogue.isEmpty()) {
+            viewModelScope.launch {
+                val list = runCatching { repository.catalogue() }.getOrDefault(emptyList())
+                _state.update { it.copy(catalogue = list) }
+            }
+        }
+    }
+
+    fun closeCreateDialog() = _state.update {
+        it.copy(createDialogOpen = false, creating = false, createError = null)
+    }
+
+    fun createRun(workflowId: String, businessKey: String) {
+        if (businessKey.isBlank()) {
+            _state.update { it.copy(createError = "Business key is required.") }
+            return
+        }
+        _state.update { it.copy(creating = true, createError = null) }
+        viewModelScope.launch {
+            val result = repository.openRun(workflowId, businessKey.trim())
+            if (result.run != null) {
+                _state.update {
+                    it.copy(creating = false, createDialogOpen = false, createError = null)
+                }
+                refresh()
+            } else {
+                _state.update {
+                    it.copy(creating = false, createError = result.error ?: "Failed to open run")
+                }
+            }
+        }
+    }
 
     fun refresh() {
         _state.update { it.copy(loading = true, error = null) }

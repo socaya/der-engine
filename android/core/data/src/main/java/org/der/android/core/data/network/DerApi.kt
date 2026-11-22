@@ -235,6 +235,15 @@ interface DerApi {
         @Body body: ContributeStepRequestDto,
     ): Response<ContributeStepResponseDto>
 
+    @GET("edge-api/v1/workflows")
+    suspend fun listWorkflows(): Response<WorkflowCatalogueDto>
+
+    @POST("edge-api/v1/workflows/{workflowId}/runs")
+    suspend fun openWorkflowRun(
+        @Path("workflowId") workflowId: String,
+        @Body body: OpenRunRequestDto,
+    ): Response<WorkflowRunDto>
+
     // ── Approvals + referral inbox (supervisor surface) ────────────────
 
     @GET("edge-api/v1/approvals/pending")
@@ -626,6 +635,23 @@ data class ContributeStepResponseDto(
     val completed: Boolean = false,
     val readiness: Map<String, String> = emptyMap(),
 )
+
+@Serializable
+data class WorkflowCatalogueDto(
+    val workflows: List<WorkflowSummaryDto> = emptyList(),
+)
+
+@Serializable
+data class WorkflowSummaryDto(
+    val workflowId: String,
+    val displayName: String? = null,
+    val boundMetadataKind: String? = null,
+    val boundMetadataId: String? = null,
+    val enabled: Boolean? = null,
+)
+
+@Serializable
+data class OpenRunRequestDto(val businessKey: String)
 
 // Approvals + referral inbox DTOs.
 

@@ -1,8 +1,12 @@
 package org.der.android.core.sync
 
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import org.der.android.core.data.journal.CaptureJournalDao
 import org.der.android.core.data.journal.CaptureJournalEntity
+import org.der.android.core.data.journal.TeiCacheDao
+import org.der.android.core.data.journal.TeiCacheEntity
 import org.der.android.core.data.network.DerApi
 import org.der.android.core.data.network.EnrollmentUpsertDto
 import org.der.android.core.data.network.ProgramDto
@@ -32,9 +36,12 @@ import javax.inject.Singleton
 class CaptureRepository @Inject constructor(
     private val api: DerApi,
     private val dao: CaptureJournalDao,
+    private val teiCache: TeiCacheDao,
     private val drain: AggregateDrainScheduler,
     private val json: Json,
 ) {
+
+    private val attributesSerializer = MapSerializer(String.serializer(), String.serializer())
 
     suspend fun listPrograms(orgUnit: String? = null): List<ProgramSummary> {
         val response = api.listPrograms()
@@ -129,14 +136,54 @@ class CaptureRepository @Inject constructor(
         }
     }
 
+    /**
+     * Search tracked entities. On a successful round-trip the rows
+     * are written to the local [TeiCacheDao] so a subsequent
+     * search for the same program + OU survives an edge outage.
+     * On failure the method falls back to the cache rather than
+     * returning an empty list.
+     */
     suspend fun searchTrackedEntities(
         program: String,
         orgUnit: String,
         pageSize: Int = 50,
     ): List<TrackedEntity> {
-        val response = api.searchTrackedEntities(program, orgUnit, pageSize)
-        val body = response.body() ?: return emptyList()
-        return body.trackedEntities.map { it.toDomain() }
+        val live = runCatching { api.searchTrackedEntities(program, orgUnit, pageSize) }
+            .getOrNull()
+        val body = live?.takeIf { it.isSuccessful }?.body()
+        if (body != null) {
+            val rows = body.trackedEntities.map { it.toDomain() }
+            runCatching { cacheRows(program, orgUnit, rows) }
+            return rows
+        }
+        // Fallback: cache. Returning cache rows is less bad than
+        // showing a blank list when the edge is briefly unreachable.
+        return teiCache.forProgramAndOu(program, orgUnit).map {
+            TrackedEntity(
+                id = it.teiUid,
+                orgUnit = it.orgUnit,
+                attributes = runCatching {
+                    json.decodeFromString(attributesSerializer, it.attributesJson)
+                }.getOrElse { emptyMap() },
+            )
+        }
+    }
+
+    private suspend fun cacheRows(
+        program: String,
+        orgUnit: String,
+        rows: List<TrackedEntity>,
+    ) {
+        val entities = rows.map {
+            TeiCacheEntity(
+                id = "$program:${it.id}",
+                programUid = program,
+                teiUid = it.id,
+                orgUnit = it.orgUnit ?: orgUnit,
+                attributesJson = json.encodeToString(attributesSerializer, it.attributes),
+            )
+        }
+        teiCache.upsertAll(entities)
     }
 
     data class ExistingEvent(

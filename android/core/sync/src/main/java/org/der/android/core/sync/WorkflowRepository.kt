@@ -75,6 +75,53 @@ class WorkflowRepository @Inject constructor(
         )
     }
 
+    suspend fun catalogue(): List<org.der.android.core.domain.WorkflowSummary> {
+        val response = api.listWorkflows()
+        val body = response.body() ?: return emptyList()
+        return body.workflows
+            .filter { it.enabled != false }
+            .map {
+                org.der.android.core.domain.WorkflowSummary(
+                    workflowId = it.workflowId,
+                    displayName = it.displayName ?: it.workflowId,
+                    enabled = it.enabled != false,
+                )
+            }
+    }
+
+    data class OpenRunResult(
+        val run: WorkflowRun?,
+        val error: String?,
+    )
+
+    suspend fun openRun(workflowId: String, businessKey: String): OpenRunResult {
+        val response = api.openWorkflowRun(
+            workflowId,
+            org.der.android.core.data.network.OpenRunRequestDto(businessKey = businessKey),
+        )
+        if (!response.isSuccessful) {
+            val msg = when (response.code()) {
+                404 -> "Workflow not found on this edge."
+                409 -> "This workflow is disabled."
+                else -> "HTTP ${response.code()}"
+            }
+            return OpenRunResult(null, msg)
+        }
+        val body = response.body() ?: return OpenRunResult(null, "Empty response")
+        return OpenRunResult(
+            run = WorkflowRun(
+                runId = body.runId,
+                workflowId = body.workflowId,
+                businessKey = body.businessKey,
+                state = body.state,
+                createdAt = body.createdAt,
+                updatedAt = body.updatedAt,
+                submissionError = body.submissionError,
+            ),
+            error = null,
+        )
+    }
+
     /**
      * Apply a step contribution: POST to the edge and, on 2xx,
      * broadcast a DPP/1 workflow-advance frame to the mesh so any
