@@ -116,6 +116,24 @@ fun TeiDetailScreen(
                         }
                     }
                 }
+
+                Text(
+                    text = "Enrolments",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                if (state.enrollments.isEmpty()) {
+                    Text(
+                        text = "No enrolments yet.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    state.enrollments.forEach { enrolment ->
+                        EnrolmentBlock(enrolment)
+                    }
+                }
             }
             ExtendedFloatingActionButton(
                 onClick = onAddStageEvent,
@@ -125,6 +143,68 @@ fun TeiDetailScreen(
                     .align(Alignment.BottomEnd)
                     .padding(24.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun EnrolmentBlock(enrolment: org.der.android.core.domain.Enrollment) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        tonalElevation = 1.dp,
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Row(
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = "Programme " + (enrolment.programUid ?: "—"),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                org.der.android.design.DerStatus(
+                    text = (enrolment.status ?: "—").lowercase()
+                        .replaceFirstChar { it.uppercase() },
+                    tone = when (enrolment.status?.uppercase()) {
+                        "ACTIVE" -> org.der.android.design.DerStatusTone.Info
+                        "COMPLETED" -> org.der.android.design.DerStatusTone.Success
+                        "CANCELLED" -> org.der.android.design.DerStatusTone.Muted
+                        else -> org.der.android.design.DerStatusTone.Muted
+                    },
+                )
+            }
+            Text(
+                text = "Enrolled ${enrolment.enrollmentDate ?: "—"} · " +
+                    "OU ${enrolment.orgUnitUid ?: "—"}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (enrolment.events.isEmpty()) {
+                Text(
+                    text = "No events yet.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Text(
+                    text = "Events",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                enrolment.events.forEach { ev ->
+                    Text(
+                        text = "• ${ev.occurredAt?.take(10) ?: ev.event} · ${ev.status ?: "—"}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
         }
     }
 }

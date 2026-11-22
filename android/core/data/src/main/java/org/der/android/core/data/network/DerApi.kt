@@ -31,6 +31,18 @@ interface DerApi {
     @GET("edge-api/v1/devices/{id}")
     suspend fun getDevice(@Path("id") id: String): Response<DeviceDto>
 
+    @GET("edge-api/v1/devices")
+    suspend fun listDevices(): Response<DeviceListDto>
+
+    @POST("edge-api/v1/devices/{id}/approve")
+    suspend fun approveDevice(@Path("id") id: String): Response<DeviceDto>
+
+    @POST("edge-api/v1/devices/{id}/suspend")
+    suspend fun suspendDevice(@Path("id") id: String): Response<DeviceDto>
+
+    @POST("edge-api/v1/devices/{id}/revoke")
+    suspend fun revokeDevice(@Path("id") id: String): Response<DeviceDto>
+
     // ── WebRTC signalling broker (ADR-0038 — DPP/1 rides the data channel) ──
 
     @POST("edge-api/v1/webrtc/offer")
@@ -146,6 +158,16 @@ interface DerApi {
     suspend fun upsertEnrollment(
         @Body body: EnrollmentUpsertDto,
     ): Response<EnrollmentUpsertResponseDto>
+
+    @GET("edge-api/v1/tracker/enrollments")
+    suspend fun listEnrollments(
+        @Query("teiUid") teiUid: String,
+    ): Response<EnrollmentListDto>
+
+    @GET("edge-api/v1/tracker/events/by-enrollment/{enrollmentUid}")
+    suspend fun listEventsForEnrollment(
+        @Path("enrollmentUid") enrollmentUid: String,
+    ): Response<TrackerEventListDto>
 
     @GET("api/events")
     suspend fun listEvents(
@@ -281,7 +303,15 @@ data class DeviceDto(
     val formFactor: String? = null,
     val enrolledAt: String? = null,
     val approvedAt: String? = null,
+    val assignedUserId: String? = null,
+    val approvedBy: String? = null,
+    val lastSeenAt: String? = null,
+    val userAgent: String? = null,
+    val firmwareVersion: String? = null,
 )
+
+@Serializable
+data class DeviceListDto(val devices: List<DeviceDto> = emptyList())
 
 // WebRTC signalling DTOs — match WebRtcController field-for-field.
 
@@ -808,5 +838,26 @@ data class TrackerEventDetailDto(
     val status: String? = null,
     val occurredDate: String? = null,
     val dataValues: Map<String, String> = emptyMap(),
+)
+
+@Serializable
+data class TrackerEventListDto(
+    val events: List<TrackerEventDetailDto> = emptyList(),
+)
+
+@Serializable
+data class EnrollmentListDto(
+    val enrollments: List<EnrollmentRowDto> = emptyList(),
+)
+
+@Serializable
+data class EnrollmentRowDto(
+    val enrollmentUid: String,
+    val teiUid: String? = null,
+    val programUid: String? = null,
+    val orgUnitUid: String? = null,
+    val status: String? = null,
+    val enrollmentDate: String? = null,
+    val incidentDate: String? = null,
 )
 

@@ -60,6 +60,16 @@ data class EventRow(
     val enrollment: String?,
 )
 
+data class Enrollment(
+    val enrollmentUid: String,
+    val teiUid: String?,
+    val programUid: String?,
+    val orgUnitUid: String?,
+    val status: String?,
+    val enrollmentDate: String?,
+    val events: List<EventRow> = emptyList(),
+)
+
 /** Outcome of a tracker-enrol round-trip (TEI upsert + enrolment). */
 sealed interface EnrolResult {
     data class Success(val teiUid: String, val enrollmentUid: String) : EnrolResult

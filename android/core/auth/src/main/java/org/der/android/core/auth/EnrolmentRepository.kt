@@ -3,8 +3,10 @@ package org.der.android.core.auth
 import kotlinx.coroutines.delay
 import org.der.android.core.data.device.DeviceIdentity
 import org.der.android.core.data.network.DerApi
+import org.der.android.core.data.network.DeviceDto
 import org.der.android.core.data.network.EnrolDeviceRequestDto
 import org.der.android.core.domain.DeviceEnrolment
+import org.der.android.core.domain.EdgeDevice
 import org.der.android.core.domain.EnrolmentStatus
 import java.io.IOException
 import javax.inject.Inject
@@ -91,6 +93,34 @@ class EnrolmentRepository @Inject constructor(
         }
         return refreshStatus()
     }
+
+    // ── admin-side ops ──────────────────────────────────────────────
+
+    suspend fun listDevices(): List<EdgeDevice> = runCatching {
+        val response = api.listDevices()
+        response.body()?.devices?.map { it.toEdgeDevice() }.orEmpty()
+    }.getOrElse { emptyList() }
+
+    suspend fun approveDevice(deviceId: String): EdgeDevice? =
+        api.approveDevice(deviceId).body()?.toEdgeDevice()
+
+    suspend fun suspendDevice(deviceId: String): EdgeDevice? =
+        api.suspendDevice(deviceId).body()?.toEdgeDevice()
+
+    suspend fun revokeDevice(deviceId: String): EdgeDevice? =
+        api.revokeDevice(deviceId).body()?.toEdgeDevice()
+
+    private fun DeviceDto.toEdgeDevice(): EdgeDevice = EdgeDevice(
+        deviceId = deviceId,
+        status = status.toEnrolmentStatus(),
+        displayName = displayName,
+        formFactor = formFactor,
+        assignedUserId = assignedUserId,
+        lastSeenAt = lastSeenAt,
+        enrolledAt = enrolledAt,
+        approvedAt = approvedAt,
+        userAgent = userAgent,
+    )
 }
 
 private fun String.toEnrolmentStatus(): EnrolmentStatus = when (uppercase()) {

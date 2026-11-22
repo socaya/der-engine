@@ -27,3 +27,18 @@ data class DeviceEnrolment(
 ) {
     val canSignIn: Boolean get() = status == EnrolmentStatus.APPROVED
 }
+
+/** Admin-visible row from the device list. Broader than
+ *  [DeviceEnrolment] because admins want to see who the device is
+ *  assigned to, when it was last seen, and what hardware it is. */
+data class EdgeDevice(
+    val deviceId: String,
+    val status: EnrolmentStatus,
+    val displayName: String?,
+    val formFactor: String?,
+    val assignedUserId: String?,
+    val lastSeenAt: String?,
+    val enrolledAt: String?,
+    val approvedAt: String?,
+    val userAgent: String?,
+)

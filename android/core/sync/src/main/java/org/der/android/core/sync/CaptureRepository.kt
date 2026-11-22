@@ -206,6 +206,42 @@ class CaptureRepository @Inject constructor(
         return id
     }
 
+    /**
+     * All enrolments for a TEI, each with its event list in
+     * chronological order. Mirrors the TEI dashboard composition the
+     * web client assembles from several endpoints.
+     */
+    suspend fun listEnrollmentsForTei(
+        teiUid: String,
+    ): List<org.der.android.core.domain.Enrollment> {
+        val enrolResp = api.listEnrollments(teiUid)
+        val rows = enrolResp.body()?.enrollments.orEmpty()
+        return rows.map { row ->
+            val events = runCatching {
+                api.listEventsForEnrollment(row.enrollmentUid)
+            }.getOrNull()?.body()?.events.orEmpty().map { e ->
+                org.der.android.core.domain.EventRow(
+                    event = e.eventUid,
+                    program = e.programUid,
+                    programStage = e.programStageUid,
+                    orgUnit = e.orgUnitUid,
+                    occurredAt = e.occurredDate,
+                    status = e.status,
+                    enrollment = e.enrollmentUid,
+                )
+            }
+            org.der.android.core.domain.Enrollment(
+                enrollmentUid = row.enrollmentUid,
+                teiUid = row.teiUid,
+                programUid = row.programUid,
+                orgUnitUid = row.orgUnitUid,
+                status = row.status,
+                enrollmentDate = row.enrollmentDate,
+                events = events,
+            )
+        }
+    }
+
     suspend fun getTrackedEntity(teiUid: String): TrackedEntity? {
         val response = api.getTrackedEntity(teiUid)
         val body = response.body() ?: return null

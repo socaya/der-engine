@@ -43,6 +43,7 @@ class WebRtcPeerMesh @Inject constructor(
     private val factory: PeerConnectionFactoryProvider,
     private val signalling: SignallingClient,
     private val identity: DeviceIdentity,
+    private val nsd: NsdPeerDiscovery,
     private val json: Json,
 ) : PeerMesh {
 
@@ -70,10 +71,36 @@ class WebRtcPeerMesh @Inject constructor(
     override suspend fun start() {
         if (started) return
         started = true
+        val selfId = identity.deviceId().toString()
+        // Advertise + start discovering on the local LAN alongside
+        // the server signalling broker.
+        nsd.start(selfDeviceId = selfId)
+        // Fold NSD peers into the published peer list so the Peers
+        // screen shows LAN-visible devices even before a WebRTC
+        // session is established.
+        scope.launch {
+            nsd.peers.collect { discovered ->
+                _peers.update { current ->
+                    val connected = current.filter { it.reachable }
+                    val lanOnly = discovered
+                        .filter { peer -> connected.none { it.deviceId.endsWith(peer.name.removePrefix("der-")) } }
+                        .map {
+                            PeerMesh.Peer(
+                                deviceId = it.name,
+                                displayName = it.host ?: it.name,
+                                reachable = false,
+                                trust = PeerMesh.Peer.Trust.UNVERIFIED,
+                            )
+                        }
+                    connected + lanOnly
+                }
+            }
+        }
         pollJob = scope.launch { pollLoop() }
     }
 
     override suspend fun stop() {
+        nsd.stop()
         pollJob?.cancel()
         pollJob = null
         sessionsLock.withLock {

@@ -9,17 +9,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.der.android.core.domain.Enrollment
 import org.der.android.core.domain.Program
 import org.der.android.core.domain.TrackedEntity
 import org.der.android.core.sync.CaptureRepository
 import javax.inject.Inject
 
 /**
- * Detail view for one tracked entity. Shows the attributes using the
- * programme's attribute metadata so operators see human-readable
- * labels instead of raw UIDs. The 'Add stage event' FAB routes to
- * EventNew pre-filled with the TEI's orgUnit; enrolment-aware
- * pre-fill arrives when the enrolments endpoint ships client-side.
+ * Detail view for one tracked entity. Shows attributes with
+ * human-readable labels plus every programme enrolment this TEI
+ * belongs to and, inside each, the ordered stage events. Mirrors
+ * the dashboard composition `client/src/screens/TrackerDashboard.tsx`
+ * assembles from several endpoints.
  */
 @HiltViewModel
 class TeiDetailViewModel @Inject constructor(
@@ -36,10 +37,9 @@ class TeiDetailViewModel @Inject constructor(
         val loading: Boolean = true,
         val program: Program? = null,
         val tei: TrackedEntity? = null,
+        val enrollments: List<Enrollment> = emptyList(),
         val error: String? = null,
     ) {
-        /** List of (attribute display name, value) tuples using the
-         *  program's attribute metadata for labels where available. */
         val attributePairs: List<Pair<String, String>>
             get() = tei?.attributes.orEmpty().map { (uid, v) ->
                 val label = program?.attributes?.firstOrNull { it.id == uid }?.displayName
@@ -55,11 +55,15 @@ class TeiDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val program = runCatching { repository.getProgram(programId) }.getOrNull()
             val tei = runCatching { repository.getTrackedEntity(teiUid) }.getOrNull()
+            val enrollments = runCatching {
+                repository.listEnrollmentsForTei(teiUid)
+            }.getOrElse { emptyList() }
             _state.update {
                 it.copy(
                     loading = false,
                     program = program,
                     tei = tei,
+                    enrollments = enrollments,
                     error = if (tei == null) "Can't load patient $teiUid" else null,
                 )
             }
