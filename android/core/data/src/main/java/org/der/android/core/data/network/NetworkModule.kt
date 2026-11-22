@@ -41,6 +41,7 @@ object NetworkModule {
     fun provideOkHttp(
         @ApplicationContext context: Context,
         cookieJar: DerCookieJar,
+        host: HostSelectionInterceptor,
         deviceHeader: DeviceHeaderInterceptor,
     ): OkHttpClient {
         val cacheDir = context.cacheDir.resolve("der-http")
@@ -56,6 +57,9 @@ object NetworkModule {
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .cookieJar(cookieJar)
+            // Host rewrite runs before the device header + logging so
+            // every downstream interceptor sees the final URL.
+            .addInterceptor(host)
             .addInterceptor(deviceHeader)
             .addInterceptor(logging)
             .build()

@@ -116,7 +116,9 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
                 composable(DerRoute.Peers.path) { PeersScreen() }
                 composable(DerRoute.Sync.path) { SyncScreen() }
                 composable(DerRoute.Devices.path) { DevicesScreen() }
-                composable(DerRoute.Settings.path) { SettingsScreen() }
+                composable(DerRoute.Settings.path) {
+                    SettingsScreen(onWiped = { nav.replaceWith(DerRoute.SignIn) })
+                }
             }
         }
     }
