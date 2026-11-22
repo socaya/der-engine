@@ -1,25 +1,35 @@
 package org.der.android.ui
 
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Surface
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import org.der.android.feature.approvals.ApprovalsScreen
+import org.der.android.feature.capture.CaptureScreen
+import org.der.android.feature.dashboard.DashboardScreen
+import org.der.android.feature.dataentry.DataEntryScreen
+import org.der.android.feature.devices.DevicesScreen
 import org.der.android.feature.devices.EnrolmentScreen
+import org.der.android.feature.settings.SettingsScreen
+import org.der.android.feature.workflow.WorkflowScreen
 import org.der.android.ui.home.HomeScreen
+import org.der.android.ui.peers.PeersScreen
 import org.der.android.ui.signin.SignInScreen
+import org.der.android.ui.sync.SyncScreen
 
 /**
  * Root nav graph. Picks the start destination off the session state
- * so a cold start with a cached session skips the SignIn screen.
+ * so a cold start with a cached session skips SignIn.
  */
 @Composable
 fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
@@ -32,43 +42,41 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
             NavHost(navController = nav, startDestination = start) {
                 composable(DerRoute.SignIn.path) {
                     SignInScreen(
-                        onSignedIn = {
-                            nav.navigate(DerRoute.Home.path) {
-                                popUpTo(DerRoute.SignIn.path) { inclusive = true }
-                            }
-                        },
-                        onDeviceNotApproved = {
-                            nav.navigate(DerRoute.Enrolment.path) {
-                                popUpTo(DerRoute.SignIn.path) { inclusive = true }
-                            }
-                        },
+                        onSignedIn = { nav.replaceWith(DerRoute.Home) },
+                        onDeviceNotApproved = { nav.replaceWith(DerRoute.Enrolment) },
                     )
                 }
                 composable(DerRoute.Enrolment.path) {
                     EnrolmentScreen(
-                        onApproved = {
-                            nav.navigate(DerRoute.Home.path) {
-                                popUpTo(DerRoute.Enrolment.path) { inclusive = true }
-                            }
-                        },
-                        onSignedOut = {
-                            nav.navigate(DerRoute.SignIn.path) {
-                                popUpTo(DerRoute.Enrolment.path) { inclusive = true }
-                            }
-                        },
+                        onApproved = { nav.replaceWith(DerRoute.Home) },
+                        onSignedOut = { nav.replaceWith(DerRoute.SignIn) },
                     )
                 }
                 composable(DerRoute.Home.path) {
                     HomeScreen(
-                        onSignedOut = {
-                            nav.navigate(DerRoute.SignIn.path) {
-                                popUpTo(DerRoute.Home.path) { inclusive = true }
-                            }
-                        },
+                        onNavigate = { route -> nav.navigate(route) },
+                        onSignedOut = { nav.replaceWith(DerRoute.SignIn) },
                     )
                 }
+                composable(DerRoute.DataEntry.path) { DataEntryScreen() }
+                composable(DerRoute.Capture.path) { CaptureScreen() }
+                composable(DerRoute.Workflow.path) { WorkflowScreen() }
+                composable(DerRoute.Dashboard.path) { DashboardScreen() }
+                composable(DerRoute.Approvals.path) { ApprovalsScreen() }
+                composable(DerRoute.Peers.path) { PeersScreen() }
+                composable(DerRoute.Sync.path) { SyncScreen() }
+                composable(DerRoute.Devices.path) { DevicesScreen() }
+                composable(DerRoute.Settings.path) { SettingsScreen() }
             }
         }
+    }
+}
+
+/** Navigate to [route], clearing the current destination from the back stack. */
+private fun NavController.replaceWith(route: DerRoute) {
+    val current = currentDestination?.route
+    navigate(route.path) {
+        if (current != null) popUpTo(current) { inclusive = true }
     }
 }
 
@@ -85,4 +93,15 @@ sealed class DerRoute(val path: String) {
     data object SignIn : DerRoute("sign-in")
     data object Enrolment : DerRoute("enrolment")
     data object Home : DerRoute("home")
+
+    // Launcher tile destinations — paths match [LauncherTile.route].
+    data object DataEntry : DerRoute("data-entry")
+    data object Capture : DerRoute("capture")
+    data object Workflow : DerRoute("workflow")
+    data object Dashboard : DerRoute("dashboard")
+    data object Approvals : DerRoute("approvals")
+    data object Peers : DerRoute("peers")
+    data object Sync : DerRoute("sync")
+    data object Devices : DerRoute("devices")
+    data object Settings : DerRoute("settings")
 }

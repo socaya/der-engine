@@ -30,6 +30,7 @@ include(":core:design")
 include(":core:sync")
 include(":core:offline")
 include(":core:auth")
+include(":core:p2p")
 
 // Feature modules mirror the DER app concepts. Data Entry handles
 // aggregate datasets; Capture handles tracker + event programs; Workflow

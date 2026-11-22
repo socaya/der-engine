@@ -69,6 +69,7 @@ dependencies {
     implementation(project(":core:auth"))
     implementation(project(":core:sync"))
     implementation(project(":core:offline"))
+    implementation(project(":core:p2p"))
     implementation(project(":feature:dataentry"))
     implementation(project(":feature:capture"))
     implementation(project(":feature:workflow"))

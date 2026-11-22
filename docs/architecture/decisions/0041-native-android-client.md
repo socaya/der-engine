@@ -114,7 +114,23 @@ concepts that already exist on the server. These are non-negotiable:
    connectivity returns, pulls deltas via
    `/edge-api/v1/sync/pull`, and surfaces conflicts to the
    user with DER's standard resolution choices.
-5. **Role-aware shell**. CHW / facility operator / supervisor /
+5. **Peer-to-peer connections (WebRTC)** (`core/p2p`). The
+   Android client participates in the DER peer mesh over WebRTC
+   data channels, implementing the **DER Peer Protocol v1 (DPP/1,
+   ADR-0038)**. Signalling runs through the DER edge server at
+   `/edge-api/v1/workflows/peers/*`; media + data run directly
+   between devices on the clinic LAN. This is the mechanism that
+   makes distributed workflow routing work when the edge is
+   unreachable or when a step's next owner is a nearby device.
+6. **Distributed workflow handoff over P2P** (`feature/workflow`
+   + `core/p2p`). When a service-point step completes, the
+   contribution flows to the next step's `owner_device_id`
+   directly via DPP/1, with the edge as a relay fallback. The
+   Android client both consumes incoming handoffs (auto-apply +
+   advance the run) and originates outgoing handoffs when the
+   next owner is another Android device. No operator "Push"
+   button is required — the baton routes itself.
+7. **Role-aware shell**. CHW / facility operator / supervisor /
    admin see role-appropriate top-level routes. The Android role
    derives from the authenticated session, not device profile —
    same model as the web client.
@@ -131,6 +147,7 @@ android/
     sync/                 # WorkManager drain → pull → reconcile
     offline/              # Journal mirror, conflict replay
     auth/                 # Session, QR enrol, biometric unlock
+    p2p/                  # WebRTC peer mesh + DPP/1 (ADR-0038)
   feature/
     dataentry/            # DER Data Entry (aggregate datasets)
     capture/              # DER Capture (tracker + events)
