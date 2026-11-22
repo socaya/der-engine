@@ -9,11 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -27,6 +24,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.der.android.core.domain.Readiness
 import org.der.android.core.domain.WorkflowQueueRow
+import org.der.android.design.DerSegmentedControl
+import org.der.android.design.DerStatus
+import org.der.android.design.DerStatusTone
 
 /**
  * DER Workflow landing — the operator's queue of in-flight runs at
@@ -51,18 +51,11 @@ fun WorkflowScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilterChip(
-                    selected = !state.allDevices,
-                    onClick = { if (state.allDevices) viewModel.toggleAllDevices() },
-                    label = { Text("This device") },
-                )
-                FilterChip(
-                    selected = state.allDevices,
-                    onClick = { if (!state.allDevices) viewModel.toggleAllDevices() },
-                    label = { Text("All devices") },
-                )
-            }
+            DerSegmentedControl(
+                options = listOf(false to "This device", true to "All devices"),
+                selected = state.allDevices,
+                onSelect = { v -> if (v != state.allDevices) viewModel.toggleAllDevices() },
+            )
             when {
                 state.loading -> CircularProgressIndicator()
                 state.error != null -> {
@@ -138,18 +131,12 @@ private fun QueueRowCard(row: WorkflowQueueRow, onClick: () -> Unit) {
 
 @Composable
 private fun ReadinessChip(readiness: Readiness) {
-    val (label, color) = when (readiness) {
-        Readiness.READY -> "Ready" to MaterialTheme.colorScheme.primary
-        Readiness.BLOCKED -> "Blocked" to MaterialTheme.colorScheme.error
-        Readiness.PENDING -> "Pending" to MaterialTheme.colorScheme.secondary
-        Readiness.DONE -> "Done" to MaterialTheme.colorScheme.primary
-        Readiness.UNKNOWN -> "Unknown" to MaterialTheme.colorScheme.onSurfaceVariant
+    val (label, tone) = when (readiness) {
+        Readiness.READY -> "Ready" to DerStatusTone.Success
+        Readiness.BLOCKED -> "Blocked" to DerStatusTone.Danger
+        Readiness.PENDING -> "Pending" to DerStatusTone.Warning
+        Readiness.DONE -> "Done" to DerStatusTone.Info
+        Readiness.UNKNOWN -> "Unknown" to DerStatusTone.Muted
     }
-    AssistChip(
-        onClick = {},
-        label = { Text(label) },
-        colors = AssistChipDefaults.assistChipColors(
-            labelColor = color,
-        ),
-    )
+    DerStatus(text = label, tone = tone)
 }

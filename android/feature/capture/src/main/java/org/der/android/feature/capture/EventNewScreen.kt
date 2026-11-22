@@ -2,7 +2,6 @@ package org.der.android.feature.capture
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,7 +10,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -24,6 +22,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.der.android.design.DerSegmentedControl
 
 @Composable
 fun EventNewScreen(
@@ -62,15 +61,11 @@ fun EventNewScreen(
                     text = "Stage",
                     style = MaterialTheme.typography.labelLarge,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    stages.forEach { s ->
-                        FilterChip(
-                            selected = s.id == state.stageId,
-                            onClick = { viewModel.onStage(s.id) },
-                            label = { Text(s.displayName) },
-                        )
-                    }
-                }
+                DerSegmentedControl(
+                    options = stages.map { it.id to it.displayName },
+                    selected = state.stageId ?: stages.first().id,
+                    onSelect = viewModel::onStage,
+                )
             }
 
             OutlinedTextField(

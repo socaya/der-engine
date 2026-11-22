@@ -31,12 +31,22 @@ object DerColors {
 
     // Semantics
     val Success = Color(0xFF1B9E5A)
+    val SuccessSoft = Color(0xFFE3F7EC)
+    val SuccessInk = Color(0xFF0F7F44)
     val Warning = Color(0xFFD68A1A)
+    val WarningSoft = Color(0xFFFDF2D9)
+    val WarningInk = Color(0xFF8A5A0B)
     val Danger = Color(0xFFC0392B)
+    val DangerSoft = Color(0xFFFDE6E6)
+    val DangerInk = Color(0xFF8E2B21)
+    val Info = Color(0xFF1D4ED8)
+    val InfoSoft = Color(0xFFE3F2FD)
+    val InfoInk = Color(0xFF0A3CB7)
 
     // Surface
     val Surface = Color(0xFFFFFFFF)
     val SurfaceRaised = Color(0xFFF7F8FA)
     val Background = Color(0xFFEEF2F7)
     val BorderSubtle = Color(0xFFDCE2EB)
+    val Ink100 = Color(0xFFE3E8EF)
 }
