@@ -12,7 +12,10 @@ import kotlinx.coroutines.launch
 import org.der.android.core.domain.Program
 import org.der.android.core.domain.ProgramSummary
 import org.der.android.core.domain.TrackedEntity
+import org.der.android.core.rules.RuleEngine
+import org.der.android.core.rules.RuleEvaluation
 import org.der.android.core.sync.CaptureRepository
+import org.der.android.core.sync.RulesRepository
 import javax.inject.Inject
 
 /**
@@ -111,6 +114,7 @@ class TrackerSearchViewModel @Inject constructor(
 @HiltViewModel
 class EventNewViewModel @Inject constructor(
     private val repository: CaptureRepository,
+    private val rulesRepository: RulesRepository,
     savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -127,41 +131,79 @@ class EventNewViewModel @Inject constructor(
         val submitting: Boolean = false,
         val error: String? = null,
         val savedId: Long? = null,
+        val evaluation: RuleEvaluation = RuleEvaluation(emptyList()),
     ) {
         val currentStage get() = program?.stages?.firstOrNull { it.id == stageId }
             ?: program?.stages?.firstOrNull()
+
+        /** Elements the operator should see: stage data elements
+         *  minus anything the rule engine has hidden. */
+        val visibleDataElements get() =
+            currentStage?.dataElements.orEmpty().filter { it.id !in evaluation.hiddenFields }
+
+        val filledMandatory: Set<String>
+            get() = evaluation.mandatoryFields.filter {
+                !values[it].isNullOrBlank()
+            }.toSet()
+
+        val missingMandatory: Set<String>
+            get() = evaluation.mandatoryFields - filledMandatory
+
         val canSubmit: Boolean
             get() = !submitting && program != null && currentStage != null
                 && orgUnit.isNotBlank() && occurredDate.isNotBlank()
                 && values.values.any { it.isNotBlank() }
+                && !evaluation.hasBlockingErrors
+                && missingMandatory.isEmpty()
     }
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
+    private var engine: RuleEngine? = null
+
     init {
         viewModelScope.launch {
-            runCatching { repository.getProgram(programId) }
-                .onSuccess { p ->
-                    _state.update {
-                        it.copy(
-                            loading = false,
-                            program = p,
-                            stageId = p?.stages?.firstOrNull()?.id,
-                        )
-                    }
-                }
-                .onFailure { t ->
+            val program = runCatching { repository.getProgram(programId) }
+                .getOrElse { t ->
                     _state.update { it.copy(loading = false, error = t.message) }
+                    return@launch
                 }
+            val built = runCatching { rulesRepository.programEngine(programId) }.getOrNull()
+            engine = built
+            _state.update {
+                it.copy(
+                    loading = false,
+                    program = program,
+                    stageId = program?.stages?.firstOrNull()?.id,
+                )
+            }
+            reevaluate()
         }
     }
 
     fun onOrgUnit(v: String) = _state.update { it.copy(orgUnit = v) }
     fun onOccurredDate(v: String) = _state.update { it.copy(occurredDate = v) }
-    fun onStage(id: String) = _state.update { it.copy(stageId = id) }
-    fun onValue(dataElement: String, v: String) = _state.update {
-        it.copy(values = it.values + (dataElement to v))
+    fun onStage(id: String) {
+        _state.update { it.copy(stageId = id) }
+        reevaluate()
+    }
+    fun onValue(dataElement: String, v: String) {
+        _state.update { it.copy(values = it.values + (dataElement to v)) }
+        reevaluate()
+    }
+
+    private fun reevaluate() {
+        val ev = engine ?: return
+        val stageId = _state.value.stageId
+        val values = _state.value.values
+        val evaluation = ev.evaluate(stageId, values)
+        // Apply ASSIGN results so they feed back into the next pass.
+        val assigned = evaluation.assignments
+            .filterValues { it != null }
+            .mapValues { it.value.orEmpty() }
+        val newValues = if (assigned.isEmpty()) values else values + assigned
+        _state.update { it.copy(values = newValues, evaluation = evaluation) }
     }
 
     fun submit() {

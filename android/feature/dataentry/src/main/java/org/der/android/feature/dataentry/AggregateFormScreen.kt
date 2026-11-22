@@ -100,6 +100,35 @@ fun AggregateFormScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+            state.highErrors.forEach { v ->
+                Text(
+                    text = "Blocking: ${v.message}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            state.mediumOrLow.forEach { v ->
+                Text(
+                    text = "Warning: ${v.message}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+            }
+            if (state.mediumOrLow.isNotEmpty()) {
+                androidx.compose.foundation.layout.Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    androidx.compose.material3.Checkbox(
+                        checked = state.overrideWarnings,
+                        onCheckedChange = { viewModel.toggleOverride() },
+                    )
+                    Text(
+                        text = "I acknowledge the warning(s) and want to save anyway.",
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+
             Button(
                 enabled = state.canSubmit,
                 onClick = viewModel::submit,

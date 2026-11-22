@@ -116,6 +116,44 @@ interface DerApi {
         @Body body: TrackerEventDto,
     ): Response<ImportSummaryDto>
 
+    // ── Program rules + validation (rule engine) ───────────────────────
+
+    @GET("api/programRules")
+    suspend fun listProgramRules(
+        @Query("fields") fields: String =
+            "id,name,displayName,program[id],programStage[id],condition," +
+                "description,priority",
+        @Query("paging") paging: String = "false",
+    ): Response<ProgramRuleListDto>
+
+    @GET("api/programRuleActions")
+    suspend fun listProgramRuleActions(
+        @Query("fields") fields: String =
+            "id,programRule[id],programRuleActionType,content,data," +
+                "dataElement[id],trackedEntityAttribute[id]," +
+                "programStage[id],programStageSection[id],location",
+        @Query("paging") paging: String = "false",
+    ): Response<ProgramRuleActionListDto>
+
+    @GET("api/programRuleVariables")
+    suspend fun listProgramRuleVariables(
+        @Query("fields") fields: String =
+            "id,name,displayName,program[id],programRuleVariableSourceType," +
+                "dataElement[id],trackedEntityAttribute[id]," +
+                "programStage[id],useCodeForOptionSet,valueType",
+        @Query("paging") paging: String = "false",
+    ): Response<ProgramRuleVariableListDto>
+
+    @GET("api/validationRules")
+    suspend fun listValidationRules(
+        @Query("dataSet") dataSet: String,
+        @Query("fields") fields: String =
+            "id,name,importance,operator," +
+                "leftSide[expression,missingValueStrategy,description]," +
+                "rightSide[expression,missingValueStrategy,description]",
+        @Query("paging") paging: String = "false",
+    ): Response<ValidationRuleListDto>
+
     // ── Distributed workflow (ADR-0022..0026, §2.3.58..§2.3.104) ──────
 
     @GET("edge-api/v1/workflows/queue")
@@ -516,3 +554,82 @@ data class ReferralOutcomeDto(
     val code: String? = null,
     val message: String? = null,
 )
+
+// Program rule + validation DTOs — kept wide so the DER mirror's
+// shape variations don't crash the decoder (ignoreUnknownKeys = true
+// on the shared Json instance absorbs extra fields).
+
+@Serializable
+data class ProgramRuleListDto(val programRules: List<ProgramRuleDto> = emptyList())
+
+@Serializable
+data class ProgramRuleDto(
+    val id: String,
+    val name: String? = null,
+    val displayName: String? = null,
+    val condition: String? = null,
+    val priority: Int? = null,
+    val program: ProgramRefDto? = null,
+    val programStage: ProgramRefDto? = null,
+)
+
+@Serializable
+data class ProgramRuleActionListDto(
+    val programRuleActions: List<ProgramRuleActionDto> = emptyList(),
+)
+
+@Serializable
+data class ProgramRuleActionDto(
+    val id: String,
+    @SerialName("programRuleActionType") val type: String? = null,
+    val content: String? = null,
+    val data: String? = null,
+    val location: String? = null,
+    val programRule: ProgramRefDto? = null,
+    val dataElement: ProgramRefDto? = null,
+    val trackedEntityAttribute: ProgramRefDto? = null,
+    val programStage: ProgramRefDto? = null,
+    val programStageSection: ProgramRefDto? = null,
+)
+
+@Serializable
+data class ProgramRuleVariableListDto(
+    val programRuleVariables: List<ProgramRuleVariableDto> = emptyList(),
+)
+
+@Serializable
+data class ProgramRuleVariableDto(
+    val id: String,
+    val name: String? = null,
+    val displayName: String? = null,
+    @SerialName("programRuleVariableSourceType") val sourceType: String? = null,
+    val valueType: String? = null,
+    val useCodeForOptionSet: Boolean? = null,
+    val program: ProgramRefDto? = null,
+    val dataElement: ProgramRefDto? = null,
+    val trackedEntityAttribute: ProgramRefDto? = null,
+    val programStage: ProgramRefDto? = null,
+)
+
+@Serializable
+data class ValidationRuleListDto(
+    val validationRules: List<ValidationRuleDto> = emptyList(),
+)
+
+@Serializable
+data class ValidationRuleDto(
+    val id: String,
+    val name: String? = null,
+    val importance: String? = null,
+    val operator: String? = null,
+    val leftSide: ValidationSideDto? = null,
+    val rightSide: ValidationSideDto? = null,
+)
+
+@Serializable
+data class ValidationSideDto(
+    val expression: String? = null,
+    val description: String? = null,
+    val missingValueStrategy: String? = null,
+)
+

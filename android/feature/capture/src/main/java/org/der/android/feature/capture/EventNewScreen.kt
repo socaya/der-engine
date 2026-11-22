@@ -83,12 +83,30 @@ fun EventNewScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            state.currentStage?.dataElements?.forEach { de ->
+            // Display-text effects bubble up above the inputs so
+            // operators see guidance before entering values.
+            state.evaluation.displayTexts.forEach { txt ->
+                Text(
+                    text = txt.content,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            state.visibleDataElements.forEach { de ->
+                val isMandatory = de.id in state.evaluation.mandatoryFields
+                val assignedByRule = de.id in state.evaluation.assignments
                 OutlinedTextField(
                     value = state.values[de.id].orEmpty(),
                     onValueChange = { v -> viewModel.onValue(de.id, v) },
-                    label = { Text(de.displayName) },
+                    label = {
+                        Text(if (isMandatory) "${de.displayName} *" else de.displayName)
+                    },
                     singleLine = true,
+                    readOnly = assignedByRule,
+                    supportingText = if (assignedByRule) {
+                        { Text("Set automatically by a program rule.") }
+                    } else null,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = when (de.valueType) {
                             "NUMBER", "INTEGER", "INTEGER_POSITIVE",
@@ -97,6 +115,30 @@ fun EventNewScreen(
                         },
                     ),
                     modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            state.evaluation.warnings
+                .filter { !it.onComplete }
+                .forEach { w ->
+                    Text(
+                        text = "Warning: ${w.message}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
+            state.evaluation.errors.forEach { err ->
+                Text(
+                    text = "Error: ${err.message}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            if (state.missingMandatory.isNotEmpty()) {
+                Text(
+                    text = "Required fields missing (${state.missingMandatory.size}).",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
 
