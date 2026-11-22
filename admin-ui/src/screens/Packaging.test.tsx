@@ -82,7 +82,7 @@ describe('Packaging screen', () => {
     fetchSpy.mockImplementation(
       () => new Promise(() => undefined) as never);
     renderWithProviders(<Packaging />);
-    expect(screen.getByText('loading')).toBeInTheDocument();
+    expect(screen.getByText('Loading')).toBeInTheDocument();
   });
   it('refresh click re-fetches', async () => {
     renderWithProviders(<Packaging />);

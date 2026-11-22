@@ -64,13 +64,13 @@ export function Packaging(): JSX.Element {
         title="Packaging"
         statusLabel={
           summary
-            ? `v${summary.appVersion} · ${summary.artifactCount} artefacts tracked`
-            : 'loading'
+            ? `v${summary.appVersion} · ${summary.artifactCount} artefact${summary.artifactCount === 1 ? '' : 's'} tracked`
+            : 'Loading'
         }
         subtitle={
           <span>
-            Artefact registry (<code>.deb</code> + portable tarball) and
-            reference hardware kits. See <code>docs/site/install.md</code>.
+            Installable artefacts (Debian package and portable archive) and
+            reference hardware kits for site deployments.
           </span>
         }
         actions={
@@ -110,10 +110,9 @@ export function Packaging(): JSX.Element {
       <Panel title={`Artefact registry · ${artifacts.length}`}>
         {artifacts.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
-            No artefacts recorded yet. After building with <code>packaging/deb/build.sh</code> or
-            <code> packaging/tarball/build.sh</code>, register with:
-            <br />
-            <code>POST /edge-api/v1/packaging/artifacts {`{ kind, version, sha256, sizeBytes, outputPath }`}</code>
+            No artefacts recorded yet. Build the Debian package or portable
+            archive with the scripts below, then register it via the
+            packaging API to list it here.
           </p>
         ) : (
           <div className="ea-table-wrap">

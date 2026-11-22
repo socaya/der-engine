@@ -78,8 +78,8 @@ export function Fleet(): JSX.Element {
       <Panel title={`Fleet roster · ${edgeCount}`}>
         {!data?.edges.length ? (
           <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
-            Fleet roster is empty. On first boot the scheduled refresh populates
-            self + any peers; it runs every 5 min.
+            No edges discovered yet. This edge and any peers will appear
+            on the next refresh (every 5 minutes).
           </p>
         ) : (
           <div className="ea-table-wrap">
@@ -100,7 +100,7 @@ export function Fleet(): JSX.Element {
                         title={e.edgeId}>{e.edgeId.slice(0, 20)}…</td>
                     <td>
                       <Status tone={e.role === 'self' ? 'info' : 'muted'}>
-                        {e.role.toUpperCase()}
+                        {e.role === 'self' ? 'Self' : 'Peer'}
                       </Status>
                     </td>
                     <td>{e.displayName ?? '—'}</td>
@@ -141,14 +141,16 @@ export function Fleet(): JSX.Element {
                     <td className="ea-mono ea-text-xs">{p.endpoint}</td>
                     <td>
                       <Status tone={p.trust === 'TRUSTED' ? 'success' : 'warning'}>
-                        {p.trust}
+                        {p.trust === 'TRUSTED' ? 'Trusted' : p.trust.charAt(0) + p.trust.slice(1).toLowerCase()}
                       </Status>
                     </td>
                     <td>
                       <Status tone={p.lastOutcome === 'UP' ? 'success'
                                      : p.lastOutcome === 'DEGRADED' ? 'warning'
                                      : p.lastOutcome ? 'danger' : 'muted'}>
-                        {p.lastOutcome ?? '—'}
+                        {p.lastOutcome === 'UP' ? 'Up'
+                          : p.lastOutcome === 'DEGRADED' ? 'Degraded'
+                            : p.lastOutcome ? p.lastOutcome.charAt(0) + p.lastOutcome.slice(1).toLowerCase() : '—'}
                       </Status>
                     </td>
                     <td className="ea-mono">{p.lastLatencyMs != null ? p.lastLatencyMs + ' ms' : '—'}</td>

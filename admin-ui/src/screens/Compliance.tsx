@@ -101,7 +101,7 @@ export function Compliance(): JSX.Element {
       <SyncStatusBar
         tone={pending > 0 ? 'warning' : 'success'}
         title="Compliance"
-        statusLabel={pending > 0 ? `${pending} pending erasure` : 'Nominal'}
+        statusLabel={pending > 0 ? `${pending} pending erasure` : 'All clear'}
         actions={
           <>
             <button type="button" className="ea-btn ea-btn--primary ea-btn--sm"
@@ -175,7 +175,7 @@ export function Compliance(): JSX.Element {
             <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
                 <th>Requested</th><th>Subject</th><th>Status</th>
-                <th>Receipt (SHA-256)</th>
+                <th>Receipt hash</th>
                 <th className="ea-col-w-48" aria-label="Actions"></th>
               </tr></thead>
               <tbody>
@@ -188,7 +188,9 @@ export function Compliance(): JSX.Element {
                     <td>
                       <Status tone={r.status === 'COMPLETED' ? 'success'
                                      : r.status === 'PENDING' ? 'warning' : 'muted'}>
-                        {r.status}
+                        {r.status === 'COMPLETED' ? 'Completed'
+                          : r.status === 'PENDING' ? 'Pending'
+                            : r.status.charAt(0) + r.status.slice(1).toLowerCase()}
                       </Status>
                     </td>
                     <td className="ea-mono ea-text-2xs"
@@ -220,7 +222,7 @@ export function Compliance(): JSX.Element {
           <div className="ea-table-wrap">
             <table className="ea-table ea-table--dense ea-table--nowrap">
               <thead><tr>
-                <th>At</th><th>Rows</th><th>Chain head (SHA-256)</th><th>Uploaded</th>
+                <th>At</th><th>Rows</th><th>Chain head</th><th>Uploaded</th>
               </tr></thead>
               <tbody>
                 {anchors.map((a) => (
@@ -250,7 +252,7 @@ export function Compliance(): JSX.Element {
                   <td className="ea-mono">{r.hostPattern}</td>
                   <td>
                     <Status tone={r.allow ? 'success' : 'danger'}>
-                      {r.allow ? 'ALLOW' : 'DENY'}
+                      {r.allow ? 'Allow' : 'Deny'}
                     </Status>
                   </td>
                   <td className="ea-text-muted">{r.note ?? '—'}</td>
@@ -299,8 +301,8 @@ function ErasureDialog({ onClose, onSaved }: {
                     padding: 24, maxWidth: 520, width: '90%', boxShadow: 'var(--el-3)' }}>
         <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Right-to-erasure request</h3>
         <p className="ea-text-muted" style={{ margin: '0 0 12px', fontSize: 12 }}>
-          Creates a PENDING request. An admin then approves via <strong>Complete erasure</strong>,
-          which actually purges + stores a signed receipt hash.
+          Creates a pending request. An admin approves it via <strong>Complete erasure</strong>,
+          which purges the data and records a signed receipt.
         </p>
         <div style={{ display: 'grid', gap: 10 }}>
           <label className="ea-text-xs">Subject type
@@ -327,7 +329,7 @@ function ErasureDialog({ onClose, onSaved }: {
                         border: '1px solid var(--der-border)', fontSize: 13 }}>
             <strong>Estimated rows:</strong> {Object.entries(estimate).map(([k, v]) => `${k}=${v}`).join(' · ')}
             <br />
-            Request is PENDING — admin must click <strong>Complete erasure</strong> to actually purge.
+            Request is pending — an admin must click <strong>Complete erasure</strong> to purge the data.
           </div>
         )}
         {err && <div className="ea-text-muted" style={{ marginTop: 10, fontSize: 12,

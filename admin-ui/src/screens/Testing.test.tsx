@@ -57,11 +57,11 @@ describe('Testing screen', () => {
   });
   it('renders summary and all four outcome tones', async () => {
     renderWithProviders(<Testing />);
-    await waitFor(() => expect(screen.getByText('PASS')).toBeInTheDocument());
-    expect(screen.getByText('FAIL')).toBeInTheDocument();
-    expect(screen.getByText('RUNNING')).toBeInTheDocument();
-    expect(screen.getByText('ABORTED')).toBeInTheDocument();
-    expect(screen.getByText(/3\/4 PASS 24 h · 10 total/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Passed')).toBeInTheDocument());
+    expect(screen.getByText('Failed')).toBeInTheDocument();
+    expect(screen.getByText('Running')).toBeInTheDocument();
+    expect(screen.getByText('Aborted')).toBeInTheDocument();
+    expect(screen.getByText(/3\/4 passed in last 24 h · 10 total/)).toBeInTheDocument();
     expect(screen.getByText('8.2')).toBeInTheDocument();
   });
   it('empty state message when no runs', async () => {
@@ -73,7 +73,7 @@ describe('Testing screen', () => {
   it('clicking Load button posts and refetches', async () => {
     const user = userEvent.setup();
     renderWithProviders(<Testing />);
-    await waitFor(() => expect(screen.getByText('PASS')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Passed')).toBeInTheDocument());
     const before = fetchSpy.mock.calls.length;
     await user.click(screen.getByTestId('btn-load'));
     await waitFor(() => expect(fetchSpy.mock.calls.length).toBeGreaterThan(before + 1));
@@ -95,7 +95,7 @@ describe('Testing screen', () => {
   });
   it('refresh action re-fetches', async () => {
     renderWithProviders(<Testing />);
-    await waitFor(() => expect(screen.getByText('PASS')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Passed')).toBeInTheDocument());
     const before = fetchSpy.mock.calls.length;
     await userEvent.click(screen.getByLabelText('Refresh testing history'));
     await waitFor(() => expect(fetchSpy.mock.calls.length).toBeGreaterThan(before));
@@ -103,6 +103,6 @@ describe('Testing screen', () => {
   it('loading label before data', () => {
     fetchSpy.mockImplementation(() => new Promise(() => undefined) as never);
     renderWithProviders(<Testing />);
-    expect(screen.getByText('loading')).toBeInTheDocument();
+    expect(screen.getByText('Loading')).toBeInTheDocument();
   });
 });

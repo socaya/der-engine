@@ -144,9 +144,9 @@ describe('Compliance', () => {
     stubFetchPopulated();
     renderWithProviders(<Compliance />, { authApi });
     await waitFor(() =>
-      expect(document.body.textContent ?? '').toMatch(/PENDING/));
-    expect(document.body.textContent ?? '').toMatch(/COMPLETED/);
-    expect(document.body.textContent ?? '').toMatch(/REJECTED/);
+      expect(document.body.textContent ?? '').toMatch(/Pending/));
+    expect(document.body.textContent ?? '').toMatch(/Completed/);
+    expect(document.body.textContent ?? '').toMatch(/Rejected/);
     /* "1 pending erasure" surfaces in the SyncStatusBar label. */
     expect(screen.getByText(/1 pending erasure/i)).toBeInTheDocument();
   });
@@ -161,12 +161,12 @@ describe('Compliance', () => {
     expect(document.body.textContent ?? '').toMatch(/—/);
   });
 
-  it('populated residency rules render ALLOW and DENY tones', async () => {
+  it('populated residency rules render Allow and Deny tones', async () => {
     stubFetchPopulated();
     renderWithProviders(<Compliance />, { authApi });
     await waitFor(() =>
-      expect(screen.getByText('ALLOW')).toBeInTheDocument());
-    expect(screen.getByText('DENY')).toBeInTheDocument();
+      expect(screen.getByText('Allow')).toBeInTheDocument());
+    expect(screen.getByText('Deny')).toBeInTheDocument();
   });
 
   it('Request-erasure button opens the dialog and Close dismisses it', async () => {
@@ -325,7 +325,7 @@ describe('Compliance', () => {
     try {
       renderWithProviders(<Compliance />, { authApi });
       await waitFor(() =>
-        expect(screen.getByText('PENDING')).toBeInTheDocument());
+        expect(screen.getByText('Pending')).toBeInTheDocument());
       const user = userEvent.setup();
       const details = document.querySelectorAll('details');
       /* RowMenus on pending erasure row surface. */
@@ -367,7 +367,7 @@ describe('Compliance', () => {
       expect(screen.getByText(/No erasure requests yet/i))
         .toBeInTheDocument());
     expect(screen.getByText(/No anchors yet/i)).toBeInTheDocument();
-    /* SyncStatusBar label falls back to "Nominal" when 0 pending. */
-    expect(screen.getByText(/Nominal/)).toBeInTheDocument();
+    /* SyncStatusBar label falls back to "All clear" when 0 pending. */
+    expect(screen.getByText(/All clear/)).toBeInTheDocument();
   });
 });

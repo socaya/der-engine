@@ -71,13 +71,13 @@ export function Testing(): JSX.Element {
         title="Testing"
         statusLabel={
           s
-            ? `${s.last24hPass}/${s.last24hRuns} PASS 24 h · ${s.totalRuns} total`
-            : 'loading'
+            ? `${s.last24hPass}/${s.last24hRuns} passed in last 24 h · ${s.totalRuns} total`
+            : 'Loading'
         }
         subtitle={
           <span>
-            Operator-triggered chaos / load / soak / golden-deploy runs.
-            Durable history in <code>der.testing_run</code>.
+            Admin-triggered chaos, load, soak and golden-deploy runs. Every
+            run is kept in the testing history.
           </span>
         }
         actions={
@@ -110,8 +110,8 @@ export function Testing(): JSX.Element {
             {busy === 'SOAK' ? 'Running…' : 'Soak (2c · 5s)'}
           </button>
           <span className="ea-text-muted" style={{ alignSelf: 'center', fontSize: 12 }}>
-            Destructive scenarios (pg-restart, network-flap, golden-deploy) run via
-            <code> scripts/evaluation/{'{chaos,golden_deploy}.sh'}</code>.
+            Destructive scenarios (postgres restart, network outage, golden deploy)
+            run from the operator scripts in the DER evaluation toolkit.
           </span>
         </div>
       </Panel>
@@ -119,8 +119,8 @@ export function Testing(): JSX.Element {
       <Panel title={`Recent runs · ${runs.length}`}>
         {runs.length === 0 ? (
           <p className="ea-text-muted" style={{ margin: 0, padding: 10 }}>
-            No testing runs yet. Click a button above to trigger one, or run
-            <code> scripts/evaluation/golden_deploy.sh</code>.
+            No testing runs yet. Trigger one from the buttons above or from
+            the evaluation toolkit scripts.
           </p>
         ) : (
           <div className="ea-table-wrap">
@@ -143,13 +143,16 @@ export function Testing(): JSX.Element {
                 {runs.map((r) => (
                   <tr key={r.runId}>
                     <td className="ea-text-muted">{fmtAgo(r.startedAt)}</td>
-                    <td className="ea-mono">{r.kind}</td>
+                    <td className="ea-mono">{r.kind.charAt(0) + r.kind.slice(1).toLowerCase()}</td>
                     <td className="ea-mono ea-text-xs">{r.scenario}</td>
                     <td>
                       <Status tone={r.outcome === 'PASS' ? 'success'
                                      : r.outcome === 'FAIL' ? 'danger'
                                      : r.outcome === 'RUNNING' ? 'warning' : 'muted'}>
-                        {r.outcome}
+                        {r.outcome === 'PASS' ? 'Passed'
+                          : r.outcome === 'FAIL' ? 'Failed'
+                            : r.outcome === 'RUNNING' ? 'Running'
+                              : r.outcome === 'ABORTED' ? 'Aborted' : r.outcome}
                       </Status>
                     </td>
                     <td className="ea-mono">{r.durationMs != null ? r.durationMs + ' ms' : '—'}</td>

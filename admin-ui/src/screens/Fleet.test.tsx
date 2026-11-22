@@ -62,16 +62,15 @@ describe('Fleet screen', () => {
   });
   it('shows summary counts and both tables populated', async () => {
     renderWithProviders(<Fleet />);
-    await waitFor(() => expect(screen.getByText('Self')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Self').length).toBeGreaterThan(0));
     expect(screen.getByText(/2 edges · 1\/1 peers up 24 h/)).toBeInTheDocument();
     expect(screen.getByLabelText('Fleet roster')).toBeInTheDocument();
     expect(screen.getByLabelText('Peer health')).toBeInTheDocument();
-    expect(screen.getByText('SELF')).toBeInTheDocument();
-    expect(screen.getByText('PEER')).toBeInTheDocument();
+    expect(screen.getByText('Peer')).toBeInTheDocument();
     expect(screen.getByText('n-1')).toBeInTheDocument();
-    expect(screen.getByText('UP')).toBeInTheDocument();
-    expect(screen.getByText('DEGRADED')).toBeInTheDocument();
-    expect(screen.getByText('FAIL')).toBeInTheDocument();
+    expect(screen.getByText('Up')).toBeInTheDocument();
+    expect(screen.getByText('Degraded')).toBeInTheDocument();
+    expect(screen.getByText('Fail')).toBeInTheDocument();
     expect(screen.getByText('42 ms')).toBeInTheDocument();
     expect(screen.getByText('100 %')).toBeInTheDocument();
     expect(screen.getByText('0 %')).toBeInTheDocument();
@@ -80,13 +79,13 @@ describe('Fleet screen', () => {
     fetchSpy.mockImplementation(mockFetch(empty) as never);
     renderWithProviders(<Fleet />);
     await waitFor(() =>
-      expect(screen.getByText(/Fleet roster is empty/)).toBeInTheDocument());
+      expect(screen.getByText(/No edges discovered yet/)).toBeInTheDocument());
     expect(screen.getByText(/No peers configured/)).toBeInTheDocument();
     expect(screen.getByText(/0 edges · 0\/0 peers up 24 h/)).toBeInTheDocument();
   });
   it('refresh button re-fetches', async () => {
     renderWithProviders(<Fleet />);
-    await waitFor(() => expect(screen.getByText('Self')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Self').length).toBeGreaterThan(0));
     const before = fetchSpy.mock.calls.length;
     await userEvent.click(screen.getByLabelText('Refresh fleet'));
     await waitFor(() => expect(fetchSpy.mock.calls.length).toBeGreaterThan(before));
@@ -96,6 +95,6 @@ describe('Fleet screen', () => {
     renderWithProviders(<Fleet />);
     // No data loaded -> empty hints show up.
     await waitFor(() =>
-      expect(screen.getByText(/Fleet roster is empty/)).toBeInTheDocument());
+      expect(screen.getByText(/No edges discovered yet/)).toBeInTheDocument());
   });
 });
