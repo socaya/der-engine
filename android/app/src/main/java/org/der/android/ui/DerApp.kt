@@ -27,6 +27,7 @@ import org.der.android.feature.dataentry.DataEntryScreen
 import org.der.android.feature.devices.DevicesScreen
 import org.der.android.feature.devices.EnrolmentScreen
 import org.der.android.feature.settings.SettingsScreen
+import org.der.android.feature.workflow.WorkflowRunScreen
 import org.der.android.feature.workflow.WorkflowScreen
 import org.der.android.ui.home.HomeScreen
 import org.der.android.ui.peers.PeersScreen
@@ -96,7 +97,20 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
                     route = DerRoute.EventNew.pattern,
                     arguments = listOf(navArgument("programId") { type = NavType.StringType }),
                 ) { EventNewScreen(onSaved = { nav.popBackStack() }) }
-                composable(DerRoute.Workflow.path) { WorkflowScreen() }
+                composable(DerRoute.Workflow.path) {
+                    WorkflowScreen(
+                        onOpenStep = { runId, stepId ->
+                            nav.navigate(DerRoute.WorkflowRun.pathFor(runId, stepId))
+                        },
+                    )
+                }
+                composable(
+                    route = DerRoute.WorkflowRun.pattern,
+                    arguments = listOf(
+                        navArgument("runId") { type = NavType.StringType },
+                        navArgument("stepId") { type = NavType.StringType },
+                    ),
+                ) { WorkflowRunScreen(onDone = { nav.popBackStack() }) }
                 composable(DerRoute.Dashboard.path) { DashboardScreen() }
                 composable(DerRoute.Approvals.path) { ApprovalsScreen() }
                 composable(DerRoute.Peers.path) { PeersScreen() }
@@ -146,6 +160,10 @@ sealed class DerRoute(val path: String) {
         fun pathFor(programId: String) = "capture/event/$programId"
     }
     data object Workflow : DerRoute("workflow")
+    data object WorkflowRun : DerRoute("workflow/{runId}/{stepId}") {
+        const val pattern = "workflow/{runId}/{stepId}"
+        fun pathFor(runId: String, stepId: String) = "workflow/$runId/$stepId"
+    }
     data object Dashboard : DerRoute("dashboard")
     data object Approvals : DerRoute("approvals")
     data object Peers : DerRoute("peers")

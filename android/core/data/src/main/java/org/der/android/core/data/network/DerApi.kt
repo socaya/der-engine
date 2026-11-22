@@ -115,6 +115,27 @@ interface DerApi {
     suspend fun submitTrackerEvent(
         @Body body: TrackerEventDto,
     ): Response<ImportSummaryDto>
+
+    // ── Distributed workflow (ADR-0022..0026, §2.3.58..§2.3.104) ──────
+
+    @GET("edge-api/v1/workflows/queue")
+    suspend fun workflowQueue(
+        @Query("deviceId") deviceId: String? = null,
+        @Query("allDevices") allDevices: Boolean = true,
+    ): Response<WorkflowQueueDto>
+
+    @GET("edge-api/v1/workflows/runs/{runId}")
+    suspend fun getWorkflowRun(@Path("runId") runId: String): Response<WorkflowRunDto>
+
+    @GET("edge-api/v1/workflows/runs/{runId}/readiness")
+    suspend fun getRunReadiness(@Path("runId") runId: String): Response<RunReadinessDto>
+
+    @POST("edge-api/v1/workflows/runs/{runId}/steps/{stepId}/contribute")
+    suspend fun contributeStep(
+        @Path("runId") runId: String,
+        @Path("stepId") stepId: String,
+        @Body body: ContributeStepRequestDto,
+    ): Response<ContributeStepResponseDto>
 }
 
 @Serializable
@@ -360,4 +381,64 @@ data class TrackerEventDto(
     val status: String = "ACTIVE",
     val occurredDate: String,
     val dataValues: Map<String, String> = emptyMap(),
+)
+
+// Workflow DTOs — distributed service-point enforcement.
+
+@Serializable
+data class WorkflowQueueDto(
+    val rows: List<WorkflowQueueRowDto> = emptyList(),
+    val appliedDeviceId: String? = null,
+    val deviceScopeSource: String? = null,
+)
+
+@Serializable
+data class WorkflowQueueRowDto(
+    val runId: String,
+    val workflowId: String,
+    val workflowName: String? = null,
+    val businessKey: String,
+    val stepId: String,
+    val stepOrdinal: Int,
+    val stepName: String? = null,
+    val ownerRole: String? = null,
+    val ownerDeviceId: String? = null,
+    val readiness: String,
+    val runCreatedAt: String? = null,
+    val runUpdatedAt: String? = null,
+    val validationErrorCount: Int = 0,
+)
+
+@Serializable
+data class WorkflowRunDto(
+    val runId: String,
+    val workflowId: String,
+    val workflowVersion: Int? = null,
+    val businessKey: String,
+    val state: String,
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
+    @SerialName("submissionJournalOpId") val submissionJournalOpId: String? = null,
+    @SerialName("submissionError") val submissionError: String? = null,
+)
+
+@Serializable
+data class RunReadinessDto(
+    // Map<stepId, readiness-name>. Preserved as a raw string map so
+    // unknown enum values (future server-side additions) don't break
+    // the client decode — the client narrows to known values.
+    val steps: Map<String, String> = emptyMap(),
+)
+
+@Serializable
+data class ContributeStepRequestDto(
+    val payload: String,
+    val deviceId: String? = null,
+)
+
+@Serializable
+data class ContributeStepResponseDto(
+    val run: WorkflowRunDto? = null,
+    val completed: Boolean = false,
+    val readiness: Map<String, String> = emptyMap(),
 )
