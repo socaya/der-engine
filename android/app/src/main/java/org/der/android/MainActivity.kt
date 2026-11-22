@@ -14,6 +14,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import org.der.android.core.auth.AppearancePreference
 import org.der.android.design.DerTheme
 import org.der.android.design.DerThemeMode
+import org.der.android.notifications.DerNotifications
 import org.der.android.ui.DerApp
 import javax.inject.Inject
 
@@ -25,14 +26,18 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        val requestedRoute = intent?.getStringExtra(DerNotifications.EXTRA_ROUTE)
         setContent {
-            ThemedDerApp(appearance)
+            ThemedDerApp(appearance, initialRoute = requestedRoute)
         }
     }
 }
 
 @Composable
-private fun ThemedDerApp(appearance: AppearancePreference) {
+private fun ThemedDerApp(
+    appearance: AppearancePreference,
+    initialRoute: String? = null,
+) {
     val mode by appearance.themeMode.collectAsState(initial = AppearancePreference.THEME_SYSTEM)
     val locale by appearance.localeTag.collectAsState(initial = AppearancePreference.LOCALE_SYSTEM)
     LaunchedEffect(locale) {
@@ -49,7 +54,7 @@ private fun ThemedDerApp(appearance: AppearancePreference) {
         }
     }
     DerTheme(mode = parseMode(mode)) {
-        DerApp()
+        DerApp(initialDeepLink = initialRoute)
     }
 }
 

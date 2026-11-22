@@ -32,6 +32,17 @@ interface CaptureJournalDao {
     fun observeCountByStatus(status: String = CaptureJournalEntity.STATUS_PENDING): Flow<Int>
 
     @Query("""
+        SELECT sentAt FROM capture_journal
+         WHERE status = :sent AND sentAt IS NOT NULL
+           AND sentAt >= :sinceMillis
+         ORDER BY sentAt ASC
+    """)
+    fun observeSentSince(
+        sinceMillis: Long,
+        sent: String = CaptureJournalEntity.STATUS_SENT,
+    ): Flow<List<Long>>
+
+    @Query("""
         UPDATE capture_journal
            SET status = :pending, lastError = NULL, sentAt = NULL
          WHERE id = :id

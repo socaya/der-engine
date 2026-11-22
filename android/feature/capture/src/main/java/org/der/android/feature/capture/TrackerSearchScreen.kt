@@ -26,8 +26,17 @@ import org.der.android.core.domain.TrackedEntity
 fun TrackerSearchScreen(
     onEnrolNewPatient: () -> Unit,
     onOpenTei: (teiUid: String) -> Unit,
+    onScanBarcode: () -> Unit = {},
+    scanResult: String? = null,
+    onConsumeScanResult: () -> Unit = {},
     viewModel: TrackerSearchViewModel = hiltViewModel(),
 ) {
+    androidx.compose.runtime.LaunchedEffect(scanResult) {
+        if (!scanResult.isNullOrBlank()) {
+            viewModel.onOrgUnit(scanResult)
+            onConsumeScanResult()
+        }
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
@@ -57,6 +66,10 @@ fun TrackerSearchScreen(
             ) {
                 Text(if (state.loading) "Searching…" else "Search")
             }
+            androidx.compose.material3.OutlinedButton(
+                onClick = onScanBarcode,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Scan patient barcode") }
             androidx.compose.material3.OutlinedButton(
                 onClick = onEnrolNewPatient,
                 modifier = Modifier.fillMaxWidth(),

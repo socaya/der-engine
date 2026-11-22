@@ -45,6 +45,7 @@ class IncomingFrameConsumer @Inject constructor(
     private val mesh: PeerMesh,
     private val identity: DeviceIdentity,
     private val workflowRepository: Lazy<WorkflowRepository>,
+    private val nudgePresenter: NudgePresenter,
 ) {
     data class Nudge(
         val resource: String,
@@ -113,6 +114,18 @@ class IncomingFrameConsumer @Inject constructor(
                 autoApplied = autoApplied,
             ),
         )
+
+        // System-level notification so operators see the handoff
+        // even when the app is backgrounded or the Workflow tile
+        // isn't foregrounded. Auto-applied frames still notify so
+        // the operator knows the baton landed.
+        if (resource == "workflow" && action == "run-advance") {
+            nudgePresenter.presentHandoff(
+                fromDevice = frame.from,
+                runId = runId,
+                stepId = stepId,
+            )
+        }
     }
 
     private suspend fun autoApply(

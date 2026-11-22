@@ -77,6 +77,13 @@ fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel()) {
             )
 
             Text(
+                "Captures this week",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            ActivityChart(state.activity)
+
+            Text(
                 "Recent work",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
@@ -161,6 +168,89 @@ private fun RecentRow(entry: CapturePending) {
             Text(
                 text = "attempts: ${entry.attempts}" +
                     (entry.lastError?.let { " · $it" } ?: ""),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActivityChart(days: List<DashboardViewModel.Day>) {
+    val total = days.sumOf { it.sentCount }
+    if (days.isEmpty() || total == 0) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            tonalElevation = 1.dp,
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text = "Nothing sent in the last 7 days.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(14.dp),
+            )
+        }
+        return
+    }
+    val max = days.maxOf { it.sentCount }.coerceAtLeast(1)
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        tonalElevation = 1.dp,
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            androidx.compose.foundation.layout.Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.Bottom,
+            ) {
+                days.forEach { d ->
+                    androidx.compose.foundation.layout.Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = if (d.sentCount == 0) " " else d.sentCount.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        androidx.compose.foundation.layout.Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height((80f * (d.sentCount / max.toFloat())).dp
+                                    .coerceAtLeast(4.dp))
+                                .background(
+                                    color = if (d.sentCount == 0)
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                    else MaterialTheme.colorScheme.primary,
+                                    shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp),
+                                ),
+                        )
+                    }
+                }
+            }
+            androidx.compose.foundation.layout.Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                days.forEach { d ->
+                    Text(
+                        text = d.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                }
+            }
+            Text(
+                text = "$total sent",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -42,7 +42,10 @@ import org.der.android.ui.sync.SyncScreen
  * so a cold start with a cached session skips SignIn.
  */
 @Composable
-fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
+fun DerApp(
+    initialDeepLink: String? = null,
+    viewModel: SessionGateViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     when (val s = state) {
         SessionGateViewModel.State.Loading -> SplashBox()
@@ -52,6 +55,16 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
                 SessionGateViewModel.Start.SIGN_IN -> DerRoute.SignIn.path
                 SessionGateViewModel.Start.UNLOCK -> DerRoute.Unlock.path
                 SessionGateViewModel.Start.HOME -> DerRoute.Home.path
+            }
+            // Honor cold-start deep-link once the nav graph is set
+            // up. We pin the launcher at Home first so Back still
+            // goes to a sensible place.
+            androidx.compose.runtime.LaunchedEffect(initialDeepLink, start) {
+                if (!initialDeepLink.isNullOrBlank()
+                    && start == DerRoute.Home.path
+                    && initialDeepLink in DEEP_LINK_ALLOW) {
+                    nav.navigate(initialDeepLink)
+                }
             }
             NavHost(navController = nav, startDestination = start) {
                 composable(DerRoute.SignIn.path) {
@@ -110,13 +123,34 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
                     arguments = listOf(navArgument("programId") { type = NavType.StringType }),
                 ) { backStackEntry ->
                     val programId = backStackEntry.arguments?.getString("programId").orEmpty()
+                    val scanned by backStackEntry.savedStateHandle
+                        .getStateFlow(SCAN_RESULT_KEY, "")
+                        .collectAsStateWithLifecycle()
                     TrackerSearchScreen(
+                        scanResult = scanned.takeIf { it.isNotBlank() },
+                        onConsumeScanResult = {
+                            backStackEntry.savedStateHandle[SCAN_RESULT_KEY] = ""
+                        },
                         onEnrolNewPatient = {
                             nav.navigate(DerRoute.TrackerEnrol.pathFor(programId))
                         },
                         onOpenTei = { teiUid ->
                             nav.navigate(DerRoute.TeiDetail.pathFor(programId, teiUid))
                         },
+                        onScanBarcode = {
+                            nav.navigate(DerRoute.BarcodeScan.path)
+                        },
+                    )
+                }
+                composable(DerRoute.BarcodeScan.path) {
+                    org.der.android.ui.scan.BarcodeScanScreen(
+                        title = "Scan patient barcode",
+                        onDecoded = { decoded ->
+                            nav.previousBackStackEntry?.savedStateHandle
+                                ?.set(SCAN_RESULT_KEY, decoded)
+                            nav.popBackStack()
+                        },
+                        onDismiss = { nav.popBackStack() },
                     )
                 }
                 composable(
@@ -231,6 +265,16 @@ private fun SplashBox() {
     }
 }
 
+/** Whitelist for notification-driven deep-link routes.
+ *  Prevents a rogue intent from routing anywhere it pleases. */
+private val DEEP_LINK_ALLOW = setOf(
+    "workflow", "dashboard", "approvals", "sync", "capture", "data-entry",
+)
+
+/** Nav-level SavedStateHandle key for passing a scanned barcode
+ *  back to the requesting screen. */
+private const val SCAN_RESULT_KEY = "scanResult"
+
 sealed class DerRoute(val path: String) {
     data object SignIn : DerRoute("sign-in")
     data object Unlock : DerRoute("unlock")
@@ -282,4 +326,5 @@ sealed class DerRoute(val path: String) {
     data object Devices : DerRoute("devices")
     data object Settings : DerRoute("settings")
     data object QrScan : DerRoute("settings/qr-scan")
+    data object BarcodeScan : DerRoute("scan")
 }
