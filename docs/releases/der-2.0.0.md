@@ -63,7 +63,7 @@ status by initiative:
 2. `pg_dump` the DER database (recommended).
 3. Deploy the new artifact; Flyway finds no new migrations in 2.0.0.
 4. Operators building the Android client run
-   `cd client && npm run build && cd ../android && npx cap add android`
+   `cd client && npm run build && cd ../android-capacitor && npx cap add android`
    (first-time only).
 
 The Android project is scaffold-only in 2.0.0 — do not expect a

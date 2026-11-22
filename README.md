@@ -199,6 +199,7 @@ The ADR catalogue has grown to 37 records. Highlights:
 | [ADR-0035](docs/architecture/decisions/0035-pull-write-interlock.md) | Pull-write interlock | Accepted |
 | [ADR-0036](docs/architecture/decisions/0036-capture-form-api.md) | Capture-form API | Accepted |
 | [ADR-0037](docs/architecture/decisions/0037-dhis2-app-signing-policy.md) | DHIS2 app signing policy | Accepted |
+| [ADR-0041](docs/architecture/decisions/0041-native-android-client.md) | Native Android client (Kotlin + Compose) | Accepted |
 
 Full ADR index: [`docs/architecture/decisions/`](docs/architecture/decisions/).
 

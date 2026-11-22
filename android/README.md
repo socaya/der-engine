@@ -1,80 +1,115 @@
-# DER Android (Capacitor wrap)
+# DER Android (native)
 
-Capacitor wrap over the DER client PWA (ADR-0030, extended under
-ADR-0037 C-UI-5d). The Android app is a thin Chromium WebView
-around the same PWA that runs in browsers; every C-UI-5 capability
-(importmap-resolved vendor chunks, Blob-URL dynamic ESM imports
-for DER-dispatched apps, Ed25519 WebCrypto signature verify) works
-inside the WebView without any native code change.
+Native Kotlin + Jetpack Compose client for DER. Per **ADR-0041** this
+is the primary Android client for CHW capture, facility-operator
+dashboards, supervisor approvals and device admin. The Capacitor wrap
+lives at [`../android-capacitor`](../android-capacitor/) and remains
+supported for operator read-mostly scenarios.
 
-## C-UI-5 compatibility
+## Status
 
-| Capability | Chromium requirement | Status |
-|---|---|---|
-| `<script type="importmap">` in index.html | Chrome 89+ | ✅ shipped |
-| Dynamic ESM `import(Blob URL)` for app bundles | Chrome 63+ | ✅ shipped |
-| `crypto.subtle.importKey('raw', …, 'Ed25519', …)` | Chrome 113+ | ✅ shipped |
-| IndexedDB (`der-apps` store) for bundle cache | Chrome 11+ | ✅ shipped |
-| Service worker + PWA cache | Chrome 40+ | ✅ shipped |
+**Phase 1 — scaffold.** Compose + Hilt + Navigation wired up; sign-in
++ home screens render; unit tests green. Subsequent phases bring QR
+enrol, aggregate + tracker capture, dashboards, approvals and device
+admin. See ADR-0041 §Phased delivery for the roadmap.
 
-Android 10+ ships Chromium ≥ 128 via the system WebView component
-(auto-updated through Google Play Services), so the signed-bundle
-dispatch pipeline runs unmodified. Operators running
-Android < 10 (WebView < 113) will see AppHost surface a
-`SIGNING_KEY_UNAVAILABLE` on the first bundle load — the shell
-itself stays usable; signed-bundle apps don't execute.
+## Prerequisites
 
-## First-time setup
+- JDK 17 (project `kotlinOptions.jvmTarget = "17"`)
+- Android SDK with platform `android-35` and build-tools 35.x
+- Android Studio **Ladybug** (2024.2.1) or newer for the IDE experience
+- A DER edge running on a URL this app can reach:
+  - Emulator against your laptop: `http://10.0.2.2:8085` (default)
+  - Real device on the same Wi-Fi: your laptop's LAN IP, e.g.
+    `http://192.168.1.42:8085`
+  - Production: the deployed DER HTTPS origin
 
-```sh
-cd client && npm run build            # emits dist/vendor/*.js + dist/assets/*
-cd ../android && npm install
-npx cap add android                   # generates android/android/
-npx cap sync android                  # copies client/dist into Android assets
-npx cap open android                  # opens Android Studio
+Override the baked-in URL in `local.properties`:
+
+```properties
+der.server.url=http://192.168.1.42:8085
 ```
 
-`npm run build` inside `client/` runs `scripts/build-vendor.mjs` +
-`scripts/build-apps.mjs` through its `prebuild` hook, so
-`client/dist/vendor/*.js` and every `apps/<name>/dist/bundle.js`
-end up in the APK's web assets automatically.
-
-### Pointing at a non-local DER
+## Build + run
 
 ```sh
-# Device on same LAN as the laptop
-DER_ANDROID_SERVER_URL=http://192.168.1.42:8085 \
-  npx cap sync android
-
-# Production
-DER_ANDROID_SERVER_URL=https://der.example.org \
-  npx cap sync android
+cd android
+./gradlew :app:assembleDebug           # build the debug APK
+./gradlew :app:installDebug            # install on the connected device/emulator
+./gradlew test                         # run all unit tests
+./gradlew :app:lintDebug               # Android lint
 ```
 
-`capacitor.config.ts` reads the env var into `server.url`; all PWA
-`fetch('/edge-api/*')` calls resolve against it.
+The first build downloads the Gradle wrapper + the Android Gradle
+Plugin; expect a few minutes. Subsequent builds are incremental.
 
-## Updating (after a PWA change)
+## DER concepts (non-negotiable)
 
-```sh
-cd client && npm run build
-cd ../android && npm run build        # alias: cap copy + cap sync
+Per ADR-0041 the Android client **must** strictly implement DER
+concepts, not generic Android patterns:
+
+- **Inbuilt DER Data Entry** (`feature/dataentry`) — aggregate
+  dataset capture for HMIS-style reporting.
+- **Inbuilt DER Capture** (`feature/capture`) — tracker + event
+  capture for individual-level programs, with client-side program
+  rules.
+- **Distributed workflows across service points**
+  (`feature/workflow`) — Reception → Triage → Clinician → Lab →
+  Pharmacy → Exit routing. Tiles are gated by the server's
+  workflow `READY/BLOCKED/PENDING` semantics; only steps the
+  current user's service-point role can perform are enabled.
+- **Offline-first journal mirror** (`core/offline` + `core/sync`) —
+  every capture writes locally first; a WorkManager chain drains
+  to the edge when online.
+
+## Module layout
+
+```
+android/
+  app/                    # Application + MainActivity + root nav
+  core/
+    data/                 # Retrofit services, Room, DataStore, repos
+    domain/               # Pure Kotlin models + use-cases
+    design/               # DER Material 3 theme (tokens.css mirror)
+    sync/                 # WorkManager drain → pull → reconcile
+    offline/              # Journal mirror, conflict replay
+    auth/                 # Session, QR enrol, biometric unlock
+  feature/
+    dataentry/            # DER Data Entry (aggregate datasets)
+    capture/              # DER Capture (tracker + events)
+    workflow/             # Service-point workflow routing + run enforcement
+    dashboard/            # Facility-operator read-mostly views
+    approvals/            # Supervisor workflow queue + referrals
+    devices/              # Enrol + admin tasks
+    settings/             # Local config, server URL, about
 ```
 
-Debug builds use Capacitor's default debug keystore. Release
-signing is operator-driven — see Android's keystore docs +
-`./gradlew bundleRelease`.
+## Screens → web-client parity
 
-## Known gaps (future alphas)
+| Web client screen (`client/src/screens/`) | Android module |
+|---|---|
+| `SignIn`, `signin/*` | `app/ui/signin` |
+| `DerHome` | `app/ui/home` (Phase 3 → feature/dashboard) |
+| `AggregateDatasetPicker`, `AggregateEntry` | `feature/dataentry` |
+| `EventList`, `EventNew`, `ProgramPicker` | `feature/capture` |
+| `TrackerSearch`, `TrackerDashboard`, `EnrollmentCreate` | `feature/capture` |
+| `CaptureRunList`, `CaptureRunForm`, `ScheduledEvents` | `feature/workflow` |
+| `SyncStatus`, `NetworkStatus`, `Dhis2Status`, `RecentWork` | `feature/dashboard` |
+| `OfflineQueue`, `Drafts` | `feature/capture` + `core/offline` |
+| `SubmittedReview` | `feature/approvals` |
+| `SessionDetails`, `DevicePeers` | `feature/devices` |
 
-- **Native bundle cache (`@capacitor/filesystem`).** Bundles
-  currently live in IndexedDB — a filesystem-backed store would
-  survive WebView data wipes. Nice-to-have, not required for MVP.
-- **Biometric unlock** (`@capacitor/biometric-auth`): deferred.
-- **Native file picker** for admin bundle upload: deferred —
-  admin-ui is browser-only in alpha.
-- **APK auto-update**: deferred to a later release.
+## Testing
 
-See ADR-0030 for scope + non-goals and
-`docs/ui/der-client-ui-enhancement-plan.md` §C-UI-5d for the
-roll-out plan.
+- **Unit:** `./gradlew test` — JUnit 4 + MockK + Turbine.
+- **Compose UI (Phase 2+):** `./gradlew :app:connectedDebugAndroidTest`
+- Each feature module owns its own `src/test` + `src/androidTest`
+  tree. The app module hosts cross-module integration tests.
+
+## Related
+
+- ADR-0041 `docs/architecture/decisions/0041-native-android-client.md`
+- ADR-0030 (Capacitor wrap, now scope-limited to admin read-mostly)
+- ADR-0036 (capture-form API — the backend contract this client
+  consumes)
+- ADR-0019 (edge device management — QR enrol pipeline)

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Nothing is auto-backed-up. CHW data is journal-synced to the edge. -->
+    <exclude domain="root" />
+</full-backup-content>

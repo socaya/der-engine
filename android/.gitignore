@@ -1,0 +1,23 @@
+# Gradle build outputs
+.gradle/
+build/
+*/build/
+**/build/
+
+# Local tooling and IDE
+local.properties
+.idea/
+*.iml
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Keystore secrets — never commit
+*.jks
+*.keystore
+
+# Lint + test reports
+lint-report/
+reports/
+test-results/
