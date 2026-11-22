@@ -130,7 +130,21 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
                 composable(DerRoute.Sync.path) { SyncScreen() }
                 composable(DerRoute.Devices.path) { DevicesScreen() }
                 composable(DerRoute.Settings.path) {
-                    SettingsScreen(onWiped = { nav.replaceWith(DerRoute.SignIn) })
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    SettingsScreen(
+                        onWiped = { nav.replaceWith(DerRoute.SignIn) },
+                        onFeedback = { payload ->
+                            org.der.android.ui.settings.FeedbackComposer.launch(
+                                context = context,
+                                appVersion = payload.appVersion,
+                                deviceId = payload.deviceId,
+                                userAgent = payload.userAgent,
+                                username = payload.username,
+                                pendingCaptures = payload.pendingCaptures,
+                                serverUrl = payload.serverUrl,
+                            )
+                        },
+                    )
                 }
             }
         }

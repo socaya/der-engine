@@ -181,7 +181,7 @@ the next starts; no half-finished scaffolding on main.
 | 8 | Approvals + referral inbox | Supervisor can approve/reject; referral accept at next service point; audit events |
 | 9 | Device admin + settings | Server URL, logs, diagnostics, clear local data |
 | 10 | Hardening + release ✅ | Biometric unlock preference + prompt, release signing config, AAB target for Play |
-| 11 | Beta with real devices | 5+ devices in pilot site; crash-free session rate ≥ 99% |
+| 11 | Beta with real devices ⏳ | Engineering shipped (crash log, feedback composer, runbook, release notes); field exercise in progress per `docs/operations/android-pilot-runbook.md` |
 
 ### Non-goals (for this ADR)
 

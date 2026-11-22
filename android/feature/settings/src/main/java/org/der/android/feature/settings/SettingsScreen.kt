@@ -31,9 +31,19 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
+data class FeedbackPayload(
+    val appVersion: String,
+    val deviceId: String,
+    val userAgent: String,
+    val username: String?,
+    val pendingCaptures: Int,
+    val serverUrl: String,
+)
+
 @Composable
 fun SettingsScreen(
     onWiped: () -> Unit = {},
+    onFeedback: ((FeedbackPayload) -> Unit)? = null,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -105,6 +115,23 @@ fun SettingsScreen(
                 KeyValue("User agent", state.userAgent)
                 KeyValue("Signed in as", state.username ?: "—")
                 KeyValue("Pending captures", state.pendingCaptures.toString())
+                onFeedback?.let { send ->
+                    OutlinedButton(
+                        onClick = {
+                            send(
+                                FeedbackPayload(
+                                    appVersion = state.appVersion,
+                                    deviceId = state.deviceId,
+                                    userAgent = state.userAgent,
+                                    username = state.username,
+                                    pendingCaptures = state.pendingCaptures,
+                                    serverUrl = state.serverUrl,
+                                ),
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Send feedback to support") }
+                }
             }
 
             SectionCard(title = "Danger zone") {
