@@ -13,6 +13,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import org.der.android.feature.devices.EnrolmentScreen
 import org.der.android.ui.home.HomeScreen
 import org.der.android.ui.signin.SignInScreen
 
@@ -34,6 +35,25 @@ fun DerApp(viewModel: SessionGateViewModel = hiltViewModel()) {
                         onSignedIn = {
                             nav.navigate(DerRoute.Home.path) {
                                 popUpTo(DerRoute.SignIn.path) { inclusive = true }
+                            }
+                        },
+                        onDeviceNotApproved = {
+                            nav.navigate(DerRoute.Enrolment.path) {
+                                popUpTo(DerRoute.SignIn.path) { inclusive = true }
+                            }
+                        },
+                    )
+                }
+                composable(DerRoute.Enrolment.path) {
+                    EnrolmentScreen(
+                        onApproved = {
+                            nav.navigate(DerRoute.Home.path) {
+                                popUpTo(DerRoute.Enrolment.path) { inclusive = true }
+                            }
+                        },
+                        onSignedOut = {
+                            nav.navigate(DerRoute.SignIn.path) {
+                                popUpTo(DerRoute.Enrolment.path) { inclusive = true }
                             }
                         },
                     )
@@ -63,5 +83,6 @@ private fun SplashBox() {
 
 sealed class DerRoute(val path: String) {
     data object SignIn : DerRoute("sign-in")
+    data object Enrolment : DerRoute("enrolment")
     data object Home : DerRoute("home")
 }

@@ -41,6 +41,7 @@ object NetworkModule {
     fun provideOkHttp(
         @ApplicationContext context: Context,
         cookieJar: DerCookieJar,
+        deviceHeader: DeviceHeaderInterceptor,
     ): OkHttpClient {
         val cacheDir = context.cacheDir.resolve("der-http")
         val logging = HttpLoggingInterceptor().apply {
@@ -55,6 +56,7 @@ object NetworkModule {
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .cookieJar(cookieJar)
+            .addInterceptor(deviceHeader)
             .addInterceptor(logging)
             .build()
     }

@@ -29,6 +29,7 @@ class SignInViewModel @Inject constructor(
         val submitting: Boolean = false,
         val error: String? = null,
         val signedIn: Boolean = false,
+        val deviceNotApproved: Boolean = false,
     ) {
         val canSubmit: Boolean
             get() = !submitting && username.isNotBlank() && password.isNotBlank()
@@ -51,10 +52,10 @@ class SignInViewModel @Inject constructor(
                 when (result) {
                     is SignInResult.Success ->
                         it.copy(submitting = false, signedIn = true)
+                    is SignInResult.DeviceNotApproved ->
+                        it.copy(submitting = false, deviceNotApproved = true)
                     SignInResult.InvalidCredentials ->
                         it.copy(submitting = false, error = "Username or password is wrong.")
-                    is SignInResult.DeviceNotApproved ->
-                        it.copy(submitting = false, error = "This device hasn’t been approved yet. Scan the enrolment QR and ask an admin to approve it.")
                     is SignInResult.ServerUnreachable ->
                         it.copy(submitting = false, error = "Can’t reach this DER edge. Check Wi-Fi + server URL.")
                     is SignInResult.Unknown ->

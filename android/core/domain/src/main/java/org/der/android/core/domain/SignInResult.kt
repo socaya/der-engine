@@ -5,9 +5,9 @@ package org.der.android.core.domain
  * UI layer can pattern-match without reaching for exception handling.
  */
 sealed interface SignInResult {
-    data class Success(val session: Session) : SignInResult
+    data class Success(val session: Session, val enrolment: DeviceEnrolment) : SignInResult
     data object InvalidCredentials : SignInResult
     data class ServerUnreachable(val reason: String) : SignInResult
-    data class DeviceNotApproved(val deviceId: String) : SignInResult
+    data class DeviceNotApproved(val enrolment: DeviceEnrolment) : SignInResult
     data class Unknown(val reason: String) : SignInResult
 }

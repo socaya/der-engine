@@ -16,6 +16,8 @@ import org.der.android.core.data.network.DerApi
 import org.der.android.core.data.network.DerCookieJar
 import org.der.android.core.data.network.SignInRequestDto
 import org.der.android.core.data.network.SignInResponseDto
+import org.der.android.core.domain.DeviceEnrolment
+import org.der.android.core.domain.EnrolmentStatus
 import org.der.android.core.domain.Session
 import org.der.android.core.domain.SignInResult
 import java.io.IOException
@@ -38,6 +40,7 @@ class SessionRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val api: DerApi,
     private val cookieJar: DerCookieJar,
+    private val enrolment: EnrolmentRepository,
     private val json: Json,
 ) {
     val session: Flow<Session?> =
@@ -51,13 +54,15 @@ class SessionRepository @Inject constructor(
             response.isSuccessful && response.body() != null -> {
                 val session = response.body()!!.toDomain()
                 persist(session)
-                SignInResult.Success(session)
+                val enrol = enrolment.enrolIfNeeded()
+                if (enrol.status == EnrolmentStatus.APPROVED) {
+                    SignInResult.Success(session, enrol)
+                } else {
+                    SignInResult.DeviceNotApproved(enrol)
+                }
             }
             response.code() == 401 -> SignInResult.InvalidCredentials
-            response.code() == 403 -> {
-                val deviceId = response.headers()["X-DER-Device-Id"] ?: ""
-                SignInResult.DeviceNotApproved(deviceId)
-            }
+            response.code() == 403 -> SignInResult.DeviceNotApproved(enrolment.refreshStatus())
             else -> SignInResult.Unknown("HTTP ${response.code()}")
         }
     } catch (io: IOException) {

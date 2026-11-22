@@ -40,11 +40,15 @@ import org.der.android.design.DerTheme
 @Composable
 fun SignInScreen(
     onSignedIn: () -> Unit,
+    onDeviceNotApproved: () -> Unit,
     viewModel: SignInViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(state.signedIn) {
-        if (state.signedIn) onSignedIn()
+    LaunchedEffect(state.signedIn, state.deviceNotApproved) {
+        when {
+            state.signedIn -> onSignedIn()
+            state.deviceNotApproved -> onDeviceNotApproved()
+        }
     }
     SignInContent(
         state = state,
