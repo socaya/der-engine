@@ -1,32 +1,167 @@
 package org.der.android.feature.dashboard
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.background
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.der.android.core.domain.CapturePending
 
 /**
- * Phase 3 landing for the Dashboard module. Real screens arrive in a
- * later phase per ADR-0041; keeping a Composable here makes the
- * navigation graph usable end-to-end today.
+ * DER Dashboard — read-mostly rollup of edge reachability, local
+ * capture queue, peer mesh and recent work. Mirrors the composition
+ * of `client/src/screens/SyncStatus + NetworkStatus + Dhis2Status +
+ * RecentWork` into one surface because mobile screens prefer fewer
+ * tap targets.
  */
 @Composable
-fun DashboardScreen() {
+fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel()) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text("Dashboard", style = MaterialTheme.typography.headlineSmall)
+
+            StatusCard(
+                title = "Edge",
+                tone = if (state.edgeReachable) Tone.Good else Tone.Bad,
+                headline = if (state.edgeReachable) "Reachable" else "Offline",
+                subtitle = state.edgeLastError ?: "The DER edge probes every 10 seconds.",
+            )
+
+            StatusCard(
+                title = "Sync queue",
+                tone = when {
+                    state.pending == 0 -> Tone.Good
+                    state.pending < 10 -> Tone.Info
+                    else -> Tone.Warn
+                },
+                headline = if (state.pending == 0) "All sent" else "${state.pending} pending",
+                subtitle = "Captures drain when online. Tap Drain now to try immediately.",
+                action = { Button(onClick = viewModel::drainNow) { Text("Drain now") } },
+            )
+
+            StatusCard(
+                title = "Peers",
+                tone = if (state.peers > 0) Tone.Good else Tone.Info,
+                headline = if (state.peers == 0) "No peers yet" else "${state.peers} connected",
+                subtitle = "Device-to-device sessions on this clinic LAN (DPP/1 over WebRTC).",
+            )
+
             Text(
-                text = "Sync + network + recent-work views land in the next phase.",
-                style = MaterialTheme.typography.bodyLarge,
+                "Recent work",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (state.recent.isEmpty()) {
+                Text(
+                    text = "Nothing captured on this device yet.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                state.recent.forEach { RecentRow(it) }
+            }
+        }
+    }
+}
+
+private enum class Tone { Good, Info, Warn, Bad }
+
+@Composable
+private fun StatusCard(
+    title: String,
+    tone: Tone,
+    headline: String,
+    subtitle: String,
+    action: (@Composable () -> Unit)? = null,
+) {
+    val color = when (tone) {
+        Tone.Good -> MaterialTheme.colorScheme.primary
+        Tone.Info -> MaterialTheme.colorScheme.secondary
+        Tone.Warn -> MaterialTheme.colorScheme.tertiary
+        Tone.Bad -> MaterialTheme.colorScheme.error
+    }
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        tonalElevation = 1.dp,
+        shadowElevation = 1.dp,
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 6.dp)
+                    .size(10.dp)
+                    .background(color = color, shape = CircleShape),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(headline, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            action?.let {
+                Spacer(Modifier.height(0.dp))
+                it()
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentRow(entry: CapturePending) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        tonalElevation = 1.dp,
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(entry.summary, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = "attempts: ${entry.attempts}" +
+                    (entry.lastError?.let { " · $it" } ?: ""),
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
