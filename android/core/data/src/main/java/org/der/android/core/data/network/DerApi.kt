@@ -7,6 +7,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 /**
  * Retrofit interface mirroring the DER edge-api auth + devices surface.
@@ -29,6 +30,39 @@ interface DerApi {
 
     @GET("edge-api/v1/devices/{id}")
     suspend fun getDevice(@Path("id") id: String): Response<DeviceDto>
+
+    // ── WebRTC signalling broker (ADR-0038 — DPP/1 rides the data channel) ──
+
+    @POST("edge-api/v1/webrtc/offer")
+    suspend fun offerSession(@Body body: WebRtcOfferDto): Response<WebRtcSessionIdDto>
+
+    @POST("edge-api/v1/webrtc/{sessionId}/answer")
+    suspend fun answerSession(
+        @Path("sessionId") sessionId: String,
+        @Body body: WebRtcAnswerDto,
+    ): Response<Unit>
+
+    @POST("edge-api/v1/webrtc/{sessionId}/complete")
+    suspend fun completeSession(@Path("sessionId") sessionId: String): Response<Unit>
+
+    @GET("edge-api/v1/webrtc/pending")
+    suspend fun pendingSessions(@Query("deviceId") deviceId: String): Response<WebRtcSessionListDto>
+
+    @GET("edge-api/v1/webrtc/{sessionId}")
+    suspend fun getSession(@Path("sessionId") sessionId: String): Response<WebRtcSessionDto>
+
+    @POST("edge-api/v1/webrtc/{sessionId}/ice")
+    suspend fun postIceCandidate(
+        @Path("sessionId") sessionId: String,
+        @Body body: WebRtcIceDto,
+    ): Response<WebRtcIceIdDto>
+
+    @GET("edge-api/v1/webrtc/{sessionId}/ice")
+    suspend fun pollIceCandidates(
+        @Path("sessionId") sessionId: String,
+        @Query("deviceId") deviceId: String,
+        @Query("since") since: Long = 0L,
+    ): Response<WebRtcIceListDto>
 }
 
 @Serializable
@@ -72,3 +106,58 @@ data class DeviceDto(
     val enrolledAt: String? = null,
     val approvedAt: String? = null,
 )
+
+// WebRTC signalling DTOs — match WebRtcController field-for-field.
+
+@Serializable
+data class WebRtcOfferDto(
+    val initiatorDevice: String,
+    val responderDevice: String,
+    val sdpOffer: String,
+    val kind: String? = "data",
+)
+
+@Serializable
+data class WebRtcSessionIdDto(val sessionId: String)
+
+@Serializable
+data class WebRtcAnswerDto(val sdpAnswer: String)
+
+@Serializable
+data class WebRtcSessionDto(
+    val sessionId: String,
+    val initiatorDevice: String,
+    val responderDevice: String,
+    val state: String,
+    val sdpOffer: String? = null,
+    val sdpAnswer: String? = null,
+    val createdAt: String? = null,
+    val kind: String? = null,
+)
+
+@Serializable
+data class WebRtcSessionListDto(val sessions: List<WebRtcSessionDto> = emptyList())
+
+@Serializable
+data class WebRtcIceDto(
+    val fromDevice: String,
+    val candidate: String,
+    val sdpMid: String? = null,
+    val sdpMLineIndex: Int? = null,
+)
+
+@Serializable
+data class WebRtcIceIdDto(val candidateId: Long)
+
+@Serializable
+data class WebRtcIceCandidateDto(
+    val candidateId: Long,
+    val candidate: String,
+    val fromDevice: String,
+    val sdpMid: String? = null,
+    val sdpMLineIndex: Int? = null,
+    val receivedAt: String? = null,
+)
+
+@Serializable
+data class WebRtcIceListDto(val candidates: List<WebRtcIceCandidateDto> = emptyList())
